@@ -5,6 +5,9 @@
 
 #include "TestDrawTargetD2D.h"
 
+using namespace mozilla;
+using namespace mozilla::gfx;
+
 void D2DFlush(void* aTest)
 {
   TestDrawTargetD2D* test = static_cast<TestDrawTargetD2D*>(aTest);
@@ -36,5 +39,12 @@ void
 TestDrawTargetD2D::Flush()
 {
   mDT->Flush();
-  mDevice->Flush();
+
+  RefPtr<ID3D10Query> query;
+  D3D10_QUERY_DESC desc;
+  desc.Query = D3D10_QUERY_EVENT;
+  desc.MiscFlags = 0;
+  mDevice->CreateQuery(&desc, byRef(query));
+  query->End();
+  while (query->GetData(nullptr, 0, 0) == S_FALSE) {}
 }

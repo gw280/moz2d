@@ -31,16 +31,30 @@ public:
   void FillRect200x200x500Add();
   void FillRect200x200x2000Add();
   void CreateGradientStops();
-  void CreateSourceSurfaceForData();
+  void CreateSourceSurfaceForData100x100();
+  void CreateSourceSurfaceForData200x200();
+  void CreateSourceSurfaceForData500x500();
   void FillRadialSimple();
   void FillRadialComplex();
+  void FillRadialSimpleUncached();
+  void FillRadialComplexUncached();
+  void DrawTransparentSurfaceUnscaled();
+  void DrawTransparentSurfaceScaled();
+  void DrawOpaqueSurfaceUnscaled();
+  void DrawOpaqueSurfaceScaled();
 
 protected:
   FlushFunc mFlush;
 
   TestDrawTargetBase();
 
+  void Flush() {
+    if (mFlush) mFlush(this);
+  }
+
   void FillSquare(int aSize, int aRepeat, mozilla::gfx::CompositionOp aOp = mozilla::gfx::OP_OVER);
+  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, bool aAlpha);
+  mozilla::TemporaryRef<mozilla::gfx::GradientStops> CreateSimpleGradientStops();
 
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
 };

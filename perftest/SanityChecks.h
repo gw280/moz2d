@@ -13,5 +13,5 @@ public:
   SanityChecks();
 
   void Instantaneous();
-  void TakeFiveSeconds();
+  void TakeOneSecond();
 };

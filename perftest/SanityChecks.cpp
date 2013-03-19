@@ -8,7 +8,7 @@
 SanityChecks::SanityChecks()
 {
   REGISTER_TEST(SanityChecks, Instantaneous);
-  REGISTER_TEST(SanityChecks, TakeFiveSeconds);
+  REGISTER_TEST(SanityChecks, TakeOneSecond);
 }
 
 void
@@ -17,7 +17,7 @@ SanityChecks::Instantaneous()
 }
 
 void
-SanityChecks::TakeFiveSeconds()
+SanityChecks::TakeOneSecond()
 {
-  SleepMS(5000);
+  SleepMS(1000);
 }

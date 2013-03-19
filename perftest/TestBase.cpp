@@ -6,8 +6,11 @@
 #include "TestBase.h"
 
 #include <sstream>
+#include <math.h>
 
 using namespace std;
+
+const int sN = 10;
 
 int
 TestBase::RunTests()
@@ -18,16 +21,35 @@ TestBase::RunTests()
     stringstream stream;
     stream << "Test (" << mTests[i].name << "): ";
 
-    HighPrecisionMeasurement timer;
+    double *data = new double[sN + 1];
+    double average = 0;
 
-    timer.Start();
-    // Don't try this at home! We know these are actually pointers to members
-    // of child clases, so we reinterpret cast those child class pointers to
-    // TestBase and then call the functions. Because the compiler believes
-    // these function calls are members of TestBase.
-    ((*reinterpret_cast<TestBase*>((mTests[i].implPointer))).*(mTests[i].funcCall))();
+    for (int c = 0; c < (sN + 1); c++) {
+      HighPrecisionMeasurement timer;
 
-    stream << timer.Measure() << " ms\n";
+      timer.Start();
+      // Don't try this at home! We know these are actually pointers to members
+      // of child clases, so we reinterpret cast those child class pointers to
+      // TestBase and then call the functions. Because the compiler believes
+      // these function calls are members of TestBase.
+      ((*reinterpret_cast<TestBase*>((mTests[i].implPointer))).*(mTests[i].funcCall))();
+
+      data[c] = timer.Measure();
+      if (c > 0) {
+        average += data[c];
+      }
+    }
+
+    average /= sN;
+
+    double sqDiffSum = 0;
+    for (int c = 1; c < sN + 1; c++) {
+      sqDiffSum += pow(data[c] - average, 2);
+    }
+
+    sqDiffSum /= sN;
+
+    stream << " " << average << "ms +/- " << (2 * sqrt(sqDiffSum)) << "\n";
 
     LogMessage(stream.str());
 
