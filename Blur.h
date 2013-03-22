@@ -5,8 +5,8 @@
 #ifndef MOZILLA_GFX_BLUR_H_
 #define MOZILLA_GFX_BLUR_H_
 
-#include "mozilla/gfx/Rect.h"
-#include "mozilla/gfx/Point.h"
+#include "Rect.h"
+#include "Point.h"
 #include "mozilla/CheckedInt.h"
 
 namespace mozilla {

@@ -894,6 +894,13 @@ DrawTargetCairo::Init(cairo_surface_t* aSurface, const IntSize& aSize)
   return InitAlreadyReferenced(aSurface, aSize);
 }
 
+bool
+DrawTargetCairo::Init(const IntSize& aSize, SurfaceFormat aFormat)
+{
+  cairo_surface_t *surf = cairo_image_surface_create(GfxFormatToCairoFormat(aFormat), aSize.width, aSize.height);
+  return InitAlreadyReferenced(surf, aSize);
+}
+
 void *
 DrawTargetCairo::GetNativeSurface(NativeSurfaceType aType)
 {

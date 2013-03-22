@@ -6,8 +6,8 @@
 
 #include "Logging.h"
 #include "SourceSurfaceSkia.h"
-#include "skia/SkBitmap.h"
-#include "skia/SkDevice.h"
+#include "skia/include/core/SkBitmap.h"
+#include "skia/include/core/SkDevice.h"
 #include "HelpersSkia.h"
 #include "DrawTargetSkia.h"
 

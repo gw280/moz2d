@@ -135,6 +135,7 @@ public:
   virtual void *GetNativeSurface(NativeSurfaceType aType);
 
   bool Init(cairo_surface_t* aSurface, const IntSize& aSize);
+  bool Init(const IntSize& aSize, SurfaceFormat aFormat);
 
   void SetPathObserver(CairoPathContext* aPathObserver);
 

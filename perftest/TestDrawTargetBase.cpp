@@ -5,6 +5,7 @@
 
 #include "TestDrawTargetBase.h"
 #include <sstream>
+#include "Tools.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -17,6 +18,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, FillRect200x200x500);
   REGISTER_TEST(TestDrawTargetBase, FillRect50x50x2000);
   REGISTER_TEST(TestDrawTargetBase, FillRect200x200x2000);
+  REGISTER_TEST(TestDrawTargetBase, FillRect800x800x2000);
   REGISTER_TEST(TestDrawTargetBase, FillRect50x50x500Add);
   REGISTER_TEST(TestDrawTargetBase, FillRect200x200x500Add);
   REGISTER_TEST(TestDrawTargetBase, FillRect50x50x2000Add);
@@ -29,10 +31,23 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, FillRadialComplex);
   REGISTER_TEST(TestDrawTargetBase, FillRadialSimpleUncached);
   REGISTER_TEST(TestDrawTargetBase, FillRadialComplexUncached);
+  REGISTER_TEST(TestDrawTargetBase, DrawTransparentSurfaceUnscaledAligned);
   REGISTER_TEST(TestDrawTargetBase, DrawTransparentSurfaceUnscaled);
   REGISTER_TEST(TestDrawTargetBase, DrawTransparentSurfaceScaled);
+  REGISTER_TEST(TestDrawTargetBase, DrawOpaqueSurfaceUnscaledAligned);
   REGISTER_TEST(TestDrawTargetBase, DrawOpaqueSurfaceUnscaled);
   REGISTER_TEST(TestDrawTargetBase, DrawOpaqueSurfaceScaled);
+  REGISTER_TEST(TestDrawTargetBase, StrokeRectThin);
+  REGISTER_TEST(TestDrawTargetBase, StrokeRectThick);
+  REGISTER_TEST(TestDrawTargetBase, StrokeCurveThin);
+  REGISTER_TEST(TestDrawTargetBase, StrokeCurveThinUncached);
+  REGISTER_TEST(TestDrawTargetBase, StrokeCurveThick);
+  REGISTER_TEST(TestDrawTargetBase, MaskSurface100x100);
+  REGISTER_TEST(TestDrawTargetBase, MaskSurface500x500);
+  REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10SmallRadius);
+  REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200SmallRadius);
+  REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
+  REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
 }
 
 void
@@ -66,6 +81,12 @@ void
 TestDrawTargetBase::FillRect200x200x2000()
 {
   FillSquare(200, 2000);
+}
+
+void
+TestDrawTargetBase::FillRect800x800x2000()
+{
+  FillSquare(800, 2000);
 }
 
 void
@@ -124,7 +145,7 @@ TestDrawTargetBase::CreateSourceSurfaceForData200x200()
   unsigned char *surfData = new unsigned char[200 * 200 * 4];
 
   for (int i = 0; i < 200; i++) {
-    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(200, 200), 400, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(200, 200), 800, FORMAT_B8G8R8A8);
   }
 
   delete [] surfData;
@@ -183,9 +204,19 @@ TestDrawTargetBase::FillRadialComplexUncached()
 }
 
 void
+TestDrawTargetBase::DrawTransparentSurfaceUnscaledAligned()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurface(surf, Rect(i, i, 400, 400), Rect(0, 0, 400, 400));
+  }
+  Flush();
+}
+
+void
 TestDrawTargetBase::DrawTransparentSurfaceUnscaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, true);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -195,7 +226,7 @@ TestDrawTargetBase::DrawTransparentSurfaceUnscaled()
 void
 TestDrawTargetBase::DrawTransparentSurfaceScaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, true);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 500, 500), Rect(0, 0, 400, 400));
   }
@@ -203,9 +234,19 @@ TestDrawTargetBase::DrawTransparentSurfaceScaled()
 }
 
 void
+TestDrawTargetBase::DrawOpaqueSurfaceUnscaledAligned()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurface(surf, Rect(i, i, 400, 400), Rect(0, 0, 400, 400));
+  }
+  Flush();
+}
+
+void
 TestDrawTargetBase::DrawOpaqueSurfaceUnscaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, false);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -215,19 +256,154 @@ TestDrawTargetBase::DrawOpaqueSurfaceUnscaled()
 void
 TestDrawTargetBase::DrawOpaqueSurfaceScaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, false);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 500, 500), Rect(0, 0, 400, 400));
   }
   Flush();
 }
 
-TemporaryRef<SourceSurface>
-TestDrawTargetBase::CreateSquareRandomSourceSurface(int aSize, bool aAlpha)
+void
+TestDrawTargetBase::StrokeRectThin()
 {
-  unsigned char *surfData = new unsigned char[aSize * aSize * 4];
+  for (int i = 0; i < 500; i++) {
+    mDT->StrokeRect(Rect(30, 30, 200, 200), ColorPattern(Color(0, 0, 0, 1)), StrokeOptions(1.0f));
+  }
+  Flush();
+}
 
-  RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(aSize, aSize), aSize * 4, aAlpha ? FORMAT_B8G8R8A8 : FORMAT_B8G8R8X8);
+void
+TestDrawTargetBase::StrokeRectThick()
+{
+  for (int i = 0; i < 500; i++) {
+    mDT->StrokeRect(Rect(30, 30, 200, 200), ColorPattern(Color(0, 0, 0, 1)), StrokeOptions(30.0f));
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::StrokeCurveThin()
+{
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+  builder->MoveTo(Point(30, 30));
+  builder->BezierTo(Point(600, 50), Point(-100, 400), Point(700, 700));
+  RefPtr<Path> path = builder->Finish();
+  for (int i = 0; i < 500; i++) {
+    mDT->Stroke(path, ColorPattern(Color(0, 0, 0, 1)), StrokeOptions(1.0f));
+  }
+  Flush();
+}  
+
+void
+TestDrawTargetBase::StrokeCurveThinUncached()
+{
+  for (int i = 0; i < 500; i++) {
+    RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+    builder->MoveTo(Point(30, 30));
+    builder->BezierTo(Point(600, 50), Point(-100, 400), Point(700, 700));
+    RefPtr<Path> path = builder->Finish();
+    mDT->Stroke(path, ColorPattern(Color(0, 0, 0, 1)), StrokeOptions(1.0f));
+  }
+  Flush();
+}  
+
+void
+TestDrawTargetBase::StrokeCurveThick()
+{
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+  builder->MoveTo(Point(30, 30));
+  builder->BezierTo(Point(600, 50), Point(-100, 400), Point(700, 700));
+  RefPtr<Path> path = builder->Finish();
+  for (int i = 0; i < 500; i++) {
+    mDT->Stroke(path, ColorPattern(Color(0, 0, 0, 1)), StrokeOptions(30.0f));
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::MaskSurface100x100()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(100, FORMAT_B8G8R8A8);
+  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(100, FORMAT_A8);
+  for (int i = 0; i < 200; i++) {
+    mDT->PushClipRect(Rect(0, 0, 100, 100));
+    mDT->Mask(SurfacePattern(surf, EXTEND_CLAMP), SurfacePattern(mask, EXTEND_CLAMP));
+    mDT->PopClip();
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::MaskSurface500x500()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(500, FORMAT_B8G8R8A8);
+  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(500, FORMAT_A8);
+  for (int i = 0; i < 200; i++) {
+    mDT->PushClipRect(Rect(0, 0, 500, 500));
+    mDT->Mask(SurfacePattern(surf, EXTEND_CLAMP), SurfacePattern(mask, EXTEND_CLAMP));
+    mDT->PopClip();
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawShadow10x10SmallRadius()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), FORMAT_B8G8R8A8, 3.0f);
+  dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
+  surf = dt->Snapshot();
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, OP_OVER);
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawShadow200x200SmallRadius()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8, 3.0f);
+  dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
+  surf = dt->Snapshot();
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, OP_OVER);
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawShadow10x10LargeRadius()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), FORMAT_B8G8R8A8, 20.0f);
+  dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
+  surf = dt->Snapshot();
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, OP_OVER);
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawShadow200x200LargeRadius()
+{
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8, 20.0f);
+  dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
+  surf = dt->Snapshot();
+  for (int i = 0; i < 200; i++) {
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, OP_OVER);
+  }
+  Flush();
+}
+
+TemporaryRef<SourceSurface>
+TestDrawTargetBase::CreateSquareRandomSourceSurface(int aSize, SurfaceFormat aFormat)
+{
+  unsigned char *surfData = new unsigned char[aSize * aSize * BytesPerPixel(aFormat)];
+
+  RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(aSize, aSize), aSize * BytesPerPixel(aFormat), aFormat);
 
   delete [] surfData;
 

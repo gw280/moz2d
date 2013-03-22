@@ -7,6 +7,12 @@
 #ifdef WIN32
 #include "TestDrawTargetD2D.h"
 #endif
+#ifdef USE_SKIA
+#include "TestDrawTargetSkiaSoftware.h"
+#endif
+#ifdef USE_CAIRO
+#include "TestDrawTargetCairoImage.h"
+#endif
 
 #include <string>
 #include <sstream>
@@ -25,9 +31,15 @@ main()
   TestObject tests[] = 
   {
     { new SanityChecks(), "Sanity Checks" },
-  #ifdef WIN32
+#ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
-  #endif
+#endif
+#ifdef USE_SKIA
+    { new TestDrawTargetSkiaSoftware(), "DrawTarget (Skia Software)" },
+#endif
+#ifdef USE_CAIRO
+    { new TestDrawTargetCairoImage(), "DrawTarget (Cairo Image)" },
+#endif
   };
 
   int totalFailures = 0;
@@ -44,7 +56,7 @@ main()
     // Done with this test!
     delete tests[i].test;
   }
-  message << "------ FINISHED RUNNING TESTS ------\nTests run: " << totalTests << " - Passes: " << totalTests - totalFailures << " - Failures: " << totalFailures << "\n";
+  message << "------ FINISHED RUNNING TESTS ------\nTests run: " << totalTests << "\n";
   printf(message.str().c_str());
   return totalFailures;
 }

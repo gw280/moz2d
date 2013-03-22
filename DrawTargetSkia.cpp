@@ -6,16 +6,16 @@
 #include "DrawTargetSkia.h"
 #include "SourceSurfaceSkia.h"
 #include "ScaledFontBase.h"
-#include "skia/SkDevice.h"
-#include "skia/SkGpuDevice.h"
-#include "skia/SkTypeface.h"
-#include "skia/SkGradientShader.h"
-#include "skia/SkBlurDrawLooper.h"
-#include "skia/SkBlurMaskFilter.h"
-#include "skia/SkColorFilter.h"
-#include "skia/SkLayerRasterizer.h"
-#include "skia/SkLayerDrawLooper.h"
-#include "skia/SkDashPathEffect.h"
+#include "skia/include/core/SkDevice.h"
+#include "skia/include/gpu/SkGpuDevice.h"
+#include "skia/include/core/SkTypeface.h"
+#include "skia/include/effects/SkGradientShader.h"
+#include "skia/include/effects/SkBlurDrawLooper.h"
+#include "skia/include/effects/SkBlurMaskFilter.h"
+#include "skia/include/core/SkColorFilter.h"
+#include "skia/include/effects/SkLayerRasterizer.h"
+#include "skia/include/effects/SkLayerDrawLooper.h"
+#include "skia/include/effects/SkDashPathEffect.h"
 #include "Logging.h"
 #include "HelpersSkia.h"
 #include "Tools.h"
@@ -597,6 +597,7 @@ DrawTargetSkia::Init(const IntSize &aSize, SurfaceFormat aFormat)
 void
 DrawTargetSkia::InitWithFBO(unsigned int aFBOID, GrContext* aGrContext, const IntSize &aSize, SurfaceFormat aFormat)
 {
+#ifdef HAVE_SKIA_GPU
   GrPlatformRenderTargetDesc targetDescriptor;
 
   targetDescriptor.fWidth = aSize.width;
@@ -614,6 +615,7 @@ DrawTargetSkia::InitWithFBO(unsigned int aFBOID, GrContext* aGrContext, const In
   mDevice = device.get();
   mCanvas = canvas.get();
   mFormat = aFormat;
+#endif
 }
 
 void

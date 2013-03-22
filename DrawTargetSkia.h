@@ -5,10 +5,10 @@
 
 #pragma once
 
-#include "skia/GrContext.h"
-#include "skia/SkCanvas.h"
-#include "skia/GrContext.h"
-#include "skia/GrGLInterface.h"
+#include "skia/include/gpu/GrContext.h"
+#include "skia/include/core/SkCanvas.h"
+#include "skia/include/gpu/GrContext.h"
+#include "skia/include/gpu/gl/GrGLInterface.h"
 #include "2D.h"
 #include "Rect.h"
 #include "PathSkia.h"

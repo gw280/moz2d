@@ -26,6 +26,7 @@ public:
   void FillRect50x50x2000();
   void FillRect200x200x500();
   void FillRect200x200x2000();
+  void FillRect800x800x2000();
   void FillRect50x50x500Add();
   void FillRect50x50x2000Add();
   void FillRect200x200x500Add();
@@ -38,10 +39,23 @@ public:
   void FillRadialComplex();
   void FillRadialSimpleUncached();
   void FillRadialComplexUncached();
+  void DrawTransparentSurfaceUnscaledAligned();
   void DrawTransparentSurfaceUnscaled();
   void DrawTransparentSurfaceScaled();
+  void DrawOpaqueSurfaceUnscaledAligned();
   void DrawOpaqueSurfaceUnscaled();
   void DrawOpaqueSurfaceScaled();
+  void StrokeRectThin();
+  void StrokeRectThick();
+  void StrokeCurveThin();
+  void StrokeCurveThinUncached();
+  void StrokeCurveThick();
+  void MaskSurface100x100();
+  void MaskSurface500x500();
+  void DrawShadow10x10SmallRadius();
+  void DrawShadow200x200SmallRadius();
+  void DrawShadow10x10LargeRadius();
+  void DrawShadow200x200LargeRadius();
 
 protected:
   FlushFunc mFlush;
@@ -53,7 +67,7 @@ protected:
   }
 
   void FillSquare(int aSize, int aRepeat, mozilla::gfx::CompositionOp aOp = mozilla::gfx::OP_OVER);
-  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, bool aAlpha);
+  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, mozilla::gfx::SurfaceFormat aFormat);
   mozilla::TemporaryRef<mozilla::gfx::GradientStops> CreateSimpleGradientStops();
 
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
