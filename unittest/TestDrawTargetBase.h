@@ -29,7 +29,7 @@ protected:
 
   void VerifyAllPixels(const mozilla::gfx::Color &aColor);
   void VerifyPixel(const mozilla::gfx::IntPoint &aPoint,
-                   mozilla::gfx::Color &aColor);
+                   const mozilla::gfx::Color &aColor);
 
   uint32_t RGBAPixelFromColor(const mozilla::gfx::Color &aColor);
 

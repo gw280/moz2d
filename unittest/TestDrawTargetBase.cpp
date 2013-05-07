@@ -73,7 +73,7 @@ TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
 }
 
 void
-TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, mozilla::gfx::Color &aColor)
+TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const Color &aColor)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
