@@ -15,6 +15,10 @@ MOZ2D_CPPSRCS += \
   $(NULL)
 
 UNITTEST_CPPSRCS += \
+  unittest/TestDrawTargetCairoImage.cpp \
+  $(NULL)
+
+PERFTEST_CPPSRCS += \
   perftest/TestDrawTargetCairoImage.cpp \
   $(NULL)
 

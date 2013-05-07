@@ -9,6 +9,9 @@
 #ifdef WIN32
 #include "TestDrawTargetD2D.h"
 #endif
+#ifdef USE_CAIRO
+#include "TestDrawTargetCairoImage.h"
+#endif
 
 #include <string>
 #include <sstream>
@@ -29,6 +32,9 @@ main()
     { new SanityChecks(), "Sanity Checks" },
   #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
+  #endif
+  #ifdef USE_CAIRO
+    { new TestDrawTargetCairoImage(), "DrawTarget (Cairo Image)" },
   #endif
     { new TestPoint(), "Point Tests" },
     { new TestScaling(), "Scaling Tests" }

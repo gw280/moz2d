@@ -49,6 +49,7 @@ PERFTEST_CPPSRCS_ALLPLATFORMS = \
   perftest/Main.cpp \
   perftest/SanityChecks.cpp \
   perftest/TestBase.cpp \
+  perftest/TestDrawTargetBase.cpp
   $(NULL)
 
 UNITTEST_CPPSRCS_ALLPLATFORMS = \
