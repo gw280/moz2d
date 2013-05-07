@@ -1,0 +1,6 @@
+MOZ2D_CPPSRCS += \
+  DrawTargetSkia.cpp \
+  PathSkia.cpp \
+  SourceSurfaceSkia.cpp \
+  $(NULL)
+

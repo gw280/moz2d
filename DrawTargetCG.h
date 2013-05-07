@@ -9,7 +9,7 @@
 #include "Rect.h"
 #include "PathCG.h"
 #include "SourceSurfaceCG.h"
-#include "GLDefs.h"
+#include "QuartzSupport.h"
 
 namespace mozilla {
 namespace gfx {

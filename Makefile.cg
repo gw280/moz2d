@@ -1,0 +1,10 @@
+# XP_MACOSX is analogous for CG
+DEFINES += XP_MACOSX
+
+MOZ2D_CPPSRCS += \
+  DrawTargetCG.cpp \
+  SourceSurfaceCG.cpp \
+  ScaledFontMac.cpp \
+  PathCG.cpp \
+  $(NULL)
+

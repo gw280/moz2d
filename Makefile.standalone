@@ -1,0 +1,105 @@
+# High level targets
+.PHONY: release debug clean
+
+OBJDIR_RELEASE=release
+OBJDIR_DEBUG=debug
+INCLUDES=.
+CXXFLAGS=$(addprefix -I,$(INCLUDES)) -std=gnu++0x
+DEFINES=
+
+# TODO: Files that depends on mozilla:
+#./gfx/thebes/gfxFont.h
+#convolver.cpp
+#image_operations.cpp
+
+MOZ2D_CPPSRCS_ALLPLATFORMS = \
+  Blur.cpp \
+  BlurSSE2.cpp \
+  DrawEventRecorder.cpp \
+  DrawTargetDual.cpp \
+  DrawTargetRecording.cpp \
+  Factory.cpp \
+  ImageScaling.cpp \
+  ImageScalingSSE2.cpp \
+  Matrix.cpp \
+  PathRecording.cpp \
+  RecordedEvent.cpp \
+  Rect.cpp \
+  Scale.cpp \
+  ScaledFontBase.cpp \
+  SourceSurfaceRawData.cpp \
+  $(NULL)
+
+# TODO:
+#unittest/TestDrawTargetBase.cpp
+
+TESTING_CPPSRS_ALLPLATFORMS = \
+  unittest/SanityChecks.cpp \
+  unittest/TestBase.cpp \
+  unittest/TestPoint.cpp \
+  unittest/TestScaling.cpp \
+  unittest/Main.cpp \
+  $(NULL)
+
+MOZ2D_CPPSRCS = $(MOZ2D_CPPSRCS_ALLPLATFORMS)
+TESTING_CPPSRS = $(TESTING_CPPSRS_ALLPLATFORMS)
+
+# ================ OS FEATURES ================
+UNAME = $(shell uname)
+ifeq ($(UNAME),Darwin)
+LIBS += -framework CoreFoundation
+endif
+
+# ================ INCLUDE FEATURE SPECIFIC MAKEFILES =================
+# These will modify the following variables:
+#   TESTING_CPPSRS
+#   MOZ2D_CPPSRCS
+#   DEFINES
+#
+ifdef MOZ2D_D2D
+ -include Makefile.d2d
+endif
+ifdef MOZ2D_CG
+ -include Makefile.cg
+endif
+ifdef MOZ2D_CAIRO
+ -include Makefile.cairo
+endif
+  
+CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRS)
+
+RELEASE_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(CPPSRCS))
+DEBUG_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(CPPSRCS))
+COMPILER_DEFINES = $(addprefix -D,$(DEFINES))
+
+-include $(RELEASE_CPPSRCS:.cpp=.d)
+-include $(DEBUG_CPPSRCS:.cpp=.d)
+
+release: $(RELEASE_CPPSRCS:.cpp=.o) $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/.mkdir.done
+
+debug: $(DEBUG_CPPSRCS:.cpp=.o) $(OBJDIR_DEBUG)/unittest/unittest $(OBJDIR_DEBUG)/.mkdir.done
+
+$(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_CPPSRCS:.cpp=.o)
+	echo $(UNAME)
+	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o release/unittest/unittest
+
+clean:
+	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
+
+
+
+
+# ================== IMPLICIT RULES ===========================
+
+%/.mkdir.done:
+	mkdir -p $(dir $@)/unittest
+	mkdir -p $@
+
+$(OBJDIR_RELEASE)/%.o: %.cpp $(OBJDIR_RELEASE)/.mkdir.done
+	$(CXX) -c $(COMPILER_DEFINES) $(CXXFLAGS) -o $@ $<
+	$(CXX) -MM $(COMPILER_DEFINES) $(CXXFLAGS) -o $(@:.o=.d) $<
+
+$(OBJDIR_DEBUG)/%.o: %.cpp $(OBJDIR_DEBUG)/.mkdir.done
+	$(CXX) $(COMPILER_DEFINES) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) -MM $(COMPILER_DEFINES) $(CXXFLAGS) -o $(@:.o=.d) $<
+
