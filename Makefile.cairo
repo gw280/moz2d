@@ -14,3 +14,7 @@ MOZ2D_CPPSRCS += \
   SourceSurfaceCairo.cpp \
   $(NULL)
 
+TESTING_CPPSRCS += \
+  perftest/TestDrawTargetCairoImage.cpp \
+  $(NULL)
+

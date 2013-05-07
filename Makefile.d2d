@@ -1,7 +1,7 @@
 
 # TODO FontWin belong here?
 
-MOZ2D_CPPSRCS +=
+MOZ2D_CPPSRCS += \
   DrawTargetD2D.cpp \
   PathD2D.cpp \
   SourceSurfaceD2D.cpp \

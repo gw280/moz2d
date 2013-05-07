@@ -4,7 +4,7 @@
 OBJDIR_RELEASE=release
 OBJDIR_DEBUG=debug
 INCLUDES=.
-CXXFLAGS=$(addprefix -I,$(INCLUDES)) -std=gnu++0x
+CXXFLAGS=-g $(addprefix -I,$(INCLUDES)) -std=gnu++0x
 DEFINES=
 
 # TODO: Files that depends on mozilla:
@@ -33,7 +33,14 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
 # TODO:
 #unittest/TestDrawTargetBase.cpp
 
-TESTING_CPPSRS_ALLPLATFORMS = \
+PERFTEST_CPPSRCS_ALLPLATFORMS = \
+  perftest/Main.cpp \
+  perftest/SanityChecks.cpp \
+  perftest/TestBase.cpp \
+  perftest/TestDrawTargetBase.cpp \
+  $(NULL)
+
+UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/SanityChecks.cpp \
   unittest/TestBase.cpp \
   unittest/TestPoint.cpp \
@@ -42,7 +49,8 @@ TESTING_CPPSRS_ALLPLATFORMS = \
   $(NULL)
 
 MOZ2D_CPPSRCS = $(MOZ2D_CPPSRCS_ALLPLATFORMS)
-TESTING_CPPSRS = $(TESTING_CPPSRS_ALLPLATFORMS)
+UNITTEST_CPPSRCS = $(UNITTEST_CPPSRCS_ALLPLATFORMS)
+PERFTEST_CPPSRCS = $(PERFTEST_CPPSRCS_ALLPLATFORMS)
 
 # ================ OS FEATURES ================
 UNAME = $(shell uname)
@@ -52,7 +60,7 @@ endif
 
 # ================ INCLUDE FEATURE SPECIFIC MAKEFILES =================
 # These will modify the following variables:
-#   TESTING_CPPSRS
+#   TESTING_CPPSRCS
 #   MOZ2D_CPPSRCS
 #   DEFINES
 #
@@ -66,22 +74,28 @@ ifdef MOZ2D_CAIRO
  -include Makefile.cairo
 endif
   
-CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRS)
+CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRCS) $(PERFTEST_CPPSRCS)
+PRE_PERFTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(PERFTEST_CPPSRCS)
+PRE_UNITTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRCS)
 
 RELEASE_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(CPPSRCS))
 DEBUG_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(CPPSRCS))
+RELEASE_PERFTEST_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_PERFTEST_CPPSRCS))
+DEBUG_UNITTEST_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_UNITTEST_CPPSRCS))
 COMPILER_DEFINES = $(addprefix -D,$(DEFINES))
 
 -include $(RELEASE_CPPSRCS:.cpp=.d)
 -include $(DEBUG_CPPSRCS:.cpp=.d)
 
-release: $(RELEASE_CPPSRCS:.cpp=.o) $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/.mkdir.done
+release: $(RELEASE_CPPSRCS:.cpp=.o) $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest $(OBJDIR_RELEASE)/.mkdir.done
 
-debug: $(DEBUG_CPPSRCS:.cpp=.o) $(OBJDIR_DEBUG)/unittest/unittest $(OBJDIR_DEBUG)/.mkdir.done
+debug: $(DEBUG_CPPSRCS:.cpp=.o) $(OBJDIR_DEBUG)/unittest/unittest $(OBJDIR_DEBUG)/perftest/perftest $(OBJDIR_DEBUG)/.mkdir.done
 
 $(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_CPPSRCS:.cpp=.o)
-	echo $(UNAME)
-	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o release/unittest/unittest
+	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/unittest/unittest
+
+$(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_CPPSRCS:.cpp=.o)
+	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/perftest/perftest
 
 clean:
 	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
@@ -92,6 +106,7 @@ clean:
 # ================== IMPLICIT RULES ===========================
 
 %/.mkdir.done:
+	mkdir -p $(dir $@)/perftest
 	mkdir -p $(dir $@)/unittest
 	mkdir -p $@
 
