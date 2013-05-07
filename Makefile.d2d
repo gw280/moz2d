@@ -10,7 +10,7 @@ MOZ2D_CPPSRCS += \
   ScaledFontWin.cpp \
   $(NULL)
 
-TESTING_CPPSRS += \
+UNITTEST_CPPSRS += \
   unittest/TestDrawTargetD2D.cpp \
   $(NULL)
 

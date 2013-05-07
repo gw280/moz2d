@@ -30,14 +30,25 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   SourceSurfaceRawData.cpp \
   $(NULL)
 
-# TODO:
-#unittest/TestDrawTargetBase.cpp
+RECORDER_CPPSRCS_ALLPLATFORMS = \
+  player2d/TreeItems.cpp \
+  player2d/displaymanager.cpp \
+  player2d/drawtargetview.cpp \
+  player2d/drawtargetwidget.cpp \
+  player2d/gradientstopsview.cpp \
+  player2d/main.cpp \
+  player2d/mainwindow.cpp \
+  player2d/playbackmanager.cpp \
+  player2d/redundancyanalysis.cpp \
+  player2d/sourcesurfaceview.cpp \
+  player2d/surfaceview.cpp \
+  $(NULL)
 
+#perftest/TestDrawTargetBase.cpp
 PERFTEST_CPPSRCS_ALLPLATFORMS = \
   perftest/Main.cpp \
   perftest/SanityChecks.cpp \
   perftest/TestBase.cpp \
-  perftest/TestDrawTargetBase.cpp \
   $(NULL)
 
 UNITTEST_CPPSRCS_ALLPLATFORMS = \
@@ -46,9 +57,11 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/TestPoint.cpp \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
+  unittest/TestDrawTargetBase.cpp
   $(NULL)
 
 MOZ2D_CPPSRCS = $(MOZ2D_CPPSRCS_ALLPLATFORMS)
+RECORDER_CPPSRCS = $(RECORDER_CPPSRCS_ALLPLATFORMS)
 UNITTEST_CPPSRCS = $(UNITTEST_CPPSRCS_ALLPLATFORMS)
 PERFTEST_CPPSRCS = $(PERFTEST_CPPSRCS_ALLPLATFORMS)
 
@@ -74,28 +87,47 @@ ifdef MOZ2D_CAIRO
  -include Makefile.cairo
 endif
   
-CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRCS) $(PERFTEST_CPPSRCS)
+CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS) $(PERFTEST_CPPSRCS)
 PRE_PERFTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(PERFTEST_CPPSRCS)
-PRE_UNITTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(TESTING_CPPSRCS)
+PRE_UNITTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS)
 
 RELEASE_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(CPPSRCS))
 DEBUG_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(CPPSRCS))
 RELEASE_PERFTEST_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_PERFTEST_CPPSRCS))
+DEBUG_PERFTEST_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_PERFTEST_CPPSRCS))
+RELEASE_RECORDER_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_RECORDER_CPPSRCS))
+DEBUG_RECORDER_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_RECORDER_CPPSRCS))
+RELEASE_UNITTEST_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_UNITTEST_CPPSRCS))
 DEBUG_UNITTEST_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_UNITTEST_CPPSRCS))
 COMPILER_DEFINES = $(addprefix -D,$(DEFINES))
 
 -include $(RELEASE_CPPSRCS:.cpp=.d)
 -include $(DEBUG_CPPSRCS:.cpp=.d)
 
-release: $(RELEASE_CPPSRCS:.cpp=.o) $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest $(OBJDIR_RELEASE)/.mkdir.done
+release: \
+  $(RELEASE_CPPSRCS:.cpp=.o) \
+  $(OBJDIR_RELEASE)/unittest/unittest \
+  $(OBJDIR_RELEASE)/perftest/perftest \
+  $(OBJDIR_RELEASE)/.mkdir.done \
+	$(NULL)
 
-debug: $(DEBUG_CPPSRCS:.cpp=.o) $(OBJDIR_DEBUG)/unittest/unittest $(OBJDIR_DEBUG)/perftest/perftest $(OBJDIR_DEBUG)/.mkdir.done
+debug: \
+  $(DEBUG_CPPSRCS:.cpp=.o) \
+  $(OBJDIR_DEBUG)/unittest/unittest \
+  $(OBJDIR_DEBUG)/perftest/perftest \
+  $(OBJDIR_DEBUG)/.mkdir.done \
+	$(NULL)
 
-$(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_CPPSRCS:.cpp=.o)
-	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/unittest/unittest
+$(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o)
+	echo $(RELEASE_UNITTEST_CPPSRCS)
+	$(CXX) $(LIBS) $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/unittest/unittest
 
-$(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_CPPSRCS:.cpp=.o)
-	$(CXX) $(LIBS) $(RELEASE_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/perftest/perftest
+$(OBJDIR_RELEASE)/recorder/recorder: $(RELEASE_RECORDER_CPPSRCS:.cpp=.o)
+	$(CXX) $(LIBS) $(RELEASE_RECORDER_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/recorder/recorder
+
+$(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o)
+	echo $(RELEASE_PERFTEST_CPPSRCS)
+	$(CXX) $(LIBS) $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/perftest/perftest
 
 clean:
 	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
@@ -108,6 +140,7 @@ clean:
 %/.mkdir.done:
 	mkdir -p $(dir $@)/perftest
 	mkdir -p $(dir $@)/unittest
+	mkdir -p $(dir $@)/recorder
 	mkdir -p $@
 
 $(OBJDIR_RELEASE)/%.o: %.cpp $(OBJDIR_RELEASE)/.mkdir.done
