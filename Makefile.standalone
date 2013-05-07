@@ -120,14 +120,14 @@ debug: \
 
 $(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o)
 	echo $(RELEASE_UNITTEST_CPPSRCS)
-	$(CXX) $(LIBS) $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/unittest/unittest
+	$(CXX) $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/unittest/unittest
 
 $(OBJDIR_RELEASE)/recorder/recorder: $(RELEASE_RECORDER_CPPSRCS:.cpp=.o)
-	$(CXX) $(LIBS) $(RELEASE_RECORDER_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/recorder/recorder
+	$(CXX) $(RELEASE_RECORDER_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/recorder/recorder
 
 $(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o)
 	echo $(RELEASE_PERFTEST_CPPSRCS)
-	$(CXX) $(LIBS) $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o) -o $(OBJDIR_RELEASE)/perftest/perftest
+	$(CXX) $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/perftest/perftest
 
 clean:
 	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
