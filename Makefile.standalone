@@ -4,7 +4,7 @@
 OBJDIR_RELEASE=release
 OBJDIR_DEBUG=debug
 INCLUDES=.
-CXXFLAGS=-g $(addprefix -I,$(INCLUDES)) -std=gnu++0x
+CXXFLAGS=-g -std=gnu++0x
 DEFINES=
 
 # TODO: Files that depends on mozilla:
@@ -71,6 +71,11 @@ endif
 ifdef MOZ2D_CAIRO
  -include Makefile.cairo
 endif
+ifdef MOZ2D_SKIA
+ -include Makefile.skia
+endif
+
+CXXFLAGS += $(addprefix -I,$(INCLUDES))
   
 CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS) $(PERFTEST_CPPSRCS)
 PRE_PERFTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(PERFTEST_CPPSRCS)

@@ -26,8 +26,6 @@
 // OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 // SUCH DAMAGE.
 
-#include "base/basictypes.h"
-
 #define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
@@ -35,13 +33,11 @@
 
 #include "image_operations.h"
 
-#include "nsAlgorithm.h"
-#include "base/stack_container.h"
 #include "convolver.h"
-#include "skia/SkColorPriv.h"
-#include "skia/SkBitmap.h"
-#include "skia/SkRect.h"
-#include "skia/SkFontHost.h"
+#include "SkColorPriv.h"
+#include "SkBitmap.h"
+#include "SkRect.h"
+#include "SkFontHost.h"
 
 namespace skia {
 

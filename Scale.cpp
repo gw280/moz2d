@@ -6,8 +6,10 @@
 
 #ifdef USE_SKIA
 #include "HelpersSkia.h"
-#include "skia/SkBitmap.h"
+#include "SkBitmap.h"
+#ifdef USE_IMAGE_OPERATIONS
 #include "image_operations.h"
+#endif
 #endif
 
 namespace mozilla {
@@ -17,7 +19,7 @@ bool Scale(uint8_t* srcData, int32_t srcWidth, int32_t srcHeight, int32_t srcStr
            uint8_t* dstData, int32_t dstWidth, int32_t dstHeight, int32_t dstStride,
            SurfaceFormat format)
 {
-#ifdef USE_SKIA
+#if defined(USE_SKIA) && defined(USE_IMAGE_OPERATIONS)
   bool opaque;
   if (format == FORMAT_B8G8R8A8) {
     opaque = false;

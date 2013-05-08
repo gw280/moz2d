@@ -32,9 +32,7 @@
 #include <cmath>
 #include <vector>
 
-#include "base/basictypes.h"
-#include "base/cpu.h"
-#include "skia/SkTypes.h"
+#include "SkTypes.h"
 
 // avoid confusion with Mac OS X's math library (Carbon)
 #if defined(__APPLE__)

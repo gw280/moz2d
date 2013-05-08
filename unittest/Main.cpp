@@ -12,6 +12,9 @@
 #ifdef USE_CAIRO
 #include "TestDrawTargetCairoImage.h"
 #endif
+#ifdef USE_SKIA
+#include "TestDrawTargetSkiaSoftware.h"
+#endif
 
 #include <string>
 #include <sstream>
@@ -35,6 +38,9 @@ main()
   #endif
   #ifdef USE_CAIRO
     { new TestDrawTargetCairoImage(), "DrawTarget (Cairo Image)" },
+  #endif
+  #ifdef USE_SKIA
+    { new TestDrawTargetSkiaSoftware(), "DrawTarget (Skia Software)" },
   #endif
     { new TestPoint(), "Point Tests" },
     { new TestScaling(), "Scaling Tests" }
