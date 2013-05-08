@@ -1,5 +1,5 @@
 # High level targets
-.PHONY: release debug clean
+.PHONY: release debug player2d clean
 
 OBJDIR_RELEASE=release
 OBJDIR_DEBUG=debug
@@ -30,26 +30,11 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   SourceSurfaceRawData.cpp \
   $(NULL)
 
-RECORDER_CPPSRCS_ALLPLATFORMS = \
-  player2d/TreeItems.cpp \
-  player2d/displaymanager.cpp \
-  player2d/drawtargetview.cpp \
-  player2d/drawtargetwidget.cpp \
-  player2d/gradientstopsview.cpp \
-  player2d/main.cpp \
-  player2d/mainwindow.cpp \
-  player2d/playbackmanager.cpp \
-  player2d/redundancyanalysis.cpp \
-  player2d/sourcesurfaceview.cpp \
-  player2d/surfaceview.cpp \
-  $(NULL)
-
-#perftest/TestDrawTargetBase.cpp
 PERFTEST_CPPSRCS_ALLPLATFORMS = \
   perftest/Main.cpp \
   perftest/SanityChecks.cpp \
   perftest/TestBase.cpp \
-  perftest/TestDrawTargetBase.cpp
+  perftest/TestDrawTargetBase.cpp \
   $(NULL)
 
 UNITTEST_CPPSRCS_ALLPLATFORMS = \
@@ -58,11 +43,10 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/TestPoint.cpp \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
-  unittest/TestDrawTargetBase.cpp
+  unittest/TestDrawTargetBase.cpp \
   $(NULL)
 
 MOZ2D_CPPSRCS = $(MOZ2D_CPPSRCS_ALLPLATFORMS)
-RECORDER_CPPSRCS = $(RECORDER_CPPSRCS_ALLPLATFORMS)
 UNITTEST_CPPSRCS = $(UNITTEST_CPPSRCS_ALLPLATFORMS)
 PERFTEST_CPPSRCS = $(PERFTEST_CPPSRCS_ALLPLATFORMS)
 
@@ -96,8 +80,6 @@ RELEASE_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(CPPSRCS))
 DEBUG_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(CPPSRCS))
 RELEASE_PERFTEST_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_PERFTEST_CPPSRCS))
 DEBUG_PERFTEST_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_PERFTEST_CPPSRCS))
-RELEASE_RECORDER_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_RECORDER_CPPSRCS))
-DEBUG_RECORDER_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_RECORDER_CPPSRCS))
 RELEASE_UNITTEST_CPPSRCS = $(addprefix $(OBJDIR_RELEASE)/,$(PRE_UNITTEST_CPPSRCS))
 DEBUG_UNITTEST_CPPSRCS = $(addprefix $(OBJDIR_DEBUG)/,$(PRE_UNITTEST_CPPSRCS))
 COMPILER_DEFINES = $(addprefix -D,$(DEFINES))
@@ -119,16 +101,19 @@ debug: \
   $(OBJDIR_DEBUG)/.mkdir.done \
 	$(NULL)
 
+player2d: $(OBJDIR_RELEASE)/player2d/player2d $(OBJDIR_DEBUG)/player2d/player2d
+
 $(OBJDIR_RELEASE)/unittest/unittest: $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o)
-	echo $(RELEASE_UNITTEST_CPPSRCS)
 	$(CXX) $(RELEASE_UNITTEST_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/unittest/unittest
 
-$(OBJDIR_RELEASE)/recorder/recorder: $(RELEASE_RECORDER_CPPSRCS:.cpp=.o)
-	$(CXX) $(RELEASE_RECORDER_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/recorder/recorder
-
 $(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o)
-	echo $(RELEASE_PERFTEST_CPPSRCS)
 	$(CXX) $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/perftest/perftest
+
+$(OBJDIR_RELEASE)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done
+	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
+	cd $(OBJDIR_RELEASE)/player2d && qmake ../../player2d && make
+
+$(OBJDIR_DEBUG)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done
 
 clean:
 	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
@@ -141,7 +126,7 @@ clean:
 %/.mkdir.done:
 	mkdir -p $(dir $@)/perftest
 	mkdir -p $(dir $@)/unittest
-	mkdir -p $(dir $@)/recorder
+	mkdir -p $(dir $@)/player2d
 	mkdir -p $@
 
 $(OBJDIR_RELEASE)/%.o: %.cpp $(OBJDIR_RELEASE)/.mkdir.done
