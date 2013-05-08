@@ -41,7 +41,7 @@ FORMS    += mainwindow.ui \
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../release/ -lgfx2d
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../debug/ -lgfx2d
 else:symbian: LIBS += -lgfx2d
-else:unix: LIBS += -L`echo \$$PWD`/../ `echo \$$MOZ2D_PLAYER2D_LIBS` -lmoz2d
+else:unix: LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
 
 INCLUDEPATH += $$PWD/../
 DEPENDPATH += $$PWD/../
@@ -51,7 +51,6 @@ static: DEFINES += QT_STATIC
 
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../release/gfx2d.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../debug/gfx2d.lib
-else:unix:!symbian: PRE_TARGETDEPS += $$PWD/../../libgfx2d.a
 
 win32: LIBS += -ld3d10_1
 win32: DEFINES += INITGUID

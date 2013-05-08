@@ -93,13 +93,11 @@ DrawTargetWidget::redraw()
   if (mSwapChain) {
     mSwapChain->Present(0, 0);
   }
-#elif __APPLE__
+#else
   QPainter painter(this);
 
   QImage qimage(mDTData, width(), height(), QImage::Format_RGB32);
   painter.drawImage(QRect(0,0,width(), height()), qimage);
-#else
-#error implement me
 #endif
 
 }

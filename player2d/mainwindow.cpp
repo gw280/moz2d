@@ -48,7 +48,8 @@ MainWindow::MainWindow(QWidget *parent) :
   RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
   mPBManager.SetBaseDT(refDT);
 #else
-#error implement me
+  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(1, 1), FORMAT_B8G8R8A8);
+  mPBManager.SetBaseDT(refDT);
 #endif
 
   connect(&mPBManager, SIGNAL(EventDisablingUpdated(int32_t)), this, SLOT(UpdateEventColor(int32_t)));

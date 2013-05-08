@@ -110,7 +110,7 @@ $(OBJDIR_RELEASE)/perftest/perftest: $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o)
 	$(CXX) $(RELEASE_PERFTEST_CPPSRCS:.cpp=.o) $(LIBS) -o $(OBJDIR_RELEASE)/perftest/perftest
 
 $(OBJDIR_RELEASE)/libmoz2d.a: $(RELEASE_CPPSRCS:.cpp=.o)
-	libtool -static -o $(OBJDIR_RELEASE)/libmoz2d.a $(RELEASE_CPPSRCS:.cpp=.o) #`pkg-config --libs cairo`
+	ar rcs $(OBJDIR_RELEASE)/libmoz2d.a $(RELEASE_CPPSRCS:.cpp=.o) #`pkg-config --libs cairo`
 
 $(OBJDIR_DEBUG)/libmoz2d.a: $(DEBUG_CPPSRCS:.cpp=.o)
 	ar rcs $(OBJDIR_RELEASE)/libmoz2d.a $(DEBUG_CPPSRCS:.cpp=.o)

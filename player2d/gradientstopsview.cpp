@@ -1,5 +1,5 @@
-#include "GradientStopsView.h"
-#include "ui_GradientStopsView.h"
+#include "gradientstopsview.h"
+#include "ui_gradientstopsview.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
