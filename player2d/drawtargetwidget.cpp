@@ -61,7 +61,7 @@ DrawTargetWidget::InitDT()
   mSwapChain->Present(0, 0);
 #else
   mDTData = (unsigned char*)malloc(width()*height()*4);
-  mDT = Factory::CreateDrawTargetForData(BACKEND_COREGRAPHICS, mDTData, IntSize(width(),height()), width()*4, FORMAT_B8G8R8X8);
+  mDT = Factory::CreateDrawTargetForData(BACKEND_CAIRO, mDTData, IntSize(width(),height()), width()*4, FORMAT_B8G8R8X8);
 #endif
 }
 

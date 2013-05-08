@@ -258,16 +258,30 @@ Factory::CreateDrawTargetForData(BackendType aBackend,
     {
       RefPtr<DrawTargetSkia> newTarget;
       newTarget = new DrawTargetSkia();
-      newTarget->Init(aData, aSize, aStride, aFormat);
-      retVal = newTarget;
+      if (newTarget->Init(aData, aSize, aStride, aFormat)) {
+        retVal = newTarget;
+      }
+      break;
     }
 #endif
 #ifdef XP_MACOSX
   case BACKEND_COREGRAPHICS:
     {
       RefPtr<DrawTargetCG> newTarget = new DrawTargetCG();
-      if (newTarget->Init(aBackend, aData, aSize, aStride, aFormat))
-        return newTarget;
+      if (newTarget->Init(aBackend, aData, aSize, aStride, aFormat)) {
+        retVal = newTarget;
+      }
+      break;
+    }
+#endif
+#ifdef USE_CAIRO
+  case BACKEND_CAIRO:
+    {
+      RefPtr<DrawTargetCairo> newTarget;
+      newTarget = new DrawTargetCairo();
+      if (newTarget->Init(aData, aSize, aStride, aFormat)) {
+        retVal = newTarget;
+      }
       break;
     }
 #endif
@@ -281,9 +295,11 @@ Factory::CreateDrawTargetForData(BackendType aBackend,
     return recordDT;
   }
 
-  gfxDebug() << "Failed to create DrawTarget, Type: " << aBackend << " Size: " << aSize;
-  // Failed
-  return nullptr;
+  if (!retVal) {
+    gfxDebug() << "Failed to create DrawTarget, Type: " << aBackend << " Size: " << aSize;
+  }
+
+  return retVal;
 }
 
 TemporaryRef<ScaledFont>

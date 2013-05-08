@@ -45,7 +45,10 @@ MainWindow::MainWindow(QWidget *parent) :
   RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_DIRECT2D, IntSize(1, 1), FORMAT_B8G8R8A8);
   mPBManager.SetBaseDT(refDT);
 #elif __APPLE__
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
+  //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
+  //mPBManager.SetBaseDT(refDT);
+  // TODO Add a way to select backends
+  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(1, 1), FORMAT_B8G8R8A8);
   mPBManager.SetBaseDT(refDT);
 #else
   RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(1, 1), FORMAT_B8G8R8A8);
