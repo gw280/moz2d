@@ -6,6 +6,7 @@ endif
 
 CXXFLAGS += `pkg-config --cflags cairo`
 LIBS += `pkg-config --libs cairo`
+MOZ2D_PLAYER2D_LIBS += $(shell pkg-config --libs cairo)
 DEFINES  += USE_CAIRO
 
 MOZ2D_CPPSRCS += \

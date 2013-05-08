@@ -41,7 +41,7 @@ FORMS    += mainwindow.ui \
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../release/ -lgfx2d
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../debug/ -lgfx2d
 else:symbian: LIBS += -lgfx2d
-else:unix: LIBS += -L$$PWD/../ -lgfx2d
+else:unix: LIBS += -L`echo \$$PWD`/../ `echo \$$MOZ2D_PLAYER2D_LIBS` -lmoz2d
 
 INCLUDEPATH += $$PWD/../
 DEPENDPATH += $$PWD/../
