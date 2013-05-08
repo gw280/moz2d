@@ -1,5 +1,5 @@
 # High level targets
-.PHONY: release debug player2d clean
+.PHONY: release debug player2d check clean
 
 OBJDIR_RELEASE=release
 OBJDIR_DEBUG=debug
@@ -125,6 +125,10 @@ $(OBJDIR_RELEASE)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done $(OBJDIR_RELE
 	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_RELEASE)/player2d && qmake ../../player2d && make
 
 $(OBJDIR_DEBUG)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done
+
+check: $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest
+	$(OBJDIR_RELEASE)/unittest/unittest
+	$(OBJDIR_RELEASE)/perftest/perftest
 
 clean:
 	rm -rf $(OBJDIR_RELEASE) $(OBJDIR_DEBUG)
