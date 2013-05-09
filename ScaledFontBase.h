@@ -42,6 +42,7 @@ public:
 #ifdef USE_CAIRO
   cairo_scaled_font_t* GetCairoScaledFont() { return mScaledFont; }
   void SetCairoScaledFont(cairo_scaled_font_t* font);
+  void InitScaledFontFromFace(cairo_font_face_t *aFace);
 #endif
 
 protected:

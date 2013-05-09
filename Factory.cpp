@@ -13,9 +13,9 @@
 #ifdef USE_SKIA
 #include "DrawTargetSkia.h"
 #include "ScaledFontBase.h"
+#endif
 #ifdef MOZ_ENABLE_FREETYPE
 #include "ScaledFontFreetype.h"
-#endif
 #endif
 
 #if defined(WIN32) && defined(USE_SKIA)
@@ -151,6 +151,10 @@ int sGfxLogLevel = LOG_DEBUG;
 #ifdef WIN32
 ID3D10Device1 *Factory::mD3D10Device;
 #endif
+#ifdef MOZ_ENABLE_FREETYPE
+FT_Library Factory::mFreetypeLibrary = nullptr;
+#endif
+
 
 DrawEventRecorder *Factory::mRecorder;
 
@@ -358,6 +362,17 @@ Factory::CreateScaledFontForTrueTypeData(uint8_t *aData, uint32_t aSize,
       return new ScaledFontDWrite(aData, aSize, aFaceIndex, aGlyphSize);
     }
 #endif
+#ifdef USE_CAIRO
+  case FONT_CAIRO:
+  {
+#ifdef MOZ_ENABLE_FREETYPE
+    return new ScaledFontFreetype(aData, aSize, aFaceIndex, aGlyphSize);
+#else
+    // Implement me!
+    MOZ_ASSERT(false);
+#endif
+  }
+#endif
   default:
     gfxWarning() << "Unable to create requested font type from truetype data";
     return nullptr;
@@ -379,6 +394,17 @@ Factory::CreateScaledFontWithCairo(const NativeFont& aNativeFont, Float aSize, c
   return nullptr;
 #endif
 }
+
+#ifdef MOZ_ENABLE_FREETYPE
+FT_Library
+Factory::GetFreetypeLibrary()
+{
+  if (!mFreetypeLibrary) {
+    FT_Init_FreeType(&mFreetypeLibrary);
+  }
+  return mFreetypeLibrary;
+}
+#endif
 
 #ifdef WIN32
 TemporaryRef<DrawTarget>

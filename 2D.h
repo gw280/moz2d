@@ -18,6 +18,9 @@
 
 #ifdef MOZ_ENABLE_FREETYPE
 #include <string>
+
+#include "ft2build.h"
+#include FT_FREETYPE_H
 #endif
 
 struct _cairo_surface;
@@ -919,6 +922,10 @@ public:
 
   static void SetGlobalEventRecorder(DrawEventRecorder *aRecorder);
 
+#ifdef MOZ_ENABLE_FREETYPE
+  static FT_Library GetFreetypeLibrary();
+#endif
+
 #ifdef USE_SKIA
   static TemporaryRef<DrawTarget>
     CreateSkiaDrawTargetForFBO(unsigned int aFBOID, GrContext *aContext, const IntSize &aSize, SurfaceFormat aFormat);
@@ -945,7 +952,13 @@ private:
   static ID3D10Device1 *mD3D10Device;
 #endif
 
+private:
+
   static DrawEventRecorder *mRecorder;
+  
+#ifdef MOZ_ENABLE_FREETYPE
+  static FT_Library mFreetypeLibrary;
+#endif
 };
 
 }

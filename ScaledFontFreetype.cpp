@@ -9,8 +9,14 @@
 #ifdef USE_SKIA
 #include "skia/SkTypeface.h"
 #endif
+#ifdef USE_CAIRO
+#include "cairo-ft.h"
+#endif
 
 #include <string>
+
+#include "ft2build.h"
+#include FT_FREETYPE_H
 
 using namespace std;
 
@@ -45,6 +51,30 @@ ScaledFontFreetype::ScaledFontFreetype(FontOptions* aFont, Float aSize)
 #ifdef USE_SKIA
   mTypeface = SkTypeface::CreateFromName(aFont->mName.c_str(), fontStyleToSkia(aFont->mStyle));
 #endif
+}
+
+ScaledFontFreetype::ScaledFontFreetype(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize)
+  : ScaledFontBase(aSize)
+{
+  FT_Error error = FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
+  
+#ifdef USE_CAIRO
+  cairo_font_face_t *face = cairo_ft_font_face_create_for_ft_face(mFTFace, FT_LOAD_DEFAULT);
+  
+  InitScaledFontFromFace(face);
+  
+  cairo_font_face_destroy(face);
+#else
+  // Implement me!
+  MOZ_ASSERT(false);
+#endif
+}
+
+ScaledFontFreetype::~ScaledFontFreetype()
+{
+  if (mFTFace) {
+    FT_Done_Face(mFTFace);
+  }
 }
 
 }

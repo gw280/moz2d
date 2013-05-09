@@ -16,6 +16,11 @@ class ScaledFontFreetype : public ScaledFontBase
 public:
 
   ScaledFontFreetype(FontOptions* aFont, Float aSize);
+  ScaledFontFreetype(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize);
+  ~ScaledFontFreetype();
+
+private:
+  FT_Face mFTFace;
 };
 
 }
