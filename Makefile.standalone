@@ -6,11 +6,16 @@ OBJDIR_DEBUG=debug
 INCLUDES=.
 CXXFLAGS=-std=gnu++0x
 DEBUGFLAGS=-g
-RELEASEFLAGS=-03
+RELEASEFLAGS=-O3
 DEFINES=
 
+# ================ OS FEATURES ================
+UNAME = $(shell uname)
+ifeq ($(UNAME),Darwin)
+LIBS += -framework CoreFoundation
+endif
+
 # TODO: Files that depends on mozilla:
-#./gfx/thebes/gfxFont.h
 #convolver.cpp
 #image_operations.cpp
 
@@ -47,15 +52,18 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/Main.cpp \
   unittest/TestDrawTargetBase.cpp \
   $(NULL)
+  
+ifeq ($(UNAME),Darwin)
+LIBS += -framework CoreFoundation
+endif
 
 MOZ2D_CPPSRCS = $(MOZ2D_CPPSRCS_ALLPLATFORMS)
 UNITTEST_CPPSRCS = $(UNITTEST_CPPSRCS_ALLPLATFORMS)
 PERFTEST_CPPSRCS = $(PERFTEST_CPPSRCS_ALLPLATFORMS)
 
-# ================ OS FEATURES ================
-UNAME = $(shell uname)
-ifeq ($(UNAME),Darwin)
-LIBS += -framework CoreFoundation
+ifeq ($(UNAME),Linux)
+MOZ2D_CPPSRCS += ScaledFontFreetype.cpp
+DEFINES += MOZ_ENABLE_FREETYPE
 endif
 
 # ================ INCLUDE FEATURE SPECIFIC MAKEFILES =================
