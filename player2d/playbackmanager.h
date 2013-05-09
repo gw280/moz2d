@@ -44,7 +44,7 @@ public:
   virtual GradientStops *LookupGradientStops(mozilla::gfx::ReferencePtr aRefPtr);
   virtual ScaledFont *LookupScaledFont(mozilla::gfx::ReferencePtr aRefPtr);
   virtual DrawTarget *GetReferenceDrawTarget() { return mBaseDT; }
-  virtual mozilla::gfx::FontType GetDesiredFontType() { return mozilla::gfx::FONT_DWRITE; }
+  virtual mozilla::gfx::FontType GetDesiredFontType();
   virtual void AddDrawTarget(mozilla::gfx::ReferencePtr aRefPtr, DrawTarget *aDT) { mDrawTargets[aRefPtr] = aDT; }
   virtual void RemoveDrawTarget(mozilla::gfx::ReferencePtr aRefPtr) { mDrawTargets.erase(aRefPtr); }
   virtual void AddPath(mozilla::gfx::ReferencePtr aRefPtr, Path *aPath) { mPaths[aRefPtr] = aPath; }

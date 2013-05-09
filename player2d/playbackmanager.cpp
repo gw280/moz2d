@@ -72,6 +72,20 @@ PlaybackManager::LookupScaledFont(ReferencePtr aRefPtr)
   return NULL;
 }
 
+FontType
+PlaybackManager::GetDesiredFontType()
+{
+  switch (mBaseDT->GetType()) {
+    case BACKEND_DIRECT2D:
+      return FONT_DWRITE;
+    case BACKEND_CAIRO:
+      return FONT_CAIRO;
+    default:
+      MOZ_ASSERT(false);
+      return FONT_DWRITE;
+  }
+}
+
 void
 PlaybackManager::PlaybackToEvent(int aID)
 {
