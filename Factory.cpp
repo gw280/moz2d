@@ -262,9 +262,8 @@ Factory::CreateDrawTargetForData(BackendType aBackend,
     {
       RefPtr<DrawTargetSkia> newTarget;
       newTarget = new DrawTargetSkia();
-      if (newTarget->Init(aData, aSize, aStride, aFormat)) {
-        retVal = newTarget;
-      }
+      newTarget->Init(aData, aSize, aStride, aFormat);
+      retVal = newTarget;
       break;
     }
 #endif

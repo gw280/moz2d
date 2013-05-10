@@ -96,7 +96,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_MBCS;%(PreprocessorDefinitions);USE_CAIRO;USE_SKIA</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -126,7 +126,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_MBCS;%(PreprocessorDefinitions);USE_CAIRO;USE_SKIA</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -140,7 +140,9 @@
     <ClCompile Include="SanityChecks.cpp" />
     <ClCompile Include="TestBase.cpp" />
     <ClCompile Include="TestDrawTargetBase.cpp" />
+    <ClCompile Include="TestDrawTargetCairoImage.cpp" />
     <ClCompile Include="TestDrawTargetD2D.cpp" />
+    <ClCompile Include="TestDrawTargetSkiaSoftware.cpp" />
     <ClCompile Include="TestPoint.cpp" />
     <ClCompile Include="TestScaling.cpp" />
   </ItemGroup>
@@ -148,7 +150,9 @@
     <ClInclude Include="TestDrawTargetBase.h" />
     <ClInclude Include="SanityChecks.h" />
     <ClInclude Include="TestBase.h" />
+    <ClInclude Include="TestDrawTargetCairoImage.h" />
     <ClInclude Include="TestDrawTargetD2D.h" />
+    <ClInclude Include="TestDrawTargetSkiaSoftware.h" />
     <ClInclude Include="TestPoint.h" />
     <ClInclude Include="TestScaling.h" />
   </ItemGroup>
