@@ -48,7 +48,7 @@ DrawTargetWidget::InitDT()
   swapDesc.SampleDesc.Quality = 0;
   swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swapDesc.BufferCount = 1;
-  swapDesc.OutputWindow = winId();
+  swapDesc.OutputWindow = (HWND)winId();
   swapDesc.Windowed = TRUE;
 
   dxgiFactory->CreateSwapChain(dxgiDevice, &swapDesc, byRef(mSwapChain));
@@ -69,17 +69,17 @@ DrawTargetWidget::InitDT()
 bool
 DrawTargetWidget::winEvent(MSG* message, long* result)
 {
-  if (message->hwnd == this->effectiveWinId() && message->message == WM_SIZE) {
+  if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_SIZE) {
     InitDT();
     RefillDT();
-  } else if (message->hwnd == this->effectiveWinId() && message->message == WM_PAINT) {
+  } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_PAINT) {
     PAINTSTRUCT pt;
     ::BeginPaint(message->hwnd, &pt);
     ::EndPaint(message->hwnd, &pt);
     redraw();
     return true;
-  } else if (message->hwnd == this->effectiveWinId() && message->message == WM_WINDOWPOSCHANGED) {
-    ::InvalidateRect(effectiveWinId(), NULL, FALSE);
+  } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_WINDOWPOSCHANGED) {
+    ::InvalidateRect((HWND)effectiveWinId(), NULL, FALSE);
   }
 
   return false;
