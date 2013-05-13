@@ -7,7 +7,8 @@
 #include "Logging.h"
 
 #ifdef USE_SKIA
-#include "skia/SkTypeface.h"
+#include "SkTypeface.h"
+#include "SkStream.h"
 #endif
 #ifdef USE_CAIRO
 #include "cairo-ft.h"
@@ -56,17 +57,20 @@ ScaledFontFreetype::ScaledFontFreetype(FontOptions* aFont, Float aSize)
 ScaledFontFreetype::ScaledFontFreetype(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize)
   : ScaledFontBase(aSize)
 {
-  FT_Error error = FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
-  
 #ifdef USE_CAIRO
+  FT_Error error = FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
+
   cairo_font_face_t *face = cairo_ft_font_face_create_for_ft_face(mFTFace, FT_LOAD_DEFAULT);
   
   InitScaledFontFromFace(face);
   
   cairo_font_face_destroy(face);
-#else
+#endif
+  
+#ifdef USE_SKIA
+  SkStream *stream = new SkMemoryStream(aData, aFileSize, true);
   // Implement me!
-  MOZ_ASSERT(false);
+  mTypeface = SkTypeface::CreateFromStream(stream);
 #endif
 }
 

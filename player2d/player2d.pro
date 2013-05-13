@@ -49,12 +49,13 @@ FORMS    += mainwindow.ui \
   DEFINES += USE_SKIA
 }
 
+CONFIG(release, debug|release) {
+  CONFIG_PREFIX = "Release"
+} else {
+  CONFIG_PREFIX = "Debug"
+}
+
 win32 {
-  CONFIG(release, debug|release) {
-    CONFIG_PREFIX = "Release"
-  } else {
-    CONFIG_PREFIX = "Debug"
-  }
   !isEmpty(MOZ2D_CAIRO) {
     isEmpty(MOZ2D_SKIA) {
       error("Can only build with both Skia and Cairo or neither on windows.")
@@ -68,7 +69,12 @@ win32 {
   LIBS += -L"$$PWD/../$$CONFIG_PREFIX$$DIR_SUFFIX/" -lgfx2d
 
 } else:symbian: LIBS += -lgfx2d
-else:unix: LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
+else:unix {
+  LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
+  !isEmpty(MOZ2D_SKIA) {
+    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ -Wl,--start-group -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgr -lskia_gr -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL -Wl,--end-group
+  }
+}
 
 INCLUDEPATH += $$PWD/../
 DEPENDPATH += $$PWD/../

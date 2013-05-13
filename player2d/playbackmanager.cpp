@@ -88,6 +88,8 @@ PlaybackManager::GetDesiredFontType()
       return FONT_DWRITE;
     case BACKEND_CAIRO:
       return FONT_CAIRO;
+    case BACKEND_SKIA:
+      return FONT_SKIA;
     default:
       MOZ_ASSERT(false);
       return FONT_DWRITE;

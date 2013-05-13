@@ -361,8 +361,9 @@ Factory::CreateScaledFontForTrueTypeData(uint8_t *aData, uint32_t aSize,
       return new ScaledFontDWrite(aData, aSize, aFaceIndex, aGlyphSize);
     }
 #endif
-#ifdef USE_CAIRO
+#if defined(USE_CAIRO) && defined(USE_SKIA)
   case FONT_CAIRO:
+  case FONT_SKIA:
   {
 #ifdef MOZ_ENABLE_FREETYPE
     return new ScaledFontFreetype(aData, aSize, aFaceIndex, aGlyphSize);
