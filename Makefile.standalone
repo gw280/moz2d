@@ -80,9 +80,11 @@ ifdef MOZ2D_CG
 endif
 ifdef MOZ2D_CAIRO
  -include Makefile.cairo
+  QMAKE_PARAMS += "MOZ2D_CAIRO=1"
 endif
 ifdef MOZ2D_SKIA
  -include Makefile.skia
+  QMAKE_PARAMS += "MOZ2D_SKIA=$(MOZ2D_SKIA)"
 endif
 
 CXXFLAGS += $(addprefix -I,$(INCLUDES))
@@ -138,11 +140,11 @@ $(OBJDIR_DEBUG)/libmoz2d.a: $(DEBUG_CPPSRCS:.cpp=.o)
 
 $(OBJDIR_RELEASE)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done $(OBJDIR_RELEASE)/libmoz2d.a
 	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
-	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_RELEASE)/player2d && qmake ../../player2d && make
+	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_RELEASE)/player2d && qmake ../../player2d $(QMAKE_PARAMS) && make
 
 $(OBJDIR_DEBUG)/player2d/player2d: $(OBJDIR_DEBUG)/.mkdir.done $(OBJDIR_DEBUG)/libmoz2d.a
 	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
-	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && qmake ../../player2d && make
+	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && qmake ../../player2d $(QMAKE_PARAMS) && make
 
 check: $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest
 	$(OBJDIR_RELEASE)/unittest/unittest
