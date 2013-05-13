@@ -6,6 +6,8 @@
 #include "ScaledFontCairo.h"
 #include "Logging.h"
 
+#include "cairo-ft.h"
+
 #include <string>
 
 #ifdef MOZ_ENABLE_FREETTYPE
@@ -17,26 +19,6 @@ using namespace std;
 
 namespace mozilla {
 namespace gfx {
-
-#ifdef USE_SKIA
-static SkTypeface::Style
-fontStyleToSkia(FontStyle aStyle)
-{
-  switch (aStyle) {
-  case FONT_STYLE_NORMAL:
-    return SkTypeface::kNormal;
-  case FONT_STYLE_ITALIC:
-    return SkTypeface::kItalic;
-  case FONT_STYLE_BOLD:
-    return SkTypeface::kBold;
-  case FONT_STYLE_BOLD_ITALIC:
-    return SkTypeface::kBoldItalic;
-   }
-
-  gfxWarning() << "Unknown font style";
-  return SkTypeface::kNormal;
-}
-#endif
 
 ScaledFontCairo::ScaledFontCairo(cairo_scaled_font_t* font, Float aSize)
   : ScaledFontBase(aSize)
