@@ -111,16 +111,9 @@ PlaybackManager::IsClipPop(uint32_t aID, int32_t aRefID)
   return mRecordedEvents[aID]->GetType() == RecordedEvent::POPCLIP;
 }
 
-void
-PlaybackManager::DisableEvent(uint32_t aID)
+bool
+PlaybackManager::FindCorrespondingClipID(uint32_t aID, uint32_t *aOtherID)
 {
-  mDisabledEvents.insert(aID);
-  EventDisablingUpdated(int32_t(aID));
-
-  if (!IsClipPush(aID) && !IsClipPop(aID)) {
-    return;
-  }
-
   if (IsClipPush(aID)) {
     int32_t clipRecord = 1;
     uint32_t id = aID;
@@ -133,9 +126,8 @@ PlaybackManager::DisableEvent(uint32_t aID)
         clipRecord--;
       }
       if (!clipRecord) {
-        mDisabledEvents.insert(id);
-        EventDisablingUpdated(int32_t(id));
-        return;
+        *aOtherID = id;
+        return true;
       }
     }
   }
@@ -151,13 +143,30 @@ PlaybackManager::DisableEvent(uint32_t aID)
         clipRecord++;
       }
       if (!clipRecord) {
-        mDisabledEvents.insert(id);
-        EventDisablingUpdated(int32_t(id));
-        return;
+        *aOtherID = id;
+        return true;
       }
     }
   }
 
+  return false;
+}
+
+void
+PlaybackManager::DisableEvent(uint32_t aID)
+{
+  mDisabledEvents.insert(aID);
+  EventDisablingUpdated(int32_t(aID));
+
+  if (!IsClipPush(aID) && !IsClipPop(aID)) {
+    return;
+  }
+
+  uint32_t correspondingID;
+  if (FindCorrespondingClipID(aID, &correspondingID)) {
+    mDisabledEvents.insert(correspondingID);
+    EventDisablingUpdated(int32_t(correspondingID));
+  }
 }
 
 void
@@ -169,41 +178,10 @@ PlaybackManager::EnableEvent(uint32_t aID)
     return;
   }
 
-  if (IsClipPush(aID)) {
-    int32_t clipRecord = 1;
-    uint32_t id = aID;
-
-    while (++id < mRecordedEvents.size()) {
-      if (IsClipPush(id, aID)) {
-        clipRecord++;
-      }
-      if (IsClipPop(id, aID)) {
-        clipRecord--;
-      }
-      if (!clipRecord) {
-        mDisabledEvents.erase(id);
-        EventDisablingUpdated(int32_t(id));
-        return;
-      }
-    }
-  }
-  if (IsClipPop(aID)) {
-    int32_t clipRecord = 1;
-    uint32_t id = aID;
-
-    while (--id >= 0) {
-      if (IsClipPush(id, aID)) {
-        clipRecord--;
-      }
-      if (IsClipPop(id, aID)) {
-        clipRecord++;
-      }
-      if (!clipRecord) {
-        mDisabledEvents.erase(id);
-        EventDisablingUpdated(int32_t(id));
-        return;
-      }
-    }
+  uint32_t correspondingID;
+  if (FindCorrespondingClipID(aID, &correspondingID)) {
+    mDisabledEvents.erase(correspondingID);
+    EventDisablingUpdated(int32_t(correspondingID));
   }
 }
 

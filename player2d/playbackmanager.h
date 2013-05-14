@@ -89,6 +89,7 @@ private:
 
   bool IsClipPush(uint32_t aID, int32_t aRefID = -1);
   bool IsClipPop(uint32_t aID, int32_t aRefID = -1);
+  bool FindCorrespondingClipID(uint32_t aID, uint32_t *aOtherID);
 
   void PlayToEvent(uint32_t aID);
   void PlaybackEvent(mozilla::gfx::RecordedEvent *aEvent);
