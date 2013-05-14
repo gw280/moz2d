@@ -3,9 +3,8 @@
 
 #include "RecordedEvent.h"
 #include <qmessagebox.h>
-#ifdef WIN32
-#include <windows.h>
-#endif
+
+#include "timer.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -126,33 +125,31 @@ void RedundancyAnalysis::on_pushButton_clicked()
   str = "Redundant events: " + QString::number(redundantEvents);
   ui->plainTextEdit->appendPlainText(str);
 
-#ifdef WIN32
-  ::QueryPerformanceFrequency(&freq);
+  HighPrecisionMeasurement timer;
 
   mPBManager->PlaybackToEvent(start);
   dt = mPBManager->LookupDrawTarget(dtPtr);
   dt->Flush();
-  ::QueryPerformanceCounter(&startStamp);
+  
+  timer.Start();
   mPBManager->PlaybackToEvent(end);
   dt->Flush();
-  ::QueryPerformanceCounter(&endStamp);
 
-  double timeSecond = (double(endStamp.QuadPart) - double(startStamp.QuadPart)) / double(freq.QuadPart);
+  double timeSecond = timer.Measure();
 
   mPBManager->EnableAllEvents();
   mPBManager->PlaybackToEvent(start);
   dt = mPBManager->LookupDrawTarget(dtPtr);
   dt->Flush();
-  ::QueryPerformanceCounter(&startStamp);
+
+  timer.Start();
   mPBManager->PlaybackToEvent(end);
   dt->Flush();
-  ::QueryPerformanceCounter(&endStamp);
 
-  double timeFirst = (double(endStamp.QuadPart) - double(startStamp.QuadPart)) / double(freq.QuadPart);
+  double timeFirst = timer.Measure();
 
-  str = "Old timing: " + QString::number(timeFirst * 1000, 'g', 3) + " ms";
+  str = "Old timing: " + QString::number(timeFirst, 'g', 3) + " ms";
   ui->plainTextEdit->appendPlainText(str);
-  str = "New timing: " + QString::number(timeSecond * 1000, 'g', 3) + " ms";
+  str = "New timing: " + QString::number(timeSecond, 'g', 3) + " ms";
   ui->plainTextEdit->appendPlainText(str);
-#endif
 }

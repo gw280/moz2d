@@ -30,7 +30,8 @@ HEADERS  += mainwindow.h \
     surfaceview.h \
     sourcesurfaceview.h \
     gradientstopsview.h \
-    redundancyanalysis.h
+    redundancyanalysis.h \
+    timer.h
 
 FORMS    += mainwindow.ui \
     drawtargetview.ui \
