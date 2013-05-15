@@ -192,7 +192,9 @@
     <ClInclude Include="RecordingTypes.h" />
     <ClInclude Include="Rect.h" />
     <ClInclude Include="ScaledFontBase.h" />
+    <ClInclude Include="ScaledFontCairo.h" />
     <ClInclude Include="ScaledFontDWrite.h" />
+    <ClInclude Include="ScaledFontSkia.h" />
     <ClInclude Include="ScaledFontWin.h" />
     <ClInclude Include="SourceSurfaceCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -240,7 +242,9 @@
     </ClCompile>
     <ClCompile Include="RecordedEvent.cpp" />
     <ClCompile Include="ScaledFontBase.cpp" />
+    <ClCompile Include="ScaledFontCairo.cpp" />
     <ClCompile Include="ScaledFontDWrite.cpp" />
+    <ClCompile Include="ScaledFontSkia.cpp" />
     <ClCompile Include="ScaledFontWin.cpp" />
     <ClCompile Include="SourceSurfaceCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

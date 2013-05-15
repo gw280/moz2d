@@ -5,6 +5,7 @@ LIBS += -L$(MOZ2D_SKIA)/out/Release/ -lskia_gr -lskia_core -lskia_ports -lskia_e
 MOZ2D_CPPSRCS += \
   DrawTargetSkia.cpp \
   PathSkia.cpp \
+  ScaledFontSkia.cpp \
   SourceSurfaceSkia.cpp \
   $(NULL)
 

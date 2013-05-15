@@ -16,9 +16,10 @@
 // solution.
 #include "mozilla/RefPtr.h"
 
-#ifdef MOZ_ENABLE_FREETYPE
+// XXX - Bas - This will likely give problems on OS X!
 #include <string>
 
+#ifdef MOZ_ENABLE_FREETYPE
 #include "ft2build.h"
 #include FT_FREETYPE_H
 #endif
@@ -510,7 +511,6 @@ protected:
   UserData mUserData;
 };
 
-#ifdef MOZ_ENABLE_FREETYPE
 /**
  * Describes a font
  * Used to pass the key informatin from a gfxFont into Azure
@@ -521,7 +521,6 @@ struct FontOptions
   std::string mName;
   FontStyle mStyle;
 };
-#endif
 
 
 /* This class is designed to allow passing additional glyph rendering

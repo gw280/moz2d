@@ -3,21 +3,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "ScaledFontFreetype.h"
+#include "ScaledFontCairo.h"
 #include "Logging.h"
-
-#ifdef USE_SKIA
-#include "SkTypeface.h"
-#include "SkStream.h"
-#endif
-#ifdef USE_CAIRO
-#include "cairo-ft.h"
-#endif
 
 #include <string>
 
+#ifdef MOZ_ENABLE_FREETTYPE
 #include "ft2build.h"
 #include FT_FREETYPE_H
+#endif
 
 using namespace std;
 
@@ -44,20 +38,17 @@ fontStyleToSkia(FontStyle aStyle)
 }
 #endif
 
-// Ideally we want to use FT_Face here but as there is currently no way to get
-// an SkTypeface from an FT_Face we do this.
-ScaledFontFreetype::ScaledFontFreetype(FontOptions* aFont, Float aSize)
+ScaledFontCairo::ScaledFontCairo(cairo_scaled_font_t* font, Float aSize)
   : ScaledFontBase(aSize)
 {
-#ifdef USE_SKIA
-  mTypeface = SkTypeface::CreateFromName(aFont->mName.c_str(), fontStyleToSkia(aFont->mStyle));
-#endif
+  mScaledFont = font;
+  cairo_scaled_font_reference(mScaledFont);
 }
 
-ScaledFontFreetype::ScaledFontFreetype(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize)
+ScaledFontCairo::ScaledFontCairo(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize)
   : ScaledFontBase(aSize)
 {
-#ifdef USE_CAIRO
+#ifdef MOZ_ENABLE_FREETYPE
   FT_Error error = FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
 
   cairo_font_face_t *face = cairo_ft_font_face_create_for_ft_face(mFTFace, FT_LOAD_DEFAULT);
@@ -65,20 +56,19 @@ ScaledFontFreetype::ScaledFontFreetype(const uint8_t* aData, uint32_t aFileSize,
   InitScaledFontFromFace(face);
   
   cairo_font_face_destroy(face);
-#endif
-  
-#ifdef USE_SKIA
-  SkStream *stream = new SkMemoryStream(aData, aFileSize, true);
+#else
   // Implement me!
-  mTypeface = SkTypeface::CreateFromStream(stream);
+  MOZ_ASSERT(false);
 #endif
 }
 
-ScaledFontFreetype::~ScaledFontFreetype()
+ScaledFontCairo::~ScaledFontCairo()
 {
+#ifdef MOZ_ENABLE_FREETYPE
   if (mFTFace) {
     FT_Done_Face(mFTFace);
   }
+#endif
 }
 
 }

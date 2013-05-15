@@ -12,6 +12,7 @@ DEFINES  += USE_CAIRO
 MOZ2D_CPPSRCS += \
   DrawTargetCairo.cpp \
   PathCairo.cpp \
+  ScaledFontCairo.cpp \
   SourceSurfaceCairo.cpp \
   $(NULL)
 
