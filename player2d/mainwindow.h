@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <qaction.h>
 
 #include "playbackmanager.h"
 #include "displaymanager.h"
@@ -14,24 +15,48 @@ class MainWindow;
 class DrawTargetWidget;
 class CallTimingAnalysis;
 
+const uint32_t sBackendCount = mozilla::gfx::BACKEND_RECORDING + 1;
+
+class BackendSwitch : public QAction
+{
+  Q_OBJECT
+public:
+  BackendSwitch(const QString &aName, mozilla::gfx::BackendType aType, QObject *aParent)
+    : QAction(aName, aParent)
+    , mType(aType)
+  {
+    setCheckable(true);
+    connect(this, SIGNAL(toggled(bool)), this, SLOT(selected(bool)));
+  }
+
+private slots:
+  void selected(bool aChecked);
+private:
+  mozilla::gfx::BackendType mType;
+};
+
 class MainWindow : public QMainWindow
 {
-    Q_OBJECT
+  Q_OBJECT
     
 public:
-    explicit MainWindow(QWidget *parent = 0);
-    ~MainWindow();
+  explicit MainWindow(QWidget *parent = 0);
+  ~MainWindow();
 
-    DrawTargetWidget *GetDTWidget();
+  DrawTargetWidget *GetDTWidget();
 
-    void DefaultArrangement();
-    void UpdateObjects();
-    void FilterToObject(mozilla::gfx::ReferencePtr aObject);
+  void DefaultArrangement();
+  void UpdateObjects();
+  void FilterToObject(mozilla::gfx::ReferencePtr aObject);
 
-    virtual void resizeEvent(QResizeEvent *);
+  virtual void resizeEvent(QResizeEvent *);
+
+  void SwitchToBackend(mozilla::gfx::BackendType aType);
+
 signals:
-    void UpdateViews();
-    void EventChange();
+  void UpdateViews();
+  void EventChange();
+  void SwitchingBackend(uint32_t aType);
 
 private slots:
     void on_actionOpen_Recording_activated();
@@ -77,6 +102,8 @@ private:
   hash_set<void*> mObjects;
   int32_t mCurrentHistoryPosition;
   bool mAutomatedItemChange;
+
+  BackendSwitch *mBackends[sBackendCount];
 };
 
 #endif // MAINWINDOW_H

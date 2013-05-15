@@ -68,6 +68,8 @@ public:
   bool IsEventDisabled(uint32_t aID);
   double GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, double *aStdDev);
 
+  uint32_t GetCurrentEvent() { return mCurrentEvent; }
+
   typedef std::map<void*, mozilla::RefPtr<DrawTarget> > DTMap;
   typedef std::map<void*, mozilla::RefPtr<Path> > PathMap;
   typedef std::map<void*, mozilla::RefPtr<SourceSurface> > SourceSurfaceMap;

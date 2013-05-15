@@ -15,9 +15,10 @@ DrawTargetView::DrawTargetView(ReferencePtr aRefPtr, mozilla::gfx::Translator *a
     mClipVisualized(false)
 {
     ui->setupUi(this);
-    ui->dtWidget->InitDT();
+    ui->dtWidget->SwitchToBackend(mTranslator->GetReferenceDrawTarget()->GetType());
 
     connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
+    connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));
     EventChanged();
 }
 

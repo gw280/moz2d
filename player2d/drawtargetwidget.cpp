@@ -15,76 +15,96 @@ using namespace mozilla::gfx;
 DrawTargetWidget::DrawTargetWidget(QWidget *parent) :
     QWidget(parent, Qt::SubWindow),
     mDT(NULL),
-    mMainWindow(NULL)
+    mMainWindow(NULL),
+    mType(BACKEND_NONE)
 {
-#ifdef WIN32
-  setAttribute(Qt::WA_NoSystemBackground);
-  setAttribute(Qt::WA_OpaquePaintEvent);
-  setAttribute(Qt::WA_PaintOnScreen);
-#endif
 }
 
 void
 DrawTargetWidget::InitDT()
 {
+  setAttribute(Qt::WA_NoSystemBackground, false);
+  setAttribute(Qt::WA_OpaquePaintEvent, false);
+  setAttribute(Qt::WA_PaintOnScreen, false); 
 #ifdef WIN32
-  RefPtr<IDXGIDevice> dxgiDevice;
-  RefPtr<IDXGIAdapter> dxgiAdapter;
+  mSwapChain = nullptr;
 
-  Factory::GetDirect3D10Device()->QueryInterface((IDXGIDevice**)byRef(dxgiDevice));
-  dxgiDevice->GetAdapter(byRef(dxgiAdapter));
+  if (mType == BACKEND_DIRECT2D) {
+    setAttribute(Qt::WA_NoSystemBackground);
+    setAttribute(Qt::WA_OpaquePaintEvent);
+    setAttribute(Qt::WA_PaintOnScreen); 
 
-  RefPtr<IDXGIFactory> dxgiFactory;
-  dxgiAdapter->GetParent(IID_PPV_ARGS((IDXGIFactory**)byRef(dxgiFactory)));
+    RefPtr<IDXGIDevice> dxgiDevice;
+    RefPtr<IDXGIAdapter> dxgiAdapter;
 
-  DXGI_SWAP_CHAIN_DESC swapDesc;
-  ::ZeroMemory(&swapDesc, sizeof(swapDesc));
-  swapDesc.BufferDesc.Width = 0;
-  swapDesc.BufferDesc.Height = 0;
-  swapDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-  swapDesc.BufferDesc.RefreshRate.Numerator = 60;
-  swapDesc.BufferDesc.RefreshRate.Denominator = 1;
-  swapDesc.SampleDesc.Count = 1;
-  swapDesc.SampleDesc.Quality = 0;
-  swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  swapDesc.BufferCount = 1;
-  swapDesc.OutputWindow = (HWND)winId();
-  swapDesc.Windowed = TRUE;
+    Factory::GetDirect3D10Device()->QueryInterface((IDXGIDevice**)byRef(dxgiDevice));
+    dxgiDevice->GetAdapter(byRef(dxgiAdapter));
 
-  dxgiFactory->CreateSwapChain(dxgiDevice, &swapDesc, byRef(mSwapChain));
+    RefPtr<IDXGIFactory> dxgiFactory;
+    dxgiAdapter->GetParent(IID_PPV_ARGS((IDXGIFactory**)byRef(dxgiFactory)));
 
-  ID3D10Texture2D *texture;
-  mSwapChain->GetBuffer(0, IID_ID3D10Texture2D, (void**)&texture);
-  mDT = Factory::CreateDrawTargetForD3D10Texture(texture, FORMAT_B8G8R8X8);
-  texture->Release();
+    DXGI_SWAP_CHAIN_DESC swapDesc;
+    ::ZeroMemory(&swapDesc, sizeof(swapDesc));
+    swapDesc.BufferDesc.Width = 0;
+    swapDesc.BufferDesc.Height = 0;
+    swapDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    swapDesc.BufferDesc.RefreshRate.Numerator = 60;
+    swapDesc.BufferDesc.RefreshRate.Denominator = 1;
+    swapDesc.SampleDesc.Count = 1;
+    swapDesc.SampleDesc.Quality = 0;
+    swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapDesc.BufferCount = 1;
+    swapDesc.OutputWindow = (HWND)winId();
+    swapDesc.Windowed = TRUE;
 
-  mSwapChain->Present(0, 0);
-#else
-  mDTData = (unsigned char*)malloc(width()*height()*4);
-  mDT = Factory::CreateDrawTargetForData(BACKEND_CAIRO, mDTData, IntSize(width(),height()), width()*4, FORMAT_B8G8R8X8);
+    dxgiFactory->CreateSwapChain(dxgiDevice, &swapDesc, byRef(mSwapChain));
+
+    ID3D10Texture2D *texture;
+    mSwapChain->GetBuffer(0, IID_ID3D10Texture2D, (void**)&texture);
+    mDT = Factory::CreateDrawTargetForD3D10Texture(texture, FORMAT_B8G8R8X8);
+    texture->Release();
+
+    mSwapChain->Present(0, 0);
+  } else
 #endif
+  {
+    mDTData = (unsigned char*)malloc(width()*height()*4);
+    mDT = Factory::CreateDrawTargetForData(mType, mDTData, IntSize(width(),height()), width()*4, FORMAT_B8G8R8X8);
+  }
 }
 
 #ifdef WIN32
 bool
 DrawTargetWidget::winEvent(MSG* message, long* result)
 {
-  if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_SIZE) {
-    InitDT();
-    RefillDT();
-  } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_PAINT) {
-    PAINTSTRUCT pt;
-    ::BeginPaint(message->hwnd, &pt);
-    ::EndPaint(message->hwnd, &pt);
-    redraw();
-    return true;
-  } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_WINDOWPOSCHANGED) {
-    ::InvalidateRect((HWND)effectiveWinId(), NULL, FALSE);
+  if (mDT && mDT->GetType() == BACKEND_DIRECT2D) {
+    if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_SIZE) {
+      InitDT();
+      RefillDT();
+    } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_PAINT) {
+      PAINTSTRUCT pt;
+      ::BeginPaint(message->hwnd, &pt);
+      ::EndPaint(message->hwnd, &pt);
+      redraw();
+      return true;
+    } else if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_WINDOWPOSCHANGED) {
+      ::InvalidateRect((HWND)effectiveWinId(), NULL, FALSE);
+    }
   }
 
   return false;
 }
 #endif
+
+void
+DrawTargetWidget::refresh()
+{
+  if (mDT && mDT->GetType() == BACKEND_DIRECT2D) {
+    redraw();
+  } else {
+    repaint();
+  }
+}
 
 void
 DrawTargetWidget::redraw()
@@ -93,27 +113,37 @@ DrawTargetWidget::redraw()
   if (mSwapChain) {
     mSwapChain->Present(0, 0);
   }
-#else
-  QPainter painter(this);
-
-  QImage qimage(mDTData, width(), height(), QImage::Format_RGB32);
-  painter.drawImage(QRect(0,0,width(), height()), qimage);
 #endif
 
+  if (mDT && mDT->GetType() != BACKEND_DIRECT2D) {
+    QPainter painter(this);
+
+    QImage qimage(mDTData, width(), height(), QImage::Format_RGB32);
+    painter.drawImage(QRect(0,0,width(), height()), qimage);
+  }
 }
 
 void
 DrawTargetWidget::resizeEvent(QResizeEvent * aEvent)
 {
 // On windows this is handled by winEvent
-#ifndef WIN32
-  InitDT();
-  RefillDT();
-#endif
+
+  if (mDT && mDT->GetType() != BACKEND_DIRECT2D) {
+    InitDT();
+    RefillDT();
+  }
 }
 
 void
 DrawTargetWidget::paintEvent(QPaintEvent *aEvent)
 {
   redraw();
+}
+
+void
+DrawTargetWidget::SwitchToBackend(uint32_t aType)
+{
+  mType = BackendType(aType);
+  InitDT();
+  RefillDT();
 }

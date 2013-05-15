@@ -29,11 +29,7 @@ SurfaceView::UpdateView()
 
   if (!srcSurf) {
     dt->Flush();
-#ifdef WIN32
-    GetDestDTWidget()->redraw();
-#else
-    GetDestDTWidget()->repaint();
-#endif
+    GetDestDTWidget()->refresh();
     return;
   }
 
@@ -77,11 +73,7 @@ SurfaceView::UpdateView()
 
   dt->Flush();
 
-#ifdef WIN32
-  GetDestDTWidget()->redraw();
-#else
-  GetDestDTWidget()->repaint();
-#endif
+  GetDestDTWidget()->refresh();
 }
 
 void SurfaceView::on_actionOriginal_Size_triggered()

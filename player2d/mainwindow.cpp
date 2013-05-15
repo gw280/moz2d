@@ -25,12 +25,45 @@ using namespace mozilla::gfx;
 
 ID3D10Device1 *MainWindow::sDevice = NULL;
 
+QString
+NameForBackend(uint32_t aType)
+{
+  switch (aType) {
+  case BACKEND_NONE:
+    return "None";
+  case BACKEND_CAIRO:
+    return "Cairo";
+  case BACKEND_DIRECT2D:
+    return "Direct2D";
+  case BACKEND_COREGRAPHICS:
+    return "Quartz";
+  case BACKEND_COREGRAPHICS_ACCELERATED:
+    return "Accelerated Quartz";
+  case BACKEND_SKIA:
+    return "Skia";
+  default:
+    return "Unknown";
+  }
+}
+
+void
+BackendSwitch::selected(bool aChecked)
+{
+  if (aChecked) {
+    static_cast<MainWindow*>(parentWidget())->SwitchToBackend(mType);
+  }
+}
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     mAutomatedItemChange(false)
 {
   ui->setupUi(this);
+
+  for (int i = 0; i < sBackendCount; i++) {
+    mBackends[i] = new BackendSwitch(NameForBackend(i), BackendType(i), this);
+  }
 
 #ifdef WIN32
   if (!sDevice) {
@@ -43,18 +76,21 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     Factory::SetDirect3D10Device(sDevice);
   }
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_DIRECT2D, IntSize(1, 1), FORMAT_B8G8R8A8);
-  mPBManager.SetBaseDT(refDT);
+  ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D]);
 #elif __APPLE__
+  ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
   //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
   //mPBManager.SetBaseDT(refDT);
   // TODO Add a way to select backends
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(1, 1), FORMAT_B8G8R8A8);
-  mPBManager.SetBaseDT(refDT);
-#else
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(1, 1), FORMAT_B8G8R8A8);
-  mPBManager.SetBaseDT(refDT);
 #endif
+#ifdef USE_CAIRO
+  ui->menuBackend->addAction(mBackends[BACKEND_CAIRO]);
+#endif
+#ifdef USE_SKIA
+  ui->menuBackend->addAction(mBackends[BACKEND_SKIA]);
+#endif
+
+  ui->menuBackend->actions()[0]->toggle();
 
   connect(&mPBManager, SIGNAL(EventDisablingUpdated(int32_t)), this, SLOT(UpdateEventColor(int32_t)));
   ui->objectTree->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -173,6 +209,33 @@ MainWindow::resizeEvent(QResizeEvent *)
   DefaultArrangement();
 }
 
+void
+MainWindow::SwitchToBackend(BackendType aType)
+{
+  for (int i = 0; i < sBackendCount; i++) {
+    if (mBackends[i]) {
+      if (i != aType) {
+        mBackends[i]->setChecked(false);
+      }
+    }
+  }
+
+  mPBManager.PlaybackToEvent(0);
+  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(aType, IntSize(1, 1), FORMAT_B8G8R8A8);
+  mPBManager.SetBaseDT(refDT);
+  
+  SwitchingBackend(aType);
+  
+  QApplication::processEvents();
+
+  QTreeWidgetItem *item = ui->treeWidget->currentItem();
+  if (item) {
+    int64_t idx = static_cast<EventItem*>(item)->mID;
+
+    mPBManager.PlaybackToEvent(idx + 1);
+  }
+}
+
 void MainWindow::on_actionOpen_Recording_activated()
 {
   mEventItems.clear();
@@ -272,7 +335,7 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
   EventChange();
 }
 
-void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int column)
+void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
 {
   ObjectItem *objItem = static_cast<ObjectItem*>(item);
 
@@ -281,6 +344,7 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int colu
 
   QObject::connect(this, SIGNAL(UpdateViews()), newTab, SLOT(UpdateView()));
   QObject::connect(this, SIGNAL(EventChange()), newTab, SLOT(EventChanged()));
+  QObject::connect(this, SIGNAL(SwitchingBackend(uint32_t)), newTab, SIGNAL(SwitchingBackend(uint32_t)));
 }
 
 void MainWindow::on_viewWidget_tabCloseRequested(int index)
@@ -305,7 +369,7 @@ void
 MainWindow::UpdateEventColor(int32_t aID)
 {
   if (aID == -1) {
-    for (int i = 0; i < mEventItems.size(); i++) {
+    for (uint32_t i = 0; i < mEventItems.size(); i++) {
       if (mPBManager.IsEventDisabled(i)) {
         mEventItems[i]->setTextColor(2, QColor(255, 0, 0));
       } else {
@@ -343,7 +407,7 @@ void MainWindow::on_actionForward_triggered()
   mAutomatedItemChange = false;
 }
 
-void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+void MainWindow::on_lineEdit_textChanged(const QString &)
 {
 
 }
@@ -352,7 +416,7 @@ void MainWindow::on_pushButton_clicked()
 {
   bool ok;
 
-  int eventid = ui->lineEdit->text().toInt(&ok);
+  uint32_t eventid = ui->lineEdit->text().toUInt(&ok);
 
   if (!ok) {
     return;

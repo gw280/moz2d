@@ -42,9 +42,32 @@ FORMS    += mainwindow.ui \
     redundancyanalysis.ui \
     calltiminganalysis.ui
 
-win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../release/ -lgfx2d
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../debug/ -lgfx2d
-else:symbian: LIBS += -lgfx2d
+!isEmpty(MOZ2D_CAIRO) {
+  DEFINES += USE_CAIRO
+}
+!isEmpty(MOZ2D_SKIA) {
+  DEFINES += USE_SKIA
+}
+
+win32 {
+  CONFIG(release, debug|release) {
+    CONFIG_PREFIX = "Release"
+  } else {
+    CONFIG_PREFIX = "Debug"
+  }
+  !isEmpty(MOZ2D_CAIRO) {
+    isEmpty(MOZ2D_SKIA) {
+      error("Can only build with both Skia and Cairo or neither on windows.")
+    }
+    DIR_SUFFIX = " (With Skia)"
+
+    LIBS += -L"$$PWD/../../skia/out/$$CONFIG_PREFIX" -L"$$PWD/../../cairo/src/$$CONFIG_PREFIX"
+    LIBS += -lskia_core -lskia_effects -lskia_utils -lskia_ports -lskia_opts -lskia_skgr -lskia_gr -lskia_opts_ssse3 -lskia_sfnt -lusp10 -lopengl32 -lcairo-static
+  }
+
+  LIBS += -L"$$PWD/../$$CONFIG_PREFIX$$DIR_SUFFIX/" -lgfx2d
+
+} else:symbian: LIBS += -lgfx2d
 else:unix: LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
 
 INCLUDEPATH += $$PWD/../

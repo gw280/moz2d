@@ -289,8 +289,14 @@
     <addaction name="actionAnalyze_Redundancy"/>
     <addaction name="actionAnalyze_Call_Timings"/>
    </widget>
+   <widget class="QMenu" name="menuBackend">
+    <property name="title">
+     <string>Backend</string>
+    </property>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
+   <addaction name="menuBackend"/>
   </widget>
   <action name="actionOpen_Recording">
    <property name="text">
@@ -334,6 +340,19 @@
   <action name="actionAnalyze_Call_Timings">
    <property name="text">
     <string>Analyze Call Timings</string>
+   </property>
+  </action>
+  <action name="actionDirect2D">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Direct2D</string>
+   </property>
+  </action>
+  <action name="actionHm">
+   <property name="text">
+    <string>Hm</string>
    </property>
   </action>
  </widget>

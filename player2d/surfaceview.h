@@ -25,6 +25,9 @@ protected:
 public slots:
     void UpdateView();
 
+signals:
+  void SwitchingBackend(uint32_t aType);
+
 protected slots:
     void on_actionZoom_In_triggered();
     void on_actionOriginal_Size_triggered();

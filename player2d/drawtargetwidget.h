@@ -26,6 +26,7 @@ public:
 #ifdef WIN32
   bool winEvent(MSG* message, long* result);
 #endif
+  void refresh();
   void redraw();
   void paintEvent(QPaintEvent *event);
   virtual QPaintEngine *paintEngine() const { return nullptr; }
@@ -36,13 +37,17 @@ public:
 signals:
   void RefillDT();
 
+public slots:
+  void SwitchToBackend(uint32_t aType);
+
 private:
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
 #ifdef WIN32
   mozilla::RefPtr<IDXGISwapChain> mSwapChain;
-#else
-  unsigned char* mDTData;
 #endif
+
+  mozilla::gfx::BackendType mType;
+  unsigned char* mDTData;
   MainWindow *mMainWindow;
 };
 
