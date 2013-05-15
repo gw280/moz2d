@@ -1,5 +1,13 @@
 #include "playbackmanager.h"
 
+#include "timer.h"
+
+#ifdef WIN32
+#include <d3d10_1.h>
+
+#undef GetObject
+#endif
+
 using namespace mozilla;
 using namespace mozilla::gfx;
 
@@ -223,6 +231,115 @@ PlaybackManager::PlaybackEvent(RecordedEvent *aEvent)
   aEvent->PlayEvent(this);
 }
 
+double
+PlaybackManager::GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, double *aStdDev)
+{
+  if (!aID) {
+    return 0;
+  }
+
+  uint32_t currentEvent = mCurrentEvent;
+
+  HighPrecisionMeasurement timer;
+  const int sIterations = 50;
+  const int N = 10;
+
+  double results[sIterations];
+  
+  DrawTarget *destinedDT = nullptr;
+
+  // We need to ensure clips still always get pushed and popped in pairs!
+  RecordedEvent *popEvent = nullptr;
+  RecordedEvent *pushEvent = nullptr;
+  if (IsClipPop(aID)) {
+    uint32_t pushID;
+    if (!FindCorrespondingClipID(aID, &pushID)) {
+      // EEP! This is bad.
+      MOZ_ASSERT(false);
+    }
+    pushEvent = mRecordedEvents[pushID];
+  } else if (IsClipPush(aID)) {
+    uint32_t popID;
+    if (!FindCorrespondingClipID(aID, &popID)) {
+      // EEP! This is bad.
+      MOZ_ASSERT(false);
+    }
+    popEvent = mRecordedEvents[popID];
+  }
+
+  for (int c = 0; c < N; c++) {
+    PlayToEvent(0);
+    PlayToEvent(aID);
+
+    if (mRecordedEvents[aID]->GetDestinedDT()) {
+      destinedDT = LookupDrawTarget(mRecordedEvents[aID]->GetDestinedDT());
+    }
+
+    if (aIgnoreFirst) {
+      // Execute the call once to ignore the first execution.
+      if (pushEvent) {
+        PlaybackEvent(pushEvent);
+      }
+
+      PlaybackEvent(mRecordedEvents[aID]);
+
+      if (popEvent) {
+        PlaybackEvent(popEvent);
+      }
+    }
+
+    timer.Start();
+    for (int i = 0; i < sIterations; i++) {
+
+      if (pushEvent) {
+        PlaybackEvent(pushEvent);
+      }
+
+      PlaybackEvent(mRecordedEvents[aID]);
+
+      if (popEvent) {
+        PlaybackEvent(popEvent);
+      }
+
+      if (!aAllowBatching) {
+        if (destinedDT) {
+          destinedDT->Flush();
+        }
+      }
+    }
+    if (destinedDT) {
+      destinedDT->Flush();
+    }
+    ForceCompletion();
+    results[c] = timer.Measure();
+  }
+
+  double average = 0;
+  for (int i = 0; i < N; i++) {
+    average += results[i];
+  }
+
+  // Bjacob suggested we work with the median here instead of the mean,
+  // making us less sensitive to outliers. This is probably a good idea and
+  // should be looked in to.
+
+  average /= double(N);
+  
+  double sqDiffSum = 0;
+  for (int i = 0; i < N; i++) {
+    sqDiffSum += pow(results[i] - average, 2);
+  }
+
+  sqDiffSum /= double(N);
+
+  *aStdDev = sqrt(sqDiffSum) / double(sIterations);
+
+  PlayToEvent(0);
+  PlayToEvent(currentEvent + 1);  
+
+  return average / double(sIterations);
+}
+
 bool
 PlaybackManager::CanDisableEvent(RecordedEvent *aEvent)
 {
@@ -246,4 +363,21 @@ PlaybackManager::CanDisableEvent(RecordedEvent *aEvent)
   default:
     return false;
   }
+}
+
+void
+PlaybackManager::ForceCompletion()
+{
+#ifdef WIN32
+  if (mBaseDT->GetType() == BACKEND_DIRECT2D) {
+    ID3D10Device1 *device = Factory::GetDirect3D10Device();
+    RefPtr<ID3D10Query> query;
+    D3D10_QUERY_DESC desc;
+    desc.Query = D3D10_QUERY_EVENT;
+    desc.MiscFlags = 0;
+    device->CreateQuery(&desc, byRef(query));
+    query->End();
+    while (query->GetData(nullptr, 0, 0) == S_FALSE) {}
+  }
+#endif
 }

@@ -12,6 +12,7 @@ class MainWindow;
 }
 
 class DrawTargetWidget;
+class CallTimingAnalysis;
 
 class MainWindow : public QMainWindow
 {
@@ -60,7 +61,11 @@ private slots:
     void ObjectContextMenu(const QPoint &aPoint);
 
     void FilterByCurrentObject();
+    void on_actionAnalyze_Call_Timings_triggered();
+
 private:
+  friend class CallTimingAnalysis;
+
     static ID3D10Device1 *sDevice;
 
     Ui::MainWindow *ui;

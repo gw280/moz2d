@@ -19,7 +19,8 @@ SOURCES += main.cpp\
     surfaceview.cpp \
     sourcesurfaceview.cpp \
     gradientstopsview.cpp \
-    redundancyanalysis.cpp
+    redundancyanalysis.cpp \
+    calltiminganalysis.cpp
 
 HEADERS  += mainwindow.h \
     drawtargetwidget.h \
@@ -31,13 +32,15 @@ HEADERS  += mainwindow.h \
     sourcesurfaceview.h \
     gradientstopsview.h \
     redundancyanalysis.h \
-    timer.h
+    timer.h \
+    calltiminganalysis.h
 
 FORMS    += mainwindow.ui \
     drawtargetview.ui \
     sourcesurfaceview.ui \
     gradientstopsview.ui \
-    redundancyanalysis.ui
+    redundancyanalysis.ui \
+    calltiminganalysis.ui
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../release/ -lgfx2d
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../debug/ -lgfx2d

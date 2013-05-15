@@ -15,6 +15,7 @@
 #include "drawtargetwidget.h"
 #include "qmdisubwindow.h"
 #include "redundancyanalysis.h"
+#include "calltiminganalysis.h"
 
 using namespace std;
 using namespace mozilla;
@@ -76,13 +77,13 @@ MainWindow::DefaultArrangement()
 {
   QList<QMdiSubWindow*> list = ui->mdiArea->subWindowList();
   list[1]->move(QPoint(0, 150));
-  list[1]->resize(QSize(250, ui->mdiArea->size().height() - 150));
+  list[1]->resize(QSize(350, ui->mdiArea->size().height() - 150));
   list[2]->move(QPoint(0, 0));
   list[2]->resize(QSize(ui->mdiArea->size().width(), 150));
-  list[0]->move(250, 150);
-  list[0]->resize(ui->mdiArea->size().width() - 250, ui->mdiArea->size().height() - 250);
-  list[3]->move(250, ui->mdiArea->size().height() - 100);
-  list[3]->resize(ui->mdiArea->size().width() - 250, 100);
+  list[0]->move(350, 150);
+  list[0]->resize(ui->mdiArea->size().width() - 350, ui->mdiArea->size().height() - 250);
+  list[3]->move(350, ui->mdiArea->size().height() - 100);
+  list[3]->resize(ui->mdiArea->size().width() - 350, 100);
 }
 
 void
@@ -191,6 +192,7 @@ void MainWindow::on_actionOpen_Recording_activated()
   inputFile.seekg(0, ios::beg);
   int64_t i = 0;
   ui->treeWidget->setColumnWidth(0, 50);
+  ui->treeWidget->setColumnWidth(2, 150);
 
   QList<ReferencePtr> objects;
 
@@ -404,4 +406,10 @@ MainWindow::FilterByCurrentObject()
       break;
     }
   }
+}
+
+void MainWindow::on_actionAnalyze_Call_Timings_triggered()
+{
+  QWidget *widget = new CallTimingAnalysis(this);
+  widget->show();
 }

@@ -66,8 +66,7 @@ public:
   void EnableEvent(uint32_t aID);
   void EnableAllEvents();
   bool IsEventDisabled(uint32_t aID);
-  void PlayPreviousEvent();
-  void PlayNextEvent();
+  double GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, double *aStdDev);
 
   typedef std::map<void*, mozilla::RefPtr<DrawTarget> > DTMap;
   typedef std::map<void*, mozilla::RefPtr<Path> > PathMap;
@@ -95,6 +94,8 @@ private:
   void PlaybackEvent(mozilla::gfx::RecordedEvent *aEvent);
 
   bool CanDisableEvent(mozilla::gfx::RecordedEvent *aEvent);
+
+  void ForceCompletion();
 
   uint32_t mCurrentEvent;
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mBaseDT;

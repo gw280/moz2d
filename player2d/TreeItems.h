@@ -13,6 +13,7 @@ public:
   {}
 
   int64_t mID;
+  double mTiming;
 };
 
 class ObjectItem : public QTreeWidgetItem

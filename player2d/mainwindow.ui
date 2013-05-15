@@ -165,7 +165,7 @@
            <bool>false</bool>
           </property>
           <property name="columnCount">
-           <number>3</number>
+           <number>4</number>
           </property>
           <attribute name="headerDefaultSectionSize">
            <number>60</number>
@@ -186,6 +186,11 @@
           <column>
            <property name="text">
             <string notr="true">Event</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Time</string>
            </property>
           </column>
          </widget>
@@ -282,6 +287,7 @@
      <string>Tools</string>
     </property>
     <addaction name="actionAnalyze_Redundancy"/>
+    <addaction name="actionAnalyze_Call_Timings"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -323,6 +329,11 @@
    </property>
    <property name="toolTip">
     <string>Go forward one played command</string>
+   </property>
+  </action>
+  <action name="actionAnalyze_Call_Timings">
+   <property name="text">
+    <string>Analyze Call Timings</string>
    </property>
   </action>
  </widget>
