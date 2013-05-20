@@ -65,7 +65,6 @@ ifeq ($(UNAME),Linux)
 DEFINES += MOZ_ENABLE_FREETYPE
 endif
 ifeq ($(UNAME),Darwin)
-MOZ2D_CPPSRCS += ScaledFontFreetype.cpp
 DEFINES += MOZ_ENABLE_FREETYPE
 LIBS += -L/opt/local/lib -lfreetype
 MOZ2D_PLAYER2D_LIBS += -L/opt/local/lib -lfreetype
