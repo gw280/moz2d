@@ -6,7 +6,11 @@
 #include <QtPlugin>
 
 #ifdef QT_STATIC
+#if QT_VERSION >= 0x050000
+Q_IMPORT_PLUGIN(QICOPlugin)
+#else
 Q_IMPORT_PLUGIN(qico)
+#endif
 #endif
 
 int main(int argc, char *argv[])
