@@ -59,7 +59,7 @@ signals:
   void SwitchingBackend(uint32_t aType);
 
 private slots:
-    void on_actionOpen_Recording_activated();
+    void on_actionOpen_Recording_triggered();
 
     void on_treeWidget_itemSelectionChanged();
 

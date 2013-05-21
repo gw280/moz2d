@@ -236,7 +236,7 @@ MainWindow::SwitchToBackend(BackendType aType)
   }
 }
 
-void MainWindow::on_actionOpen_Recording_activated()
+void MainWindow::on_actionOpen_Recording_triggered()
 {
   mEventItems.clear();
   ui->treeWidget->clear();
