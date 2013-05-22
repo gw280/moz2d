@@ -71,8 +71,10 @@ win32 {
 } else:symbian: LIBS += -lgfx2d
 else:unix {
   LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
+  !macx: GROUP_START = -Wl,--start-group
+  !macx: GROUP_END = -Wl,--end-group
   !isEmpty(MOZ2D_SKIA) {
-    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ -Wl,--start-group -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgr -lskia_gr -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL -Wl,--end-group
+    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ $$GROUP_START -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgr -lskia_gr -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL $$GROUP_END
   }
 }
 
