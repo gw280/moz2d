@@ -74,6 +74,14 @@ DrawTargetWidget::InitDT()
 }
 
 #ifdef WIN32
+#if QT_VERSION >= 0x050000
+bool
+DrawTargetWidget::nativeEvent(const QByteArray & eventType, void * message, long * result)
+{
+  return winEvent((MSG*)message, result);
+}
+#endif
+
 bool
 DrawTargetWidget::winEvent(MSG* message, long* result)
 {

@@ -24,6 +24,7 @@ public:
   void SetMainWindow(MainWindow *aWindow) { mMainWindow = aWindow; }
 
 #ifdef WIN32
+  bool nativeEvent(const QByteArray & eventType, void * message, long * result);
   bool winEvent(MSG* message, long* result);
 #endif
   void refresh();

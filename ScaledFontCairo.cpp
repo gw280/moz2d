@@ -6,13 +6,13 @@
 #include "ScaledFontCairo.h"
 #include "Logging.h"
 
-#include "cairo-ft.h"
-
 #include <string>
 
 #ifdef MOZ_ENABLE_FREETTYPE
 #include "ft2build.h"
 #include FT_FREETYPE_H
+
+#include "cairo-ft.h"
 #endif
 
 using namespace std;
