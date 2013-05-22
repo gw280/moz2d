@@ -8,7 +8,7 @@
 
 #include <string>
 
-#ifdef MOZ_ENABLE_FREETTYPE
+#ifdef MOZ_ENABLE_FREETYPE
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
