@@ -6,9 +6,7 @@
 #include <QtPlugin>
 
 #ifdef QT_STATIC
-#if QT_VERSION >= 0x050000
-Q_IMPORT_PLUGIN(QICOPlugin)
-#else
+#if QT_VERSION < 0x050000
 Q_IMPORT_PLUGIN(qico)
 #endif
 #endif

@@ -234,7 +234,8 @@ PlaybackManager::PlaybackEvent(RecordedEvent *aEvent)
 }
 
 double
-PlaybackManager::GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, double *aStdDev)
+PlaybackManager::GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, 
+                                bool aDoFlush, bool aForceCompletion, double *aStdDev)
 {
   if (!aID) {
     return 0;
@@ -309,10 +310,12 @@ PlaybackManager::GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreF
         }
       }
     }
-    if (destinedDT) {
+    if (destinedDT && aDoFlush) {
       destinedDT->Flush();
     }
-    ForceCompletion();
+    if (aForceCompletion) {
+      ForceCompletion();
+    }
     results[c] = timer.Measure();
   }
 

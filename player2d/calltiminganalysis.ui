@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>271</width>
-    <height>114</height>
+    <height>461</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -71,7 +71,7 @@
      <rect>
       <x>10</x>
       <y>70</y>
-      <width>151</width>
+      <width>111</width>
       <height>18</height>
      </rect>
     </property>
@@ -83,7 +83,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;This will cause the first measurement to be ignored. This may be useful if calls are expected to create a cached version of something and the efficiency of that cache wants to be factored in.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="text">
-     <string>Ignore first measurement</string>
+     <string>Ignore first timing</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="preventBatching">
@@ -100,6 +100,45 @@ p, li { white-space: pre-wrap; }
     </property>
     <property name="text">
      <string>Prevent batching</string>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="resultBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>251</width>
+      <height>341</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="forceFlush">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>70</y>
+      <width>91</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Force flush</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="forceRealization">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>90</y>
+      <width>101</width>
+      <height>17</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Force realization</string>
     </property>
    </widget>
   </widget>

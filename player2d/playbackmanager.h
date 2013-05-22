@@ -66,7 +66,8 @@ public:
   void EnableEvent(uint32_t aID);
   void EnableAllEvents();
   bool IsEventDisabled(uint32_t aID);
-  double GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst, double *aStdDev);
+  double GetEventTiming(uint32_t aID, bool aAllowBatching, bool aIgnoreFirst,
+                        bool aDoFlush, bool aForceCompletion, double *aStdDev);
 
   uint32_t GetCurrentEvent() { return mCurrentEvent; }
 

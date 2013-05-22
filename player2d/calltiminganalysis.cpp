@@ -5,6 +5,10 @@
 
 #include "mainwindow.h"
 
+#include "RecordedEvent.h"
+
+using namespace mozilla;
+using namespace mozilla::gfx;
 
 CallTimingAnalysis::CallTimingAnalysis(MainWindow *aMainWindow) :
   QMainWindow(aMainWindow),
@@ -49,17 +53,36 @@ void CallTimingAnalysis::on_pushButton_clicked()
   ui->progressBar->setMaximum(end - start);
   ui->progressBar->setValue(0);
 
+  ui->resultBox->appendPlainText("Starting analysis...");
+
+  double total = 0;
+
+  double totals[RecordedEvent::kTotalEventTypes];
+  for (uint32_t i = 0; i < RecordedEvent::kTotalEventTypes; i++) {
+    totals[i] = 0;
+  }
   for (uint32_t i = start; i <= end; i++) {
     double stdDev;
     EventItem *item = static_cast<EventItem*>(mMainWindow->mEventItems[i]);
     double avg = mMainWindow->mPBManager.GetEventTiming(item->mID,
                                                         ui->preventBatching->checkState() != Qt::Checked,
-                                                        ui->ignoreFirst->checkState() == Qt::Checked, &stdDev);
+                                                        ui->ignoreFirst->checkState() == Qt::Checked,
+                                                        ui->forceFlush->checkState() == Qt::Checked,
+                                                        ui->forceRealization->checkState() == Qt::Checked, &stdDev);
     
     item->mTiming = avg;
     mMainWindow->mEventItems[i]->setText(3, QString::number(avg, 'g', 3) + " +/- " + QString::number(stdDev, 'g', 2) + " ms");
 
+    total += avg;
     ui->progressBar->setValue(i - start);
     QApplication::processEvents();
+
+    totals[mMainWindow->mPBManager.mRecordedEvents[item->mID]->GetType()] += avg;
+  }
+
+  ui->resultBox->appendPlainText("Total time measured: " + QString::number(total, 'g', 3) + " ms");
+  for (uint32_t i = 0; i < RecordedEvent::kTotalEventTypes; i++) {
+    ui->resultBox->appendPlainText(QString::fromStdString(RecordedEvent::GetEventName((RecordedEvent::EventType)i)) +
+                                   ": " + QString::number(totals[i], 'g', 3));
   }
 }

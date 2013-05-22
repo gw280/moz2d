@@ -162,6 +162,9 @@ public:
     SCALEDFONTCREATION,
     SCALEDFONTDESTRUCTION
   };
+  static const uint32_t kTotalEventTypes = RecordedEvent::SCALEDFONTDESTRUCTION + 1;
+
+  static std::string GetEventName(EventType aType);
 
   virtual void PlayEvent(Translator *aTranslator) const {}
 
