@@ -2,6 +2,7 @@
 #include "ui_sourcesurfaceview.h"
 #include "2D.h"
 #include "RecordedEvent.h"
+#include "mainwindow.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -14,7 +15,7 @@ SourceSurfaceView::SourceSurfaceView(ReferencePtr aRefPtr, mozilla::gfx::Transla
     mTranslator(aTranslator)
 {
     ui->setupUi(this);
-    ui->dtWidget->SwitchToBackend(mTranslator->GetReferenceDrawTarget()->GetType());
+    ui->dtWidget->SwitchToBackend(MainWindow::mMainBackend);
 
     connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
     connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));

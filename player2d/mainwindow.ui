@@ -294,9 +294,15 @@
      <string>Backend</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuSimulationBackend">
+    <property name="title">
+     <string>Simulation Backend</string>
+    </property>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
    <addaction name="menuBackend"/>
+   <addaction name="menuSimulationBackend"/>
   </widget>
   <action name="actionOpen_Recording">
    <property name="text">

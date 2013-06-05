@@ -33,6 +33,8 @@ SurfaceView::UpdateView()
     return;
   }
 
+  srcSurf = srcSurf->GetDataSurface();
+
   IntSize dtSize = dt->GetSize();
   IntSize dstSurfSize = srcSurf->GetSize();
   IntSize dstSize = srcSurf->GetSize();

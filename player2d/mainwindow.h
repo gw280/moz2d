@@ -15,15 +15,17 @@ class MainWindow;
 class DrawTargetWidget;
 class CallTimingAnalysis;
 
-const uint32_t sBackendCount = mozilla::gfx::BACKEND_RECORDING + 1;
+const uint32_t sBackendCount = mozilla::gfx::BACKEND_DIRECT2D + 1;
 
 class BackendSwitch : public QAction
 {
   Q_OBJECT
 public:
-  BackendSwitch(const QString &aName, mozilla::gfx::BackendType aType, QObject *aParent)
+  BackendSwitch(const QString &aName, mozilla::gfx::BackendType aType, 
+                bool aSimulation, QObject *aParent)
     : QAction(aName, aParent)
     , mType(aType)
+    , mSimulation(aSimulation)
   {
     setCheckable(true);
     connect(this, SIGNAL(toggled(bool)), this, SLOT(selected(bool)));
@@ -33,6 +35,7 @@ private slots:
   void selected(bool aChecked);
 private:
   mozilla::gfx::BackendType mType;
+  bool mSimulation;
 };
 
 class MainWindow : public QMainWindow
@@ -52,6 +55,9 @@ public:
   virtual void resizeEvent(QResizeEvent *);
 
   void SwitchToBackend(mozilla::gfx::BackendType aType);
+  void SwitchSimulationBackend(mozilla::gfx::BackendType aType);
+
+  static mozilla::gfx::BackendType mMainBackend;
 
 signals:
   void UpdateViews();
@@ -104,6 +110,7 @@ private:
   bool mAutomatedItemChange;
 
   BackendSwitch *mBackends[sBackendCount];
+  BackendSwitch *mSimulationBackends[sBackendCount];
 };
 
 #endif // MAINWINDOW_H

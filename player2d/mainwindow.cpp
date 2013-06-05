@@ -7,6 +7,7 @@
 
 #ifdef WIN32
 #include <d3d10_1.h>
+#include <d3d11.h>
 #endif
 
 #include "RecordedEvent.h"
@@ -24,6 +25,7 @@ using namespace mozilla::gfx;
 #undef GetObject
 
 ID3D10Device1 *MainWindow::sDevice = NULL;
+BackendType MainWindow::mMainBackend = BACKEND_NONE;
 
 QString
 NameForBackend(uint32_t aType)
@@ -50,7 +52,11 @@ void
 BackendSwitch::selected(bool aChecked)
 {
   if (aChecked) {
-    static_cast<MainWindow*>(parentWidget())->SwitchToBackend(mType);
+    if (mSimulation) {
+      static_cast<MainWindow*>(parentWidget())->SwitchSimulationBackend(mType);
+    } else {
+      static_cast<MainWindow*>(parentWidget())->SwitchToBackend(mType);
+    }
   }
 }
 
@@ -62,7 +68,8 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->setupUi(this);
 
   for (int i = 0; i < sBackendCount; i++) {
-    mBackends[i] = new BackendSwitch(NameForBackend(i), BackendType(i), this);
+    mBackends[i] = new BackendSwitch(NameForBackend(i), BackendType(i), false, this);
+    mSimulationBackends[i] = new BackendSwitch(NameForBackend(i), BackendType(i), true, this);
   }
 
 #ifdef WIN32
@@ -77,6 +84,7 @@ MainWindow::MainWindow(QWidget *parent) :
     Factory::SetDirect3D10Device(sDevice);
   }
   ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D]);
 #elif __APPLE__
   ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
   //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
@@ -85,12 +93,15 @@ MainWindow::MainWindow(QWidget *parent) :
 #endif
 #ifdef USE_CAIRO
   ui->menuBackend->addAction(mBackends[BACKEND_CAIRO]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_CAIRO]);
 #endif
 #ifdef USE_SKIA
   ui->menuBackend->addAction(mBackends[BACKEND_SKIA]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_SKIA]);
 #endif
 
   ui->menuBackend->actions()[0]->toggle();
+  ui->menuSimulationBackend->actions()[0]->toggle();
 
   connect(&mPBManager, SIGNAL(EventDisablingUpdated(int32_t)), this, SLOT(UpdateEventColor(int32_t)));
   ui->objectTree->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -221,13 +232,36 @@ MainWindow::SwitchToBackend(BackendType aType)
   }
 
   mPBManager.PlaybackToEvent(0);
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(aType, IntSize(1, 1), FORMAT_B8G8R8A8);
-  mPBManager.SetBaseDT(refDT);
+
+  mMainBackend = aType;
   
   SwitchingBackend(aType);
   
   QApplication::processEvents();
 
+  QTreeWidgetItem *item = ui->treeWidget->currentItem();
+  if (item) {
+    int64_t idx = static_cast<EventItem*>(item)->mID;
+
+    mPBManager.PlaybackToEvent(idx + 1);
+  }
+}
+
+void
+MainWindow::SwitchSimulationBackend(BackendType aType)
+{
+  for (int i = 0; i < sBackendCount; i++) {
+    if (mSimulationBackends[i]) {
+      if (i != aType) {
+        mSimulationBackends[i]->setChecked(false);
+      }
+    }
+  }
+
+  mPBManager.PlaybackToEvent(0);
+  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(aType, IntSize(1, 1), FORMAT_B8G8R8A8);
+  mPBManager.SetBaseDT(refDT);
+  
   QTreeWidgetItem *item = ui->treeWidget->currentItem();
   if (item) {
     int64_t idx = static_cast<EventItem*>(item)->mID;

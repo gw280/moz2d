@@ -2,6 +2,7 @@
 #include "ui_drawtargetview.h"
 #include "2D.h"
 #include "RecordedEvent.h"
+#include "MainWindow.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
@@ -15,7 +16,7 @@ DrawTargetView::DrawTargetView(ReferencePtr aRefPtr, mozilla::gfx::Translator *a
     mClipVisualized(false)
 {
     ui->setupUi(this);
-    ui->dtWidget->SwitchToBackend(mTranslator->GetReferenceDrawTarget()->GetType());
+    ui->dtWidget->SwitchToBackend(MainWindow::mMainBackend);
 
     connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
     connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));
