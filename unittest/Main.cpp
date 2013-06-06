@@ -5,6 +5,7 @@
 
 #include "SanityChecks.h"
 #include "TestPoint.h"
+#include "TestRect.h"
 #include "TestScaling.h"
 #ifdef WIN32
 #include "TestDrawTargetD2D.h"
@@ -43,6 +44,7 @@ main()
     { new TestDrawTargetSkiaSoftware(), "DrawTarget (Skia Software)" },
   #endif
     { new TestPoint(), "Point Tests" },
+    { new TestRect(), "Rect Tests" },
     { new TestScaling(), "Scaling Tests" }
   };
 

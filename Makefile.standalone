@@ -48,6 +48,7 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/SanityChecks.cpp \
   unittest/TestBase.cpp \
   unittest/TestPoint.cpp \
+  unittest/TestRect.cpp \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
   unittest/TestDrawTargetBase.cpp \
@@ -63,6 +64,8 @@ PERFTEST_CPPSRCS = $(PERFTEST_CPPSRCS_ALLPLATFORMS)
 
 ifeq ($(UNAME),Linux)
 DEFINES += MOZ_ENABLE_FREETYPE
+INCLUDES += /usr/include/freetype2
+LIBS += -lfreetype
 endif
 ifeq ($(UNAME),Darwin)
 DEFINES += MOZ_ENABLE_FREETYPE
