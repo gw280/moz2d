@@ -144,6 +144,7 @@
     <ClCompile Include="TestDrawTargetD2D.cpp" />
     <ClCompile Include="TestDrawTargetSkiaSoftware.cpp" />
     <ClCompile Include="TestPoint.cpp" />
+    <ClCompile Include="TestRect.cpp" />
     <ClCompile Include="TestScaling.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -154,6 +155,7 @@
     <ClInclude Include="TestDrawTargetD2D.h" />
     <ClInclude Include="TestDrawTargetSkiaSoftware.h" />
     <ClInclude Include="TestPoint.h" />
+    <ClInclude Include="TestRect.h" />
     <ClInclude Include="TestScaling.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
