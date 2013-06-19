@@ -24,6 +24,8 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, StrokeTriangle);
   REGISTER_TEST(TestDrawTargetBase, DrawSurface);
   REGISTER_TEST(TestDrawTargetBase, FillWithSurface);
+  REGISTER_TEST(TestDrawTargetBase, FillWithPartialLargeSurface);
+  REGISTER_TEST(TestDrawTargetBase, FillWithScaledLargeSurface);
   REGISTER_TEST(TestDrawTargetBase, FillGradient);
   REGISTER_TEST(TestDrawTargetBase, FillRadialGradient);
   REGISTER_TEST(TestDrawTargetBase, FillWithSnapshot);
@@ -192,6 +194,62 @@ TestDrawTargetBase::DrawSurface()
     mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, FORMAT_B8G8R8A8);
 
   mDT->DrawSurface(src, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Rect(0, 0, 1, 1));
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillWithPartialLargeSurface()
+{
+  // This test will test if a DrawTarget correctly displays an extremely
+  // large image when only part of it is shown.
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  uint32_t *data = new uint32_t[18000 * DT_HEIGHT];
+
+  for (int i = 0; i < 18000 * DT_HEIGHT; i++) {
+    data[i] = 0xff008000;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+    mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillWithScaledLargeSurface()
+{
+  // This test will test if a DrawTarget correctly displays an extremely
+  // large image when it is scaled down to be completely visible.
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  uint32_t *data = new uint32_t[18000 * DT_HEIGHT];
+
+  for (int i = 0; i < 18000 * DT_HEIGHT; i++) {
+    data[i] = 0xff008000;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, 18000), FORMAT_B8G8R8A8);
+
+    Matrix mat;
+    mat.Scale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));
+    mDT->FillRect(Rect(0, 0, 18000, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+  }
+
+  delete [] data;
 
   RefreshSnapshot();
 

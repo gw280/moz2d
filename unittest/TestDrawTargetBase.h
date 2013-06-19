@@ -30,6 +30,8 @@ public:
   void StrokeTriangle();
   void DrawSurface();
   void FillWithSurface();
+  void FillWithPartialLargeSurface();
+  void FillWithScaledLargeSurface();
   void FillGradient();
   void FillRadialGradient();
   void FillWithSnapshot();
