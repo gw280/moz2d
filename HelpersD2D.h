@@ -18,6 +18,9 @@
 
 #include "ScaledFontDWrite.h"
 
+#undef min
+#undef max
+
 namespace mozilla {
 namespace gfx {
 
@@ -470,10 +473,10 @@ CreatePartialBitmapForSurface(DataSourceSurface *aSurface, const Matrix &aDestin
     
     IntSize scaleSize;
 
-    scaleSize.width = int32_t(max(Distance(topRight, topLeft),
-                                  Distance(bottomRight, bottomLeft)));
-    scaleSize.height = int32_t(max(Distance(topRight, bottomRight),
-                                   Distance(topLeft, bottomLeft)));
+    scaleSize.width = int32_t(std::max(Distance(topRight, topLeft),
+                                       Distance(bottomRight, bottomLeft)));
+    scaleSize.height = int32_t(std::max(Distance(topRight, bottomRight),
+                                        Distance(topLeft, bottomLeft)));
 
     if (unsigned(scaleSize.width) > aRT->GetMaximumBitmapSize()) {
       // Ok, in this case we'd really want a downscale of a part of the bitmap,
