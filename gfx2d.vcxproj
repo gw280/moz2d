@@ -78,7 +78,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -100,7 +100,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -123,7 +123,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -139,7 +139,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -166,6 +166,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="DrawTargetD2D.h" />
+    <ClInclude Include="DrawTargetD2D1.h" />
     <ClInclude Include="DrawTargetDual.h" />
     <ClInclude Include="DrawTargetRecording.h" />
     <ClInclude Include="DrawTargetSkia.h">
@@ -208,6 +209,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="SourceSurfaceD2D.h" />
+    <ClInclude Include="SourceSurfaceD2D1.h" />
     <ClInclude Include="SourceSurfaceD2DTarget.h" />
     <ClInclude Include="SourceSurfaceRawData.h" />
     <ClInclude Include="SourceSurfaceSkia.h">
@@ -227,6 +229,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="DrawTargetD2D.cpp" />
+    <ClCompile Include="DrawTargetD2D1.cpp" />
     <ClCompile Include="DrawTargetDual.cpp" />
     <ClCompile Include="DrawTargetRecording.cpp" />
     <ClCompile Include="DrawTargetSkia.cpp">
@@ -265,6 +268,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="SourceSurfaceD2D.cpp" />
+    <ClCompile Include="SourceSurfaceD2D1.cpp" />
     <ClCompile Include="SourceSurfaceD2DTarget.cpp" />
     <ClCompile Include="SourceSurfaceRawData.cpp" />
     <ClCompile Include="SourceSurfaceSkia.cpp">
@@ -285,7 +289,7 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="ShadersD2D1.hlsl">
-      <FileType>Document</FileType>
+      <FileType>HLSL</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">fxc ShadersD2D1.hlsl -ESampleRadialGradientPS -nologo -Tps_4_0_level_9_3 -Fhtmpfile -VnSampleRadialGradientPS
 type tmpfile &gt; ShadersD2D1.h
 fxc ShadersD2D1.hlsl -ESampleRadialGradientA0PS -nologo -Tps_4_0_level_9_3 -Fhtmpfile -VnSampleRadialGradientA0PS
