@@ -87,8 +87,8 @@ static: DEFINES += QT_STATIC
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../release/gfx2d.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../debug/gfx2d.lib
 
-win32: LIBS += -ld3d10_1
-win32: DEFINES += INITGUID
+win32: LIBS += -ld3d10_1 -ld3d11
+win32: DEFINES += INITGUID USE_D2D1_1
 
 RESOURCES += \
     resources.qrc

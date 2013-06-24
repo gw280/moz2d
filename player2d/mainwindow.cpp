@@ -37,6 +37,8 @@ NameForBackend(uint32_t aType)
     return "Cairo";
   case BACKEND_DIRECT2D:
     return "Direct2D";
+  case BACKEND_DIRECT2D1_1:
+    return "Direct2D 1.1";
   case BACKEND_COREGRAPHICS:
     return "Quartz";
   case BACKEND_COREGRAPHICS_ACCELERATED:
@@ -82,9 +84,28 @@ MainWindow::MainWindow(QWidget *parent) :
       // EEEP!
     }
     Factory::SetDirect3D10Device(sDevice);
+
+    RefPtr<ID3D11Device> device;
+    D3D_FEATURE_LEVEL featureLevels[] = {
+      D3D_FEATURE_LEVEL_11_1,
+      D3D_FEATURE_LEVEL_11_0,
+      D3D_FEATURE_LEVEL_10_1,
+      D3D_FEATURE_LEVEL_10_0,
+      D3D_FEATURE_LEVEL_9_3
+    };
+
+
+    HRESULT hr = ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, NULL,
+                                     D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                                     featureLevels, sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
+                                     D3D11_SDK_VERSION, byRef(device), nullptr, nullptr);
+
+    Factory::SetDirect3D11Device(device);
   }
   ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D]);
   ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D]);
+  ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D1_1]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D1_1]);
 #elif __APPLE__
   ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
   //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
