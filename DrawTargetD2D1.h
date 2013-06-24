@@ -55,6 +55,10 @@ public:
                                      Float aSigma,
                                      CompositionOp aOperator);
   virtual void ClearRect(const Rect &aRect);
+  virtual void MaskSurface(const Pattern &aSource,
+                           SourceSurface *aMask,
+                           Point aOffset,
+                           const DrawOptions &aOptions = DrawOptions());
 
   virtual void CopySurface(SourceSurface *aSurface,
                            const IntRect &aSourceRect,

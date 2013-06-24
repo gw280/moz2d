@@ -162,6 +162,38 @@ DrawTargetD2D1::ClearRect(const Rect &aRect)
 }
 
 void
+DrawTargetD2D1::MaskSurface(const Pattern &aSource,
+                            SourceSurface *aMask,
+                            Point aOffset,
+                            const DrawOptions &aOptions)
+{
+  RefPtr<ID2D1Bitmap> bitmap;
+
+  RefPtr<ID2D1Image> image = GetImageForSurface(aMask, Matrix(), EXTEND_CLAMP);
+
+  PrepareForDrawing(aOptions.mCompositionOp, aSource);
+
+  // FillOpacityMask only works if the antialias mode is MODE_ALIASED
+  mDC->SetAntialiasMode(D2D1_ANTIALIAS_MODE_ALIASED);
+
+  IntSize size = aMask->GetSize();
+  Rect maskRect = Rect(0.f, 0.f, Float(size.width), Float(size.height));
+  image->QueryInterface((ID2D1Bitmap**)&bitmap);
+  if (!bitmap) {
+    gfxWarning() << "FillOpacityMask only works with Bitmap source surfaces.";
+    return;
+  }
+
+  Rect dest = Rect(aOffset.x, aOffset.y, Float(size.width), Float(size.height));
+  RefPtr<ID2D1Brush> brush = CreateBrushForPattern(aSource, aOptions.mAlpha);
+  mDC->FillOpacityMask(bitmap, brush, D2D1_OPACITY_MASK_CONTENT_GRAPHICS, D2DRect(dest), D2DRect(maskRect));
+
+  mDC->SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+
+  FinalizeDrawing(aOptions.mCompositionOp, aSource);
+}
+
+void
 DrawTargetD2D1::CopySurface(SourceSurface *aSurface,
                             const IntRect &aSourceRect,
                             const IntPoint &aDestination)
