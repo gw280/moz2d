@@ -63,7 +63,7 @@ win32 {
     DIR_SUFFIX = " (With Skia)"
 
     LIBS += -L"$$PWD/../../skia/out/$$CONFIG_PREFIX" -L"$$PWD/../../cairo/src/$$CONFIG_PREFIX"
-    LIBS += -lskia_core -lskia_effects -lskia_utils -lskia_ports -lskia_opts -lskia_skgr -lskia_gr -lskia_opts_ssse3 -lskia_sfnt -lusp10 -lopengl32 -lcairo-static
+    LIBS += -lskia_core -lskia_images -lskia_effects -lskia_utils -lskia_ports -lskia_opts -lskia_skgpu -lskia_opts_ssse3 -lskia_sfnt -lusp10 -lopengl32 -lcairo-static
   }
 
   LIBS += -L"$$PWD/../$$CONFIG_PREFIX$$DIR_SUFFIX/" -lgfx2d
@@ -74,7 +74,7 @@ else:unix {
   !macx: GROUP_START = -Wl,--start-group
   !macx: GROUP_END = -Wl,--end-group
   !isEmpty(MOZ2D_SKIA) {
-    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ $$GROUP_START -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgr -lskia_gr -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL $$GROUP_END
+    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ $$GROUP_START -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgpu -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL $$GROUP_END
   }
 }
 
