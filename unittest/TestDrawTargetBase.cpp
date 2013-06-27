@@ -214,7 +214,7 @@ TestDrawTargetBase::FillWithPartialLargeSurface()
   }
 
   {
-    RefPtr<SourceSurface> src =
+    RefPtr<DataSourceSurface> src =
       Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), FORMAT_B8G8R8A8);
 
     mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
@@ -241,7 +241,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
   }
 
   {
-    RefPtr<SourceSurface> src =
+    RefPtr<DataSourceSurface> src =
       Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, 18000), FORMAT_B8G8R8A8);
 
     Matrix mat;
