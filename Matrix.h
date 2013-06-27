@@ -65,10 +65,30 @@ public:
     return *this;
   }
 
+  Matrix &PostScale(Float aX, Float aY)
+  {
+    _11 *= aX;
+    _21 *= aX;
+    _31 *= aX;
+    _12 *= aY;
+    _22 *= aY;
+    _32 *= aY;
+
+    return *this;
+  }
+
   Matrix &Translate(Float aX, Float aY)
   {
     _31 += _11 * aX + _21 * aY;
     _32 += _12 * aX + _22 * aY;
+
+    return *this;
+  }
+
+  Matrix &PostTranslate(Float aX, Float aY)
+  {
+    _31 += aX;
+    _32 += aY;
 
     return *this;
   }

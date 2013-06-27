@@ -1,6 +1,6 @@
 DEFINES  += USE_SKIA SK_RELEASE GR_RELEASE
 
-LIBS += -L$(MOZ2D_SKIA)/out/Release/ -lskia_gr -lskia_core -lskia_ports -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgr -lskia_gr -lskia_opts -lskia_opts_ssse3 -lskia_ports -lGL
+LIBS += -L$(MOZ2D_SKIA)/out/Release/ -Wl,--start-group -lskia_skgpu -lskia_core -lskia_ports -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_opts -lskia_opts_ssse3 -lskia_ports -lskia_images -Wl,--end-group -lpthread -lGL
 
 MOZ2D_CPPSRCS += \
   DrawTargetSkia.cpp \

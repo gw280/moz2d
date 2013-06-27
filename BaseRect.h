@@ -343,6 +343,30 @@ struct BaseRect {
     height = y1 - y0;
   }
 
+  // Scale 'this' by aScale.
+  void Scale(double aScale) { Scale(aScale, aScale); }
+  // Scale 'this' by aXScale and aYScale.
+  void Scale(double aXScale, double aYScale)
+  {
+    T right = static_cast<T>(double(XMost()) * aXScale);
+    T bottom = static_cast<T>(double(YMost()) * aYScale);
+    x = static_cast<T>(double(x) * aXScale);
+    y = static_cast<T>(double(y) * aYScale);
+    width = right - x;
+    height = bottom - y;
+  }
+  // Scale 'this' by 1/aScale.
+  void ScaleInverse(double aScale) { Scale(aScale, aScale); }
+  // Scale 'this' by 1/aXScale and 1/aYScale.
+  void ScaleInverse(double aXScale, double aYScale)
+  {
+    T right = static_cast<T>(double(XMost()) / aXScale);
+    T bottom = static_cast<T>(double(YMost()) / aYScale);
+    x = static_cast<T>(double(x) / aXScale);
+    y = static_cast<T>(double(y) / aYScale);
+    width = right - x;
+    height = bottom - y;
+  }
   // Scale 'this' by aScale, converting coordinates to integers so that the result is
   // the smallest integer-coordinate rectangle containing the unrounded result.
   // Note: this can turn an empty rectangle into a non-empty rectangle

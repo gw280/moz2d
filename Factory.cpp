@@ -15,6 +15,11 @@
 #include "ScaledFontSkia.h"
 #endif
 
+#ifdef USE_NVPR
+#include "DrawTargetNVpr.h"
+#include "ScaledFontNVpr.h"
+#endif
+
 #if defined(WIN32) && defined(USE_SKIA)
 #include "ScaledFontWin.h"
 #endif
@@ -238,6 +243,13 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
       break;
     }
 #endif
+#ifdef USE_NVPR
+  case BACKEND_NVPR:
+    {
+      retVal = DrawTargetNVpr::Create(aSize, aFormat);
+      break;
+    }
+#endif
   default:
     gfxDebug() << "Invalid draw target type specified.";
     return nullptr;
@@ -383,6 +395,12 @@ Factory::CreateScaledFontForTrueTypeData(uint8_t *aData, uint32_t aSize,
   case FONT_CAIRO:
   {
     return new ScaledFontCairo(aData, aSize, aFaceIndex, aGlyphSize);
+  }
+#endif
+#ifdef USE_NVPR
+  case FONT_NVPR:
+  {
+    return ScaledFontNVpr::Create(aData, aSize, aFaceIndex, aGlyphSize);
   }
 #endif
   default:

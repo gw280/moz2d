@@ -28,7 +28,8 @@ enum SurfaceType
   SURFACE_SKIA, /* Surface wrapping a Skia bitmap */
   SURFACE_DUAL_DT, /* Snapshot of a dual drawtarget */
   SURFACE_D2D1_1_IMAGE, /* A D2D 1.1 ID2D1Image SourceSurface */
-  SURFACE_RECORDING /* Surface used for recording */
+  SURFACE_RECORDING, /* Surface used for recording */
+  SURFACE_NVPR_TEXTURE /* Surface wrapping an OpenGL texture, used by NV_path_rendering */
 };
 
 enum SurfaceFormat
@@ -52,7 +53,8 @@ enum BackendType
   BACKEND_CAIRO,
   BACKEND_SKIA,
   BACKEND_RECORDING,
-  BACKEND_DIRECT2D1_1
+  BACKEND_DIRECT2D1_1,
+  BACKEND_NVPR
 };
 
 enum FontType
@@ -62,7 +64,8 @@ enum FontType
   FONT_MAC,
   FONT_SKIA,
   FONT_CAIRO,
-  FONT_COREGRAPHICS
+  FONT_COREGRAPHICS,
+  FONT_NVPR
 };
 
 enum NativeSurfaceType
@@ -79,7 +82,8 @@ enum NativeFontType
   NATIVE_FONT_GDI_FONT_FACE,
   NATIVE_FONT_MAC_FONT_FACE,
   NATIVE_FONT_SKIA_FONT_FACE,
-  NATIVE_FONT_CAIRO_FONT_FACE
+  NATIVE_FONT_CAIRO_FONT_FACE,
+  NATIVE_FONT_NVPR_FONT_FACE
 };
 
 enum FontStyle
