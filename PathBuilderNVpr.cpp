@@ -278,14 +278,14 @@ PathBuilderNVpr::MakeWritable()
   gl->MakeCurrent();
 
   GLint commandCount;
-  glGetPathParameterivNV(*mPathObject, GL_PATH_COMMAND_COUNT_NV, &commandCount);
+  gl->GetPathParameterivNV(*mPathObject, GL_PATH_COMMAND_COUNT_NV, &commandCount);
   mDescription.mCommands.resize(commandCount);
-  glGetPathCommandsNV(*mPathObject, mDescription.mCommands.data());
+  gl->GetPathCommandsNV(*mPathObject, mDescription.mCommands.data());
 
   GLint coordCount;
-  glGetPathParameterivNV(*mPathObject, GL_PATH_COORD_COUNT_NV, &coordCount);
+  gl->GetPathParameterivNV(*mPathObject, GL_PATH_COORD_COUNT_NV, &coordCount);
   mDescription.mCoords.resize(coordCount);
-  glGetPathCoordsNV(*mPathObject, mDescription.mCoords.data());
+  gl->GetPathCoordsNV(*mPathObject, mDescription.mCoords.data());
 
   mStartPoint = mPathObject->StartPoint();
   mCurrentPoint = mPathObject->CurrentPoint();

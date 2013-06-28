@@ -5,49 +5,98 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "GLContextNVpr.h"
+#include <dlfcn.h>
 #include <GL/glx.h>
+
+#define FOR_ALL_GLX_ENTRY_POINTS(MACRO) \
+  MACRO(ChooseFBConfig) \
+  MACRO(GetVisualFromFBConfig) \
+  MACRO(CreateGLXPixmap) \
+  MACRO(DestroyGLXPixmap) \
+  MACRO(CreateContext) \
+  MACRO(DestroyContext) \
+  MACRO(GetProcAddress) \
+  MACRO(GetCurrentContext) \
+  MACRO(MakeCurrent)
 
 namespace mozilla {
 namespace gfx {
 
 struct GLContextNVpr::PlatformContextData {
+  void* mLibGL;
+
+#define DECLARE_GLX_METHOD(NAME) \
+  decltype(&glX##NAME) NAME;
+
+  FOR_ALL_GLX_ENTRY_POINTS(DECLARE_GLX_METHOD);
+
+#undef DECLARE_GLX_METHOD
+
   Display* mDisplay;
   Pixmap mPixmap;
   GLXPixmap mGLXPixmap;
   GLXContext mContext;
 };
 
-void GLContextNVpr::InitGLContext()
+bool GLContextNVpr::InitGLContext()
 {
   mContextData = new PlatformContextData();
   PlatformContextData& ctx = *mContextData;
 
+  ctx.mLibGL = dlopen("libGL.so", RTLD_LAZY);
+  if (!ctx.mLibGL) {
+    return false;
+  }
+
+#define LOAD_GLX_METHOD(NAME) \
+  ctx.NAME = reinterpret_cast<decltype(ctx.NAME)>(dlsym(ctx.mLibGL, "glX"#NAME)); \
+  if (!ctx.NAME) { \
+    return false; \
+  }
+
+  FOR_ALL_GLX_ENTRY_POINTS(LOAD_GLX_METHOD);
+
+#undef LOAD_GLX_METHOD
+
   ctx.mDisplay = XOpenDisplay(0);
 
   int nelements;
-  GLXFBConfig *fbc = glXChooseFBConfig(ctx.mDisplay, DefaultScreen(ctx.mDisplay),
+  GLXFBConfig *fbc = ctx.ChooseFBConfig(ctx.mDisplay, DefaultScreen(ctx.mDisplay),
                                        0, &nelements);
-  XVisualInfo *vi = glXGetVisualFromFBConfig(ctx.mDisplay, fbc[0]);
+  XVisualInfo *vi = ctx.GetVisualFromFBConfig(ctx.mDisplay, fbc[0]);
 
   ctx.mPixmap = XCreatePixmap(ctx.mDisplay, RootWindow(ctx.mDisplay, vi->screen),
                               10, 10, vi->depth);
-  ctx.mGLXPixmap = glXCreateGLXPixmap(ctx.mDisplay, vi, ctx.mPixmap);
+  ctx.mGLXPixmap = ctx.CreateGLXPixmap(ctx.mDisplay, vi, ctx.mPixmap);
 
-  ctx.mContext = glXCreateContext(ctx.mDisplay, vi, 0, true);
+  ctx.mContext = ctx.CreateContext(ctx.mDisplay, vi, 0, true);
+
+#define LOAD_GL_METHOD(NAME) \
+  NAME = reinterpret_cast<decltype(NAME)>(ctx.GetProcAddress(reinterpret_cast<const GLubyte*>("gl"#NAME))); \
+  if (!NAME) { \
+    return false; \
+  }
+
+  FOR_ALL_PUBLIC_GL_ENTRY_POINTS(LOAD_GL_METHOD);
+  FOR_ALL_PRIVATE_GL_ENTRY_POINTS(LOAD_GL_METHOD);
+
+#undef LOAD_GL_METHOD
+
+  return true;
 }
 
 void GLContextNVpr::DestroyGLContext()
 {
   PlatformContextData& ctx = *mContextData;
 
-  glXMakeCurrent(ctx.mDisplay, 0, 0);
+  ctx.MakeCurrent(ctx.mDisplay, 0, 0);
 
   if (ctx.mContext) {
-    glXDestroyContext(ctx.mDisplay, ctx.mContext);
+    ctx.DestroyContext(ctx.mDisplay, ctx.mContext);
   }
 
   if (ctx.mGLXPixmap) {
-    glXDestroyGLXPixmap(ctx.mDisplay, ctx.mGLXPixmap);
+    ctx.DestroyGLXPixmap(ctx.mDisplay, ctx.mGLXPixmap);
   }
 
   if (ctx.mPixmap) {
@@ -55,14 +104,15 @@ void GLContextNVpr::DestroyGLContext()
   }
 
   XCloseDisplay(ctx.mDisplay);
-  ctx.mDisplay = NULL;
+
+  dlclose(ctx.mLibGL);
 }
 
 bool GLContextNVpr::IsCurrent() const
 {
   PlatformContextData& ctx = *mContextData;
 
-  return glXGetCurrentContext() == ctx.mContext;
+  return ctx.GetCurrentContext() == ctx.mContext;
 }
 
 void GLContextNVpr::MakeCurrent() const
@@ -73,7 +123,7 @@ void GLContextNVpr::MakeCurrent() const
     return;
   }
 
-  glXMakeCurrent(ctx.mDisplay, ctx.mGLXPixmap, ctx.mContext);
+  ctx.MakeCurrent(ctx.mDisplay, ctx.mGLXPixmap, ctx.mContext);
 }
 
 }

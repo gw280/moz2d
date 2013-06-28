@@ -32,7 +32,7 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
     return;
   }
 
-  glGenTextures(1, &mTextureId);
+  gl->GenTextures(1, &mTextureId);
 
   GLenum internalFormat;
   switch (mFormat) {
@@ -78,17 +78,17 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
       break;
   }
 
-  glTextureImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, internalFormat, mSize.width,
+  gl->TextureImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, internalFormat, mSize.width,
                       mSize.height, 0, mGLFormat, mGLType, nullptr);
 
   // The initial value for MIN_FILTER is NEAREST_MIPMAP_LINEAR. We initialize it
   // to what 'FILTER_LINEAR' expects.
-  glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                         GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                           GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
   if (gl->HasExtension(GLContextNVpr::EXT_texture_filter_anisotropic)) {
-    glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_MAX_ANISOTROPY_EXT, gl->MaxAnisotropy());
+    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                             GL_TEXTURE_MAX_ANISOTROPY_EXT, gl->MaxAnisotropy());
   }
 
   aSuccess = true;
@@ -130,11 +130,11 @@ SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& a
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
-  gl->BindTexture2DAsFramebuffer(GL_DRAW_FRAMEBUFFER, surface->mTextureId);
+  gl->AttachTexture2DToFramebuffer(GL_DRAW_FRAMEBUFFER, surface->mTextureId);
 
-  glBlitFramebuffer(0, surface->mSize.height, surface->mSize.width, 0,
-                    0, 0, surface->mSize.width, surface->mSize.height,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  gl->BlitFramebuffer(0, surface->mSize.height, surface->mSize.width, 0,
+                      0, 0, surface->mSize.width, surface->mSize.height,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
   return surface.forget();
 }
@@ -172,21 +172,21 @@ SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
       break;
     }
 
-    glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_MIN_FILTER, minFilter);
-    glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_MAG_FILTER, magFilter);
+    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                             GL_TEXTURE_MIN_FILTER, minFilter);
+    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                             GL_TEXTURE_MAG_FILTER, magFilter);
 
     if (gl->HasExtension(GLContextNVpr::EXT_texture_filter_anisotropic)) {
-      glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                             GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
+      gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                               GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
     }
 
     mFilter = aFilter;
   }
 
   if (mFilter == FILTER_LINEAR && !mHasMipmaps) {
-    glGenerateTextureMipmapEXT(mTextureId, GL_TEXTURE_2D);
+    gl->GenerateTextureMipmapEXT(mTextureId, GL_TEXTURE_2D);
     mHasMipmaps = true;
   }
 
@@ -206,10 +206,10 @@ SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
         break;
     }
 
-    glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_WRAP_S, wrapMode);
-    glTextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_WRAP_T, wrapMode);
+    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                             GL_TEXTURE_WRAP_S, wrapMode);
+    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
+                             GL_TEXTURE_WRAP_T, wrapMode);
 
     mExtendMode = aExtendMode;
   }
@@ -230,24 +230,24 @@ SourceSurfaceNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
   vector<GLubyte> packBuffer;
 
   if (aStride == 0 || aStride == bytesPerRow) {
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    gl->PixelStorei(GL_PACK_ALIGNMENT, 1);
   } else if (aStride == bytesPerRow + 2 - (bytesPerRow % 2)) {
-    glPixelStorei(GL_PACK_ALIGNMENT, 2);
+    gl->PixelStorei(GL_PACK_ALIGNMENT, 2);
   } else if (aStride == bytesPerRow + 4 - (bytesPerRow % 4)) {
-    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    gl->PixelStorei(GL_PACK_ALIGNMENT, 4);
   } else if (aStride == bytesPerRow + 8 - (bytesPerRow % 8)) {
-    glPixelStorei(GL_PACK_ALIGNMENT, 8);
+    gl->PixelStorei(GL_PACK_ALIGNMENT, 8);
   } else {
     packBuffer.resize(mSize.height * bytesPerRow);
     for (int i = 0; i < mSize.height; i++) {
       memcpy(&packBuffer[i * bytesPerRow], &pixelData[i * aStride], bytesPerRow);
     }
     pixelData = packBuffer.data();
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    gl->PixelStorei(GL_PACK_ALIGNMENT, 1);
   }
 
-  glTextureSubImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, 0, 0, mSize.width,
-                         mSize.height, mGLFormat, mGLType, pixelData);
+  gl->TextureSubImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, 0, 0, mSize.width,
+                           mSize.height, mGLFormat, mGLType, pixelData);
 
   mHasMipmaps = false;
 }
@@ -258,8 +258,8 @@ SourceSurfaceNVpr::ReadPixels(GLvoid* aBuffer)
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glGetTextureImageEXT(mTextureId, GL_TEXTURE_2D, 0, mGLFormat, mGLType, aBuffer);
+  gl->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  gl->GetTextureImageEXT(mTextureId, GL_TEXTURE_2D, 0, mGLFormat, mGLType, aBuffer);
 }
 
 TemporaryRef<DataSourceSurface>

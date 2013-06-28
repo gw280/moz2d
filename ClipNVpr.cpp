@@ -31,7 +31,7 @@ void StencilClipNVpr::Apply()
     const GLubyte existingClipBits = ~(mOwnClipBit | (mOwnClipBit - 1)) & 0xff;
 
     gl->ConfigurePathStencilTest(existingClipBits);
-    glStencilFillPathNV(*mPath, GL_COUNT_UP_NV,
+    gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
                         (mPath->GetFillRule() == FILL_WINDING)
                         ? mOwnClipBit - 1 : 0x1);
 
@@ -39,7 +39,7 @@ void StencilClipNVpr::Apply()
                           mOwnClipBit, mOwnClipBit - 1,
                           GLContextNVpr::REPLACE_PASSING_WITH_COMPARAND,
                           mOwnClipBit | (mOwnClipBit - 1));
-    glCoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
+    gl->CoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
 
     // Also note the current clip planes for restoring the previous clip state.
     mInitialClipPlanesIndex = mDrawTarget->ReserveClipPlanes(0);
@@ -56,7 +56,7 @@ void StencilClipNVpr::Apply()
   const GLubyte existingClipBits = ~(sharedClipBit - 1) & 0xff;
 
   gl->ConfigurePathStencilTest(existingClipBits);
-  glStencilFillPathNV(*mPath, GL_COUNT_UP_NV,
+  gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
                       (mPath->GetFillRule() == FILL_WINDING)
                       ? sharedClipBit - 1 : 0x1);
 
@@ -66,7 +66,7 @@ void StencilClipNVpr::Apply()
                         sharedClipBit, sharedClipBit - 1,
                         GLContextNVpr::REPLACE_PASSING_CLEAR_FAILING,
                         sharedClipBit | (sharedClipBit - 1));
-  glCoverFillPathNV(*lastClipBitOwner->mPath, GL_BOUNDING_BOX_NV);
+  gl->CoverFillPathNV(*lastClipBitOwner->mPath, GL_BOUNDING_BOX_NV);
 }
 
 void StencilClipNVpr::RestorePreviousClipState()
@@ -98,7 +98,7 @@ void StencilClipNVpr::RestorePreviousClipState()
   gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, newFreeBits,
                         GLContextNVpr::CLEAR_PASSING_VALUES,
                         newFreeBits);
-  glCoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
+  gl->CoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
 
   mDrawTarget->ReleaseStencilClipBits(newFreeBits);
   mOwnClipBit = 0;
@@ -115,7 +115,8 @@ void PlanesClipNVpr::Apply()
 {
   MOZ_ASSERT(!mClipPlanesIndex);
 
-  MOZ_ASSERT(GLContextNVpr::Instance()->IsGLCurrent());
+  GLContextNVpr* const gl = GLContextNVpr::Instance();
+  MOZ_ASSERT(gl->IsCurrent());
 
   GLContextNVpr::ScopedPushTransform pushTransform(mTransform);
 
@@ -124,7 +125,7 @@ void PlanesClipNVpr::Apply()
   for (size_t i = 0; i < mPath->ConvexOutline().size(); i++) {
     const Line& line = mPath->ConvexOutline()[i];
     const double planeEquation[] = {line.A, line.B, 0, -line.C};
-    glClipPlane(GL_CLIP_PLANE0 + mClipPlanesIndex + i, planeEquation);
+    gl->ClipPlane(GL_CLIP_PLANE0 + mClipPlanesIndex + i, planeEquation);
   }
 }
 

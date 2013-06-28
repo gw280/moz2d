@@ -52,13 +52,13 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   // Create a 1D texture for the color ramp.
   GLsizei rampSize = min(4096, gl->MaxTextureSize());
 
-  glGenTextures(1, &mRampTextureId);
-  glTextureImage1DEXT(mRampTextureId, GL_TEXTURE_1D, 0, GL_RGBA, rampSize, 0,
-                      GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  gl->GenTextures(1, &mRampTextureId);
+  gl->TextureImage1DEXT(mRampTextureId, GL_TEXTURE_1D, 0, GL_RGBA, rampSize, 0,
+                        GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
   // Render the gradient stops into the color ramp texture.
   gl->SetTargetSize(IntSize(rampSize, 1));
-  gl->BindTexture1DAsFramebuffer(GL_FRAMEBUFFER, mRampTextureId);
+  gl->AttachTexture1DToFramebuffer(GL_FRAMEBUFFER, mRampTextureId);
 
   Matrix colorRampCoords;
   colorRampCoords.Scale(rampSize, 1);
@@ -71,30 +71,30 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   gl->DisableShading();
   // TODO: disable clip planes
 
-  glBegin(GL_LINE_STRIP); {
+  gl->Begin(GL_LINE_STRIP); {
 
     if (sortedStops.front().offset > 0) {
-      glVertex2f(0, 0);
+      gl->Vertex2f(0, 0);
     }
 
     for (size_t i = 0; i < sortedStops.size(); i++) {
       gl->SetColor(sortedStops[i].color);
-      glVertex2f(sortedStops[i].offset, 0);
+      gl->Vertex2f(sortedStops[i].offset, 0);
     }
 
     if (sortedStops.back().offset < 1) {
-      glVertex2f(1, 0);
+      gl->Vertex2f(1, 0);
     }
 
-  } glEnd();
+  } gl->End();
 
-  glGenerateTextureMipmapEXT(mRampTextureId, GL_TEXTURE_1D);
+  gl->GenerateTextureMipmapEXT(mRampTextureId, GL_TEXTURE_1D);
 
   // Configure texturing parameters.
-  glTextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                         GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-  glTextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                         GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
+                           GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
+                           GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   GLenum wrapMode;
   switch (aExtendMode) {
     default:
@@ -109,8 +109,8 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
       wrapMode = GL_MIRRORED_REPEAT;
       break;
   }
-  glTextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                         GL_TEXTURE_WRAP_S, wrapMode);
+  gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
+                           GL_TEXTURE_WRAP_S, wrapMode);
 
   if (aExtendMode == EXTEND_CLAMP) {
     // Ensure the left-most and right-most pixels are the color of the initial
@@ -121,15 +121,15 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
     GLsizei levelSize = rampSize;
     GLint level = 0;
     while (levelSize >= 2) {
-      glTextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, 0, 1,
-                             GL_RGBA, GL_UNSIGNED_BYTE, &initialColor);
-      glTextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, levelSize - 1,
-                             1, GL_RGBA, GL_UNSIGNED_BYTE, &finalColor);
+      gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, 0, 1,
+                               GL_RGBA, GL_UNSIGNED_BYTE, &initialColor);
+      gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, levelSize - 1,
+                               1, GL_RGBA, GL_UNSIGNED_BYTE, &finalColor);
       levelSize >>= 1;
       level++;
     }
-    glTextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                           GL_TEXTURE_MAX_LEVEL, level - 1);
+    gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
+                             GL_TEXTURE_MAX_LEVEL, level - 1);
   }
 }
 
@@ -257,7 +257,7 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
     //        = dot(q, q) / (-2 * q.x)
     //
     gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                        GLContextNVpr::TEXGEN_ST, qCoords);
+                          GLContextNVpr::TEXGEN_ST, qCoords);
     gl->EnableShading(Shaders().mFocalGradTouchingShader);
 
     return;

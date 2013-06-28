@@ -108,19 +108,20 @@ public:
 
   operator GLuint()
   {
+    GLContextNVpr* const gl = GLContextNVpr::Instance();
     MOZ_ASSERT(gl->IsCurrent());
 
     if (mShaderProgram) {
       return mShaderProgram;
     }
 
-    mFragShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(mFragShader, 2, mFragShaderSources, nullptr);
-    glCompileShader(mFragShader);
+    mFragShader = gl->CreateShader(GL_FRAGMENT_SHADER);
+    gl->ShaderSource(mFragShader, 2, mFragShaderSources, nullptr);
+    gl->CompileShader(mFragShader);
 
-    mShaderProgram = glCreateProgram();
-    glAttachShader(mShaderProgram, mFragShader);
-    glLinkProgram(mShaderProgram);
+    mShaderProgram = gl->CreateProgram();
+    gl->AttachShader(mShaderProgram, mFragShader);
+    gl->LinkProgram(mShaderProgram);
 
     return mShaderProgram;
   }
@@ -147,9 +148,12 @@ protected:
 
   GLint Location()
   {
+    GLContextNVpr* const gl = GLContextNVpr::Instance();
+
     if (mLocation == -1) {
-      mLocation = glGetUniformLocation(*mShader, mName);
+      mLocation = gl->GetUniformLocation(*mShader, mName);
     }
+
     return mLocation;
   }
 
@@ -168,10 +172,13 @@ public:
 
   void operator =(GLfloat aValue)
   {
+    GLContextNVpr* const gl = GLContextNVpr::Instance();
+
     if (mValue == aValue) {
       return;
     }
-    glUniform1f(Location(), aValue);
+
+    gl->Uniform1f(Location(), aValue);
     mValue = aValue;
   }
 
@@ -187,10 +194,13 @@ public:
 
   void operator =(const Point& aValue)
   {
+    GLContextNVpr* const gl = GLContextNVpr::Instance();
+
     if (mValue == aValue) {
       return;
     }
-    glUniform2f(Location(), aValue.x, aValue.y);
+
+    gl->Uniform2f(Location(), aValue.x, aValue.y);
     mValue = aValue;
   }
 

@@ -35,6 +35,10 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   MOZ_ASSERT(mSize.width >= 0 && mSize.height >= 0);
 
   GLContextNVpr* const gl = GLContextNVpr::Instance();
+  if (!gl->IsValid()) {
+    return;
+  }
+
   gl->MakeCurrent();
 
   if (!gl->HasExtension(GLContextNVpr::EXT_direct_state_access)
@@ -68,23 +72,23 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
       colorBufferFormat = GL_RGB565;
       break;
   }
-  glGenRenderbuffers(1, &mColorBuffer);
-  glNamedRenderbufferStorageMultisampleEXT(mColorBuffer, 16, colorBufferFormat,
+  gl->GenRenderbuffers(1, &mColorBuffer);
+  gl->NamedRenderbufferStorageMultisampleEXT(mColorBuffer, 16, colorBufferFormat,
                                            mSize.width, mSize.height);
 
-  glGenRenderbuffers(1, &mStencilBuffer);
-  glNamedRenderbufferStorageMultisampleEXT(mStencilBuffer, 16, GL_STENCIL_INDEX8,
+  gl->GenRenderbuffers(1, &mStencilBuffer);
+  gl->NamedRenderbufferStorageMultisampleEXT(mStencilBuffer, 16, GL_STENCIL_INDEX8,
                                            mSize.width, mSize.height);
 
-  glGenFramebuffers(1, &mFramebuffer);
-  glNamedFramebufferRenderbufferEXT(mFramebuffer, GL_COLOR_ATTACHMENT0,
+  gl->GenFramebuffers(1, &mFramebuffer);
+  gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_COLOR_ATTACHMENT0,
                                     GL_RENDERBUFFER, mColorBuffer);
-  glNamedFramebufferRenderbufferEXT(mFramebuffer, GL_STENCIL_ATTACHMENT,
+  gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_STENCIL_ATTACHMENT,
                                     GL_RENDERBUFFER, mStencilBuffer);
 
   gl->SetTargetSize(mSize);
-  gl->BindFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
-  glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+  gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+  gl->Clear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
   aSuccess = true;
 }
@@ -107,7 +111,7 @@ DrawTargetNVpr::Snapshot()
     GLContextNVpr* const gl = GLContextNVpr::Instance();
     gl->MakeCurrent();
 
-    gl->BindFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
+    gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
     mSnapshot = SourceSurfaceNVpr::CreateFromFramebuffer(mFormat, mSize);
   }
   return mSnapshot;
@@ -154,7 +158,7 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
     textureRect.x + textureRect.width, textureRect.y + textureRect.height,
     textureRect.x, textureRect.y + textureRect.height
   };
-  glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+  gl->TexCoordPointer(2, GL_FLOAT, 0, texCoords);
 
   const GLfloat vertices[] = {
     aDest.x, aDest.y,
@@ -162,9 +166,9 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
     aDest.x + aDest.width, aDest.y + aDest.height,
     aDest.x, aDest.y + aDest.height
   };
-  glVertexPointer(2, GL_FLOAT, 0, vertices);
+  gl->VertexPointer(2, GL_FLOAT, 0, vertices);
 
-  glDrawArrays(GL_QUADS, 0, 4);
+  gl->DrawArrays(GL_QUADS, 0, 4);
 
   MarkChanged();
 }
@@ -211,13 +215,13 @@ DrawTargetNVpr::CopySurface(SourceSurface* aSurface,
 
   // TODO: Consider using NV_draw_texture instead.
 
-  gl->BindTexture2DAsFramebuffer(GL_READ_FRAMEBUFFER, *surface);
-  gl->BindFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
+  gl->AttachTexture2DToFramebuffer(GL_READ_FRAMEBUFFER, *surface);
+  gl->SetFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
 
-  glBlitFramebuffer(aSourceRect.x, aSourceRect.YMost(), aSourceRect.XMost(),
-                    aSourceRect.y, aDestination.x, aDestination.y, aDestination.x
-                    + aSourceRect.width, aDestination.y + aSourceRect.height,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  gl->BlitFramebuffer(aSourceRect.x, aSourceRect.YMost(), aSourceRect.XMost(),
+                      aSourceRect.y, aDestination.x, aDestination.y, aDestination.x
+                      + aSourceRect.width, aDestination.y + aSourceRect.height,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void
@@ -238,7 +242,7 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
   }
 
   ApplyPattern(aPattern, aOptions);
-  glRectf(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height);
+  gl->Rectf(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height);
 
   MarkChanged();
 }
@@ -292,12 +296,12 @@ DrawTargetNVpr::Stroke(const Path* aPath,
 
   gl->ConfigurePathStencilTest(mStencilClipBits);
   path->ApplyStrokeOptions(aStrokeOptions);
-  glStencilStrokePathNV(*path, 0x1, 0x1);
+  gl->StencilStrokePathNV(*path, 0x1, 0x1);
 
   gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, 0x1,
                         GLContextNVpr::CLEAR_PASSING_VALUES, 0x1);
   ApplyPattern(aPattern, aOptions);
-  glCoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
+  gl->CoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
 }
@@ -320,12 +324,12 @@ DrawTargetNVpr::Fill(const Path* aPath,
     = path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
 
   gl->ConfigurePathStencilTest(mStencilClipBits);
-  glStencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
+  gl->StencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
 
   gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, countingMask,
                         GLContextNVpr::CLEAR_PASSING_VALUES, countingMask);
   ApplyPattern(aPattern, aOptions);
-  glCoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
+  gl->CoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
 }
@@ -368,7 +372,7 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
     }
 
     gl->ConfigurePathStencilTest(mStencilClipBits);
-    glStencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, characters,
+    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, characters,
                                  *font, GL_COUNT_UP_NV, countingMask,
                                  GL_TRANSLATE_2D_NV, &positions[0].x);
   }
@@ -386,8 +390,8 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, countingMask,
                         GLContextNVpr::CLEAR_PASSING_VALUES, countingMask);
   ApplyPattern(aPattern, aOptions);
-  glRectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
-          maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
+  gl->Rectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
+            maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
 
   MarkChanged();
 }
@@ -563,7 +567,7 @@ DrawTargetNVpr::Validate()
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetTargetSize(mSize);
-  gl->BindFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+  gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
   gl->SetTransform(GetTransform());
   gl->EnableColorWrites();
 
@@ -773,6 +777,7 @@ DrawTargetNVpr::ReleaseStencilClipBits(GLubyte aBits)
 GLuint
 DrawTargetNVpr::ReserveClipPlanes(size_t count)
 {
+  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(GLContextNVpr::Instance()->IsCurrent());
   MOZ_ASSERT(mActiveClipPlanes + count <= mMaxClipPlanes);
 
@@ -780,7 +785,7 @@ DrawTargetNVpr::ReserveClipPlanes(size_t count)
   mActiveClipPlanes += count;
 
   for (GLuint i = planes; i < mActiveClipPlanes; i++) {
-    glEnable(GL_CLIP_PLANE0 + i);
+    gl->Enable(GL_CLIP_PLANE0 + i);
   }
 
   return planes;
@@ -789,10 +794,11 @@ DrawTargetNVpr::ReserveClipPlanes(size_t count)
 void
 DrawTargetNVpr::ReleaseClipPlanes(GLuint aIndex)
 {
+  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(GLContextNVpr::Instance()->IsCurrent());
 
   for (GLuint i = aIndex; i < mActiveClipPlanes; i++) {
-    glDisable(GL_CLIP_PLANE0 + i);
+    gl->Disable(GL_CLIP_PLANE0 + i);
   }
 
   mActiveClipPlanes = aIndex;

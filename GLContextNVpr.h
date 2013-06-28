@@ -12,6 +12,91 @@
 #include <memory>
 #include <stack>
 
+#define FOR_ALL_PUBLIC_GL_ENTRY_POINTS(MACRO) \
+  MACRO(GenTextures) \
+  MACRO(CreateShader) \
+  MACRO(ShaderSource) \
+  MACRO(CompileShader) \
+  MACRO(CreateProgram) \
+  MACRO(AttachShader) \
+  MACRO(LinkProgram) \
+  MACRO(GetUniformLocation) \
+  MACRO(Uniform1f) \
+  MACRO(Uniform2f) \
+  MACRO(Begin) \
+  MACRO(Vertex2f) \
+  MACRO(End) \
+  MACRO(GenRenderbuffers) \
+  MACRO(Clear) \
+  MACRO(TexCoordPointer) \
+  MACRO(VertexPointer) \
+  MACRO(DrawArrays) \
+  MACRO(BlitFramebuffer) \
+  MACRO(Rectf) \
+  MACRO(Enable) \
+  MACRO(Disable) \
+  MACRO(GenFramebuffers) \
+  MACRO(PixelStorei) \
+  MACRO(ClipPlane) \
+  MACRO(TextureImage1DEXT) \
+  MACRO(GenerateTextureMipmapEXT) \
+  MACRO(TextureParameteriEXT) \
+  MACRO(TextureSubImage1DEXT) \
+  MACRO(NamedRenderbufferStorageMultisampleEXT) \
+  MACRO(NamedFramebufferRenderbufferEXT) \
+  MACRO(TextureImage2DEXT) \
+  MACRO(TextureSubImage2DEXT) \
+  MACRO(GetTextureImageEXT) \
+  MACRO(GenPathsNV) \
+  MACRO(PathCommandsNV) \
+  MACRO(PathGlyphRangeNV) \
+  MACRO(GetPathMetricRangeNV) \
+  MACRO(StencilStrokePathNV) \
+  MACRO(CoverStrokePathNV) \
+  MACRO(StencilFillPathInstancedNV) \
+  MACRO(StencilFillPathNV) \
+  MACRO(CoverFillPathNV) \
+  MACRO(DeletePathsNV) \
+  MACRO(PathParameterfNV) \
+  MACRO(PathParameteriNV) \
+  MACRO(PathDashArrayNV) \
+  MACRO(IsPointInFillPathNV) \
+  MACRO(IsPointInStrokePathNV) \
+  MACRO(GetPathParameterfvNV) \
+  MACRO(TransformPathNV) \
+  MACRO(GetPathParameterivNV) \
+  MACRO(GetPathCommandsNV) \
+  MACRO(GetPathCoordsNV)
+
+#define FOR_ALL_PRIVATE_GL_ENTRY_POINTS(MACRO) \
+  MACRO(DeleteTextures) \
+  MACRO(GetIntegerv) \
+  MACRO(TexGeni) \
+  MACRO(EnableClientState) \
+  MACRO(DebugMessageCallback) \
+  MACRO(DebugMessageControl) \
+  MACRO(Viewport) \
+  MACRO(BindFramebuffer) \
+  MACRO(ColorMask) \
+  MACRO(StencilFunc) \
+  MACRO(StencilOp) \
+  MACRO(StencilMask) \
+  MACRO(Color4f) \
+  MACRO(TexGenfv) \
+  MACRO(BindTexture) \
+  MACRO(UseProgram) \
+  MACRO(BlendFunc) \
+  MACRO(BlendFuncSeparate) \
+  MACRO(MatrixOrthoEXT) \
+  MACRO(MatrixLoadfEXT) \
+  MACRO(MatrixPushEXT) \
+  MACRO(MatrixPopEXT) \
+  MACRO(MatrixLoadIdentityEXT) \
+  MACRO(NamedFramebufferTexture1DEXT) \
+  MACRO(NamedFramebufferTexture2DEXT) \
+  MACRO(PathStencilFuncNV) \
+  MACRO(PathTexGenNV)
+
 namespace mozilla {
 namespace gfx {
 
@@ -30,6 +115,8 @@ class GLContextNVpr
 {
 public:
   static GLContextNVpr* Instance();
+
+  bool IsValid() const { return mIsValid; }
 
   bool IsCurrent() const;
   void MakeCurrent() const;
@@ -56,9 +143,9 @@ public:
 
   void SetTargetSize(const IntSize& aSize);
 
-  void BindFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer);
-  void BindTexture1DAsFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId);
-  void BindTexture2DAsFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId);
+  void SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer);
+  void AttachTexture1DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId);
+  void AttachTexture2DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId);
 
   void SetTransform(const Matrix& aTransform);
   void PushTransform(const Matrix& aTransform);
@@ -130,11 +217,12 @@ private:
   GLContextNVpr(const GLContextNVpr&) = delete;
   GLContextNVpr& operator =(const GLContextNVpr&) = delete;
 
-  void InitGLContext();
+  bool InitGLContext();
   void DestroyGLContext();
 
   PlatformContextData* mContextData;
 
+  bool mIsValid;
   bool mSupportedExtensions[EXTENSION_COUNT];
   GLint mMaxRenderbufferSize;
   GLint mMaxTextureSize;
@@ -169,6 +257,17 @@ private:
   GLenum mSourceBlendFactorAlpha;
   GLenum mDestBlendFactorAlpha;
   GLenum mActiveTextureTarget;
+
+#define DECLARE_GL_METHOD(NAME) \
+  decltype(&gl##NAME) NAME;
+
+public:
+  FOR_ALL_PUBLIC_GL_ENTRY_POINTS(DECLARE_GL_METHOD);
+
+private:
+  FOR_ALL_PRIVATE_GL_ENTRY_POINTS(DECLARE_GL_METHOD);
+
+#undef DECLARE_GL_METHOD
 
 };
 

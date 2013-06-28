@@ -60,7 +60,12 @@ GLContextNVpr::GLContextNVpr()
   , mSourceBlendFactorAlpha(GL_ONE)
   , mDestBlendFactorAlpha(GL_ZERO)
 {
-  InitGLContext();
+  mIsValid = false;
+
+  if (!InitGLContext()) {
+    return;
+  }
+
   MakeCurrent();
 
   memset(mSupportedExtensions, 0, sizeof(mSupportedExtensions));
@@ -97,28 +102,30 @@ GLContextNVpr::GLContextNVpr()
     }
   }
 
-  glGetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &mMaxRenderbufferSize);
-  glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
-  glGetIntegerv(GL_MAX_CLIP_PLANES, &mMaxClipPlanes);
+  GetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &mMaxRenderbufferSize);
+  GetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
+  GetIntegerv(GL_MAX_CLIP_PLANES, &mMaxClipPlanes);
 
   if (HasExtension(EXT_texture_filter_anisotropic)) {
-    glGetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mMaxAnisotropy);
+    GetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mMaxAnisotropy);
   } else {
     mMaxAnisotropy = 1;
   }
 
-  glGenFramebuffers(1, &mTexture1DFBO);
-  glGenFramebuffers(1, &mTexture2DFBO);
+  GenFramebuffers(1, &mTexture1DFBO);
+  GenFramebuffers(1, &mTexture2DFBO);
 
-  glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-  glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  TexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  TexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
 
-  glEnableClientState(GL_VERTEX_ARRAY);
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+  EnableClientState(GL_VERTEX_ARRAY);
+  EnableClientState(GL_TEXTURE_COORD_ARRAY);
 
-  glDebugMessageCallback(GLDebugCallback, nullptr);
-  glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-  glEnable(GL_DEBUG_OUTPUT);
+  DebugMessageCallback(GLDebugCallback, nullptr);
+  DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+  Enable(GL_DEBUG_OUTPUT);
+
+  mIsValid = true;
 }
 
 GLContextNVpr::~GLContextNVpr()
@@ -144,7 +151,7 @@ GLContextNVpr::SetTransform(const Matrix& aTransform)
     aTransform._31,  aTransform._32,  0,  1
   };
 
-  glMatrixLoadfEXT(GL_MODELVIEW, matrix);
+  MatrixLoadfEXT(GL_MODELVIEW, matrix);
 
   mTransform = aTransform;
 }
@@ -154,7 +161,7 @@ GLContextNVpr::PushTransform(const Matrix& aTransform)
 {
   MOZ_ASSERT(IsCurrent());
 
-  glMatrixPushEXT(GL_MODELVIEW);
+  MatrixPushEXT(GL_MODELVIEW);
 
   mTransformStack.push(mTransform);
   SetTransform(aTransform);
@@ -165,7 +172,7 @@ GLContextNVpr::PopTransform()
 {
   MOZ_ASSERT(IsCurrent());
 
-  glMatrixPopEXT(GL_MODELVIEW);
+  MatrixPopEXT(GL_MODELVIEW);
 
   mTransform = mTransformStack.top();
   mTransformStack.pop();
@@ -180,14 +187,14 @@ GLContextNVpr::SetTargetSize(const IntSize& aSize)
     return;
   }
 
-  glViewport(0, 0, aSize.width, aSize.height);
-  glMatrixLoadIdentityEXT(GL_PROJECTION);
-  glMatrixOrthoEXT(GL_PROJECTION, 0, aSize.width, aSize.height, 0, -1, 1);
+  Viewport(0, 0, aSize.width, aSize.height);
+  MatrixLoadIdentityEXT(GL_PROJECTION);
+  MatrixOrthoEXT(GL_PROJECTION, 0, aSize.width, aSize.height, 0, -1, 1);
   mTargetSize = aSize;
 }
 
 void
-GLContextNVpr::BindFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
+GLContextNVpr::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -200,53 +207,53 @@ GLContextNVpr::BindFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
     if (mReadFramebuffer == aFramebuffer && mDrawFramebuffer == aFramebuffer) {
       return;
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, aFramebuffer);
+    BindFramebuffer(GL_FRAMEBUFFER, aFramebuffer);
     mReadFramebuffer = mDrawFramebuffer = aFramebuffer;
   } else if (aFramebufferTarget == GL_READ_FRAMEBUFFER) {
     if (mReadFramebuffer == aFramebuffer) {
       return;
     }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, aFramebuffer);
+    BindFramebuffer(GL_READ_FRAMEBUFFER, aFramebuffer);
     mReadFramebuffer = aFramebuffer;
   } else if (aFramebufferTarget == GL_DRAW_FRAMEBUFFER) {
     if (mDrawFramebuffer == aFramebuffer) {
       return;
     }
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
+    BindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
     mDrawFramebuffer = aFramebuffer;
   }
 
   if (texture1DFBOWasBound && mReadFramebuffer != mTexture1DFBO
       && mDrawFramebuffer != mTexture1DFBO) {
-    glNamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
-                                   GL_TEXTURE_1D, 0, 0);  
+    NamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
+                                 GL_TEXTURE_1D, 0, 0);  
   }
 
   if (texture2DFBOWasBound && mReadFramebuffer != mTexture2DFBO
       && mDrawFramebuffer != mTexture2DFBO) {
-    glNamedFramebufferTexture1DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
-                                   GL_TEXTURE_2D, 0, 0);  
+    NamedFramebufferTexture1DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
+                                 GL_TEXTURE_2D, 0, 0);  
   }
 }
 
 void
-GLContextNVpr::BindTexture1DAsFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
+GLContextNVpr::AttachTexture1DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  glNamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_1D, aTextureId, 0);
-  BindFramebuffer(aFramebufferTarget, mTexture1DFBO);  
+  NamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_1D, aTextureId, 0);
+  SetFramebuffer(aFramebufferTarget, mTexture1DFBO);  
 }
 
 void
-GLContextNVpr::BindTexture2DAsFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
+GLContextNVpr::AttachTexture2DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  glNamedFramebufferTexture2DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D, aTextureId, 0);
-  BindFramebuffer(aFramebufferTarget, mTexture2DFBO);  
+  NamedFramebufferTexture2DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D, aTextureId, 0);
+  SetFramebuffer(aFramebufferTarget, mTexture2DFBO);  
 }
 
 void
@@ -258,7 +265,7 @@ GLContextNVpr::EnableColorWrites()
     return;
   }
 
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   mColorWritesEnabled = true;
 }
 
@@ -271,7 +278,7 @@ GLContextNVpr::DisableColorWrites()
     return;
   }
 
-  glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   mColorWritesEnabled = false;
 }
 
@@ -297,7 +304,7 @@ GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
   MOZ_ASSERT(IsCurrent());
 
   if (!mStencilTestEnabled) {
-    glEnable(GL_STENCIL_TEST);
+    Enable(GL_STENCIL_TEST);
     mStencilTestEnabled = true;
   }
 
@@ -318,7 +325,7 @@ GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
         break;
     }
 
-    glStencilFunc(func, aComparand, aTestMask);
+    StencilFunc(func, aComparand, aTestMask);
 
     mStencilTest = aTest;
     mStencilComparand = aComparand;
@@ -328,16 +335,16 @@ GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
   if (mStencilOp != aOp) {
     switch (aOp) {
       case LEAVE_UNCHANGED:
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        StencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
         break;
       case CLEAR_PASSING_VALUES:
-        glStencilOp(GL_KEEP, GL_ZERO, GL_ZERO);
+        StencilOp(GL_KEEP, GL_ZERO, GL_ZERO);
         break;
       case REPLACE_PASSING_WITH_COMPARAND:
-        glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+        StencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
         break;
       case REPLACE_PASSING_CLEAR_FAILING:
-        glStencilOp(GL_ZERO, GL_REPLACE, GL_REPLACE);
+        StencilOp(GL_ZERO, GL_REPLACE, GL_REPLACE);
         break;
     }
 
@@ -345,7 +352,7 @@ GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
   }
 
   if (mStencilWriteMask != aWriteMask) {
-    glStencilMask(aWriteMask);
+    StencilMask(aWriteMask);
     mStencilWriteMask = aWriteMask;
   }
 }
@@ -359,7 +366,7 @@ GLContextNVpr::DisableStencilTest()
     return;
   }
 
-  glDisable(GL_STENCIL_TEST);
+  Disable(GL_STENCIL_TEST);
   mStencilTestEnabled = false;
 }
 
@@ -373,9 +380,9 @@ GLContextNVpr::ConfigurePathStencilTest(GLubyte aClipBits)
   }
 
   if (!aClipBits) {
-    glPathStencilFuncNV(GL_ALWAYS, 0, 0);
+    PathStencilFuncNV(GL_ALWAYS, 0, 0);
   } else {
-    glPathStencilFuncNV(GL_EQUAL, aClipBits, aClipBits);
+    PathStencilFuncNV(GL_EQUAL, aClipBits, aClipBits);
   }
 
   mPathStencilFuncBits = aClipBits;
@@ -391,10 +398,10 @@ GLContextNVpr::SetColor(const Color& aColor)
   }
 
   if (aColor.a == 1) {
-    glColor4f(aColor.r, aColor.g, aColor.b, 1);
+    Color4f(aColor.r, aColor.g, aColor.b, 1);
   } else {
     const float a = aColor.a;
-    glColor4f(a * aColor.r, a * aColor.g, a * aColor.b, a);
+    Color4f(a * aColor.r, a * aColor.g, a * aColor.b, a);
   }
 
   mColor = aColor;
@@ -421,21 +428,21 @@ GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
 
   if (mActiveTextureTarget == aTextureTarget) {
     if (mBoundTextureId != aTextureId) {
-      glBindTexture(aTextureTarget, aTextureId);
+      BindTexture(aTextureTarget, aTextureId);
       mBoundTextureId = aTextureId;
     }
   } else {
     if (mBoundTextureId) {
-      glBindTexture(mActiveTextureTarget, 0);
+      BindTexture(mActiveTextureTarget, 0);
     }
     if (mActiveTextureTarget) {
-      glDisable(mActiveTextureTarget);
+      Disable(mActiveTextureTarget);
     }
 
-    glEnable(aTextureTarget);
+    Enable(aTextureTarget);
     mActiveTextureTarget = aTextureTarget;
 
-    glBindTexture(aTextureTarget, aTextureId);
+    BindTexture(aTextureTarget, aTextureId);
     mBoundTextureId = aTextureId;
   }
 
@@ -447,36 +454,36 @@ GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
 
   if (mTexgenComponents > aTexgenComponents) {
     if (aTexgenComponents < TEXGEN_ST && mTexgenComponents >= TEXGEN_ST) {
-      glDisable(GL_TEXTURE_GEN_T);
+      Disable(GL_TEXTURE_GEN_T);
     }
     if (aTexgenComponents < TEXGEN_S && mTexgenComponents >= TEXGEN_S) {
-      glDisable(GL_TEXTURE_GEN_S);
+      Disable(GL_TEXTURE_GEN_S);
     }
   } else if (mTexgenComponents < aTexgenComponents) {
     if (aTexgenComponents >= TEXGEN_S && mTexgenComponents < TEXGEN_S) {
-      glEnable(GL_TEXTURE_GEN_S);
+      Enable(GL_TEXTURE_GEN_S);
     }
     if (aTexgenComponents >= TEXGEN_ST && mTexgenComponents < TEXGEN_ST) {
-      glEnable(GL_TEXTURE_GEN_T);
+      Enable(GL_TEXTURE_GEN_T);
     }
   }
 
   if (aTexgenComponents >= TEXGEN_S) {
     const GLfloat plane[] = {aTexgenCoefficients[0], aTexgenCoefficients[1],
                              0, aTexgenCoefficients[2]};
-    glTexGenfv(GL_S, GL_OBJECT_PLANE, plane);
+    TexGenfv(GL_S, GL_OBJECT_PLANE, plane);
   }
   if (aTexgenComponents >= TEXGEN_ST) {
     const GLfloat plane[] = {aTexgenCoefficients[3], aTexgenCoefficients[4],
                              0, aTexgenCoefficients[5]};
-    glTexGenfv(GL_T, GL_OBJECT_PLANE, plane);
+    TexGenfv(GL_T, GL_OBJECT_PLANE, plane);
   }
 
   if (aTexgenComponents == TEXGEN_NONE) {
-    glPathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
+    PathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
   } else {
-    glPathTexGenNV(GL_TEXTURE0, GL_OBJECT_LINEAR,
-                   aTexgenComponents, aTexgenCoefficients);
+    PathTexGenNV(GL_TEXTURE0, GL_OBJECT_LINEAR,
+                 aTexgenComponents, aTexgenCoefficients);
   }
 
   mTexgenComponents = aTexgenComponents;
@@ -502,23 +509,23 @@ GLContextNVpr::DisableTexturing()
   MOZ_ASSERT(IsCurrent());
 
   if (mBoundTextureId) {
-    glBindTexture(mActiveTextureTarget, 0);
+    BindTexture(mActiveTextureTarget, 0);
     mBoundTextureId = 0;
   }
 
   if (mActiveTextureTarget) {
-    glDisable(mActiveTextureTarget);
+    Disable(mActiveTextureTarget);
     mActiveTextureTarget = 0;
   }
 
   if (mTexgenComponents >= TEXGEN_S) {
-    glDisable(GL_TEXTURE_GEN_S);
+    Disable(GL_TEXTURE_GEN_S);
   }
   if (mTexgenComponents >= TEXGEN_ST) {
-    glDisable(GL_TEXTURE_GEN_T);
+    Disable(GL_TEXTURE_GEN_T);
   }
   if (mTexgenComponents != TEXGEN_NONE) {
-    glPathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
+    PathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
     mTexgenComponents = TEXGEN_NONE;
   }
 }
@@ -528,7 +535,7 @@ GLContextNVpr::DeleteTexture(GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  glDeleteTextures(1, &aTextureId);
+  DeleteTextures(1, &aTextureId);
 
   if (mBoundTextureId == aTextureId) {
     mBoundTextureId = 0;
@@ -544,7 +551,7 @@ GLContextNVpr::EnableShading(GLuint aShaderProgram)
     return;
   }
 
-  glUseProgram(aShaderProgram);
+  UseProgram(aShaderProgram);
   mShaderProgram = aShaderProgram;
 }
 
@@ -555,7 +562,7 @@ GLContextNVpr::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
   MOZ_ASSERT(IsCurrent());
 
   if (!mBlendingEnabled) {
-    glEnable(GL_BLEND);
+    Enable(GL_BLEND);
     mBlendingEnabled = true;
   }
 
@@ -566,10 +573,10 @@ GLContextNVpr::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
 
     if (aSourceFactorRGB == aSourceFactorAlpha
         && aDestFactorRGB == aDestFactorAlpha) {
-      glBlendFunc(aSourceFactorRGB, aDestFactorRGB);
+      BlendFunc(aSourceFactorRGB, aDestFactorRGB);
     } else {
-      glBlendFuncSeparate(aSourceFactorRGB, aDestFactorRGB,
-                          aSourceFactorAlpha, aDestFactorAlpha);
+      BlendFuncSeparate(aSourceFactorRGB, aDestFactorRGB,
+                        aSourceFactorAlpha, aDestFactorAlpha);
     }
 
     mSourceBlendFactorRGB = aSourceFactorRGB;
@@ -588,7 +595,7 @@ GLContextNVpr::DisableBlending()
     return;
   }
 
-  glDisable(GL_BLEND);
+  Disable(GL_BLEND);
   mBlendingEnabled = false;
 }
 

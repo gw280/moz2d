@@ -31,10 +31,10 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  mObject = glGenPathsNV(1);
-  glPathCommandsNV(mObject, aDescription.mCommands.size(),
-                   aDescription.mCommands.data(), aDescription.mCoords.size(),
-                   GL_FLOAT, aDescription.mCoords.data());
+  mObject = gl->GenPathsNV(1);
+  gl->PathCommandsNV(mObject, aDescription.mCommands.size(),
+                     aDescription.mCommands.data(), aDescription.mCoords.size(),
+                     GL_FLOAT, aDescription.mCoords.data());
 }
 
 PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
@@ -71,8 +71,8 @@ PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
       aTransform._12, aTransform._22, aTransform._32
   };
 
-  mObject = glGenPathsNV(1);
-  glTransformPathNV(mObject, aPathObject.mObject, GL_AFFINE_2D_NV, transform);
+  mObject = gl->GenPathsNV(1);
+  gl->TransformPathNV(mObject, aPathObject.mObject, GL_AFFINE_2D_NV, transform);
 }
 
 PathObjectNVpr::~PathObjectNVpr()
@@ -80,7 +80,7 @@ PathObjectNVpr::~PathObjectNVpr()
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  glDeletePathsNV(mObject, 1);
+  gl->DeletePathsNV(mObject, 1);
 }
 
 void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
@@ -89,17 +89,17 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
   MOZ_ASSERT(gl->IsCurrent());
 
   if (mStrokeWidth != aStrokeOptions.mLineWidth) {
-    glPathParameterfNV(mObject, GL_PATH_STROKE_WIDTH_NV, aStrokeOptions.mLineWidth);
+    gl->PathParameterfNV(mObject, GL_PATH_STROKE_WIDTH_NV, aStrokeOptions.mLineWidth);
     mStrokeWidth = aStrokeOptions.mLineWidth;
   }
 
   if (mMiterLimit != aStrokeOptions.mMiterLimit) {
-    glPathParameterfNV(mObject, GL_PATH_MITER_LIMIT_NV, aStrokeOptions.mMiterLimit);
+    gl->PathParameterfNV(mObject, GL_PATH_MITER_LIMIT_NV, aStrokeOptions.mMiterLimit);
     mMiterLimit = aStrokeOptions.mMiterLimit;
   }
 
   if (mDashOffset != aStrokeOptions.mDashOffset) {
-    glPathParameterfNV(mObject, GL_PATH_DASH_OFFSET_NV, aStrokeOptions.mDashOffset);
+    gl->PathParameterfNV(mObject, GL_PATH_DASH_OFFSET_NV, aStrokeOptions.mDashOffset);
     mDashOffset = aStrokeOptions.mDashOffset;
   }
 
@@ -122,7 +122,7 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
         break;
     }
 
-    glPathParameteriNV(mObject, GL_PATH_JOIN_STYLE_NV, newJoinStyle);
+    gl->PathParameteriNV(mObject, GL_PATH_JOIN_STYLE_NV, newJoinStyle);
 
     mJoinStyle = aStrokeOptions.mLineJoin;
   }
@@ -143,10 +143,10 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
         break;
     }
 
-    glPathParameteriNV(mObject, GL_PATH_INITIAL_END_CAP_NV, newCapStyle);
-    glPathParameteriNV(mObject, GL_PATH_TERMINAL_END_CAP_NV, newCapStyle);
-    glPathParameteriNV(mObject, GL_PATH_INITIAL_DASH_CAP_NV, newCapStyle);
-    glPathParameteriNV(mObject, GL_PATH_TERMINAL_DASH_CAP_NV, newCapStyle);
+    gl->PathParameteriNV(mObject, GL_PATH_INITIAL_END_CAP_NV, newCapStyle);
+    gl->PathParameteriNV(mObject, GL_PATH_TERMINAL_END_CAP_NV, newCapStyle);
+    gl->PathParameteriNV(mObject, GL_PATH_INITIAL_DASH_CAP_NV, newCapStyle);
+    gl->PathParameteriNV(mObject, GL_PATH_TERMINAL_DASH_CAP_NV, newCapStyle);
 
     mCapStyle = aStrokeOptions.mLineCap;
   }
@@ -156,8 +156,8 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
       || memcmp(mDashArray.data(), aStrokeOptions.mDashPattern,
                 sizeof(mDashArray[0]) * aStrokeOptions.mDashLength)) {
 
-    glPathDashArrayNV(mObject, aStrokeOptions.mDashLength,
-                      aStrokeOptions.mDashPattern);
+    gl->PathDashArrayNV(mObject, aStrokeOptions.mDashLength,
+                        aStrokeOptions.mDashPattern);
     mDashArray.resize(aStrokeOptions.mDashLength);
     memcpy(mDashArray.data(), aStrokeOptions.mDashPattern,
            sizeof(mDashArray[0]) * aStrokeOptions.mDashLength);
@@ -193,8 +193,8 @@ PathNVpr::ContainsPoint(const Point& aPoint, const Matrix& aTransform) const
   inverse.Invert();
   Point transformed = inverse * aPoint;
 
-  return glIsPointInFillPathNV(*mPathObject, mFillRule == FILL_WINDING ? ~0 : 0x1,
-                               transformed.x, transformed.y);
+  return gl->IsPointInFillPathNV(*mPathObject, mFillRule == FILL_WINDING ? ~0 : 0x1,
+                                 transformed.x, transformed.y);
 }
 
 bool
@@ -210,7 +210,7 @@ PathNVpr::StrokeContainsPoint(const StrokeOptions& aStrokeOptions,
   Point transformed = inverse * aPoint;
 
   ApplyStrokeOptions(aStrokeOptions);
-  return glIsPointInStrokePathNV(*mPathObject, transformed.x, transformed.y);
+  return gl->IsPointInStrokePathNV(*mPathObject, transformed.x, transformed.y);
 }
 
 Rect
@@ -222,10 +222,10 @@ PathNVpr::GetBounds(const Matrix& aTransform) const
   GLfloat bounds[] = {0, 0, 0, 0};
 
   if (aTransform.IsIdentity()) {
-    glGetPathParameterfvNV(*mPathObject, GL_PATH_OBJECT_BOUNDING_BOX_NV, bounds);
+    gl->GetPathParameterfvNV(*mPathObject, GL_PATH_OBJECT_BOUNDING_BOX_NV, bounds);
   } else {
     PathObjectNVpr transformed(*mPathObject, aTransform);
-    glGetPathParameterfvNV(transformed, GL_PATH_OBJECT_BOUNDING_BOX_NV, bounds);
+    gl->GetPathParameterfvNV(transformed, GL_PATH_OBJECT_BOUNDING_BOX_NV, bounds);
   }
 
   return Rect(bounds[0], bounds[2], bounds[2], bounds[3]);
@@ -243,10 +243,10 @@ PathNVpr::GetStrokedBounds(const StrokeOptions& aStrokeOptions,
   ApplyStrokeOptions(aStrokeOptions);
 
   if (aTransform.IsIdentity()) {
-    glGetPathParameterfvNV(*mPathObject, GL_PATH_STROKE_BOUND_NV, bounds);
+    gl->GetPathParameterfvNV(*mPathObject, GL_PATH_STROKE_BOUND_NV, bounds);
   } else {
     PathObjectNVpr transformed(*mPathObject, aTransform);
-    glGetPathParameterfvNV(transformed, GL_PATH_STROKE_BOUND_NV, bounds);
+    gl->GetPathParameterfvNV(transformed, GL_PATH_STROKE_BOUND_NV, bounds);
   }
 
   return Rect(bounds[0], bounds[2], bounds[2], bounds[3]);

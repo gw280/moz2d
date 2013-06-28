@@ -79,16 +79,16 @@ FontNVpr::FontNVpr(const FontOptions* aFont)
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  GLuint templatePath = glGenPathsNV(1);
-  glPathCommandsNV(templatePath, 0, nullptr, 0, GL_FLOAT, nullptr);
+  GLuint templatePath = gl->GenPathsNV(1);
+  gl->PathCommandsNV(templatePath, 0, nullptr, 0, GL_FLOAT, nullptr);
 
-  mGlyphPaths = glGenPathsNV(MAX_UNICODE_INDEX + 1);
-  glPathGlyphRangeNV(mGlyphPaths, GL_FILE_NAME_NV, aFont->mName.c_str(),
+  mGlyphPaths = gl->GenPathsNV(MAX_UNICODE_INDEX + 1);
+  gl->PathGlyphRangeNV(mGlyphPaths, GL_FILE_NAME_NV, aFont->mName.c_str(),
                      fontStyle, 0, MAX_UNICODE_INDEX + 1,
                      GL_SKIP_MISSING_GLYPH_NV, templatePath, 1);
 
   struct {GLfloat x1, y1, x2, y2;} bounds;
-  glGetPathMetricRangeNV(GL_FONT_X_MIN_BOUNDS_NV | GL_FONT_Y_MIN_BOUNDS_NV
+  gl->GetPathMetricRangeNV(GL_FONT_X_MIN_BOUNDS_NV | GL_FONT_Y_MIN_BOUNDS_NV
                          | GL_FONT_X_MAX_BOUNDS_NV | GL_FONT_Y_MAX_BOUNDS_NV,
                          mGlyphPaths, 1, 0, &bounds.x1);
 
