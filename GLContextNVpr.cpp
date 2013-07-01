@@ -76,7 +76,7 @@ GLContextNVpr::GLContextNVpr()
   MakeCurrent();
 
   memset(mSupportedExtensions, 0, sizeof(mSupportedExtensions));
-  stringstream extensions(reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS)));
+  stringstream extensions(reinterpret_cast<const char*>(GetString(GL_EXTENSIONS)));
   istream_iterator<string> iter(extensions);
   istream_iterator<string> end;
 
