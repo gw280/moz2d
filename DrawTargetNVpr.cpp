@@ -13,6 +13,7 @@
 #include "ScaledFontNVpr.h"
 #include "SourceSurfaceNVpr.h"
 #include <sstream>
+#include <vector>
 
 using namespace std;
 
@@ -361,8 +362,9 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
     transform.Scale(font->Size(), -font->Size());
     GLContextNVpr::ScopedPushTransform pushTransform(transform);
 
-    GLuint characters[aBuffer.mNumGlyphs];
-    struct {GLfloat x, y;} positions[aBuffer.mNumGlyphs];
+    vector<GLuint> characters(aBuffer.mNumGlyphs);
+    struct position {GLfloat x, y;};
+    vector<position> positions(aBuffer.mNumGlyphs);
 
     for (size_t i = 0; i < aBuffer.mNumGlyphs; i++) {
       // TODO: How can we know the real mapping index -> unicode?
@@ -372,7 +374,7 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
     }
 
     gl->ConfigurePathStencilTest(mStencilClipBits);
-    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, characters,
+    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, &characters.front(),
                                  *font, GL_COUNT_UP_NV, countingMask,
                                  GL_TRANSLATE_2D_NV, &positions[0].x);
   }

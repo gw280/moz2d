@@ -48,6 +48,9 @@ FORMS    += mainwindow.ui \
 !isEmpty(MOZ2D_SKIA) {
   DEFINES += USE_SKIA
 }
+!isEmpty(MOZ2D_NVPR) {
+  DEFINES += USE_NVPR
+}
 
 CONFIG(release, debug|release) {
   CONFIG_PREFIX = "Release"

@@ -8,7 +8,6 @@
 #define MOZILLA_GFX_CLIPNVPR_H_
 
 #include "2D.h"
-#include "skia/src/gpu/gl/GrGLDefines.h"
 #include "Line.h"
 #include "PathNVpr.h"
 #include <mozilla/RefPtr.h>

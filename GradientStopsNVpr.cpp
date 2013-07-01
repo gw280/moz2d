@@ -6,7 +6,7 @@
 
 #include "GradientStopsNVpr.h"
 #include "GradientShadersNVpr.h"
-#include <GL/glext.h>
+#include <vector>
 
 using namespace std;
 

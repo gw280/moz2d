@@ -5,7 +5,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "PathNVpr.h"
-#include "GLContextNVpr.h"
 #include "PathBuilderNVpr.h"
 #include "Line.h"
 
@@ -243,10 +242,10 @@ PathNVpr::GetStrokedBounds(const StrokeOptions& aStrokeOptions,
   ApplyStrokeOptions(aStrokeOptions);
 
   if (aTransform.IsIdentity()) {
-    gl->GetPathParameterfvNV(*mPathObject, GL_PATH_STROKE_BOUND_NV, bounds);
+    gl->GetPathParameterfvNV(*mPathObject, GL_PATH_STROKE_BOUNDING_BOX_NV, bounds);
   } else {
     PathObjectNVpr transformed(*mPathObject, aTransform);
-    gl->GetPathParameterfvNV(transformed, GL_PATH_STROKE_BOUND_NV, bounds);
+    gl->GetPathParameterfvNV(transformed, GL_PATH_STROKE_BOUNDING_BOX_NV, bounds);
   }
 
   return Rect(bounds[0], bounds[2], bounds[2], bounds[3]);

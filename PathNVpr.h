@@ -8,14 +8,14 @@
 #define MOZILLA_GFX_PATHNVPR_H_
 
 #include "2D.h"
-#include <GL/gl.h>
+#include "GLContextNVpr.h"
 #include <vector>
 
 namespace mozilla {
 namespace gfx {
 
 struct Line;
-class PathDescriptionNVpr;
+struct PathDescriptionNVpr;
 
 /**
  * This is a ref-counted wrapper for NV_path_rendering path objects. It manages

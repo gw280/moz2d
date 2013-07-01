@@ -15,7 +15,7 @@ class MainWindow;
 class DrawTargetWidget;
 class CallTimingAnalysis;
 
-const uint32_t sBackendCount = mozilla::gfx::BACKEND_DIRECT2D1_1 + 1;
+const uint32_t sBackendCount = mozilla::gfx::BACKEND_NVPR + 1;
 
 class BackendSwitch : public QAction
 {

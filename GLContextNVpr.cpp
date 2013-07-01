@@ -9,22 +9,27 @@
 #include <sstream>
 #include <string>
 
+#include "Logging.h"
+
 using namespace std;
 
+namespace mozilla {
+namespace gfx {
+#ifdef WIN32
+static void __stdcall GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
+#else
 static void GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
+#endif
                             GLenum aSeverity, GLsizei aLength,
-                            const GLchar* aMessage, void* aUserParam)
+                            const GLchar* aMessage, const void* aUserParam)
 {
   if (aSeverity == GL_DEBUG_SEVERITY_LOW) {
     return;
   }
-  fprintf(stderr, "===> Debug callback: source=0x%x, type=0x%x, id=%u"
-                ", severity=0x%x\n", aSource, aType, aId, aSeverity);
-  fprintf(stderr, "===> message: %s\n", aMessage);
+  gfxWarning() << "===> Debug callback: source=0x%x, type=0x%x, id=%u, severity=0x%x\n" <<
+    aSource << aType << aId << aSeverity;
+  gfxWarning() <<  "===> message: %s\n" << aMessage;
 }
-
-namespace mozilla {
-namespace gfx {
 
 GLContextNVpr* GLContextNVpr::Instance()
 {
@@ -52,7 +57,6 @@ GLContextNVpr::GLContextNVpr()
   , mActiveTextureTarget(0)
   , mBoundTextureId(0)
   , mTexgenComponents(TEXGEN_NONE)
-  , mTexgenCoefficients{1, 0, 0, 0, 1, 0}
   , mShaderProgram(0)
   , mBlendingEnabled(false)
   , mSourceBlendFactorRGB(GL_ONE)
@@ -60,6 +64,9 @@ GLContextNVpr::GLContextNVpr()
   , mSourceBlendFactorAlpha(GL_ONE)
   , mDestBlendFactorAlpha(GL_ZERO)
 {
+  memset(mTexgenCoefficients, 0, sizeof(mTexgenCoefficients));
+  mTexgenCoefficients[0] = 1;
+  mTexgenCoefficients[4] = 1;
   mIsValid = false;
 
   if (!InitGLContext()) {

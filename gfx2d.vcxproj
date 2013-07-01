@@ -78,7 +78,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -100,7 +100,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -123,7 +123,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -139,7 +139,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -160,6 +160,7 @@
     <ClInclude Include="BaseRect.h" />
     <ClInclude Include="BaseSize.h" />
     <ClInclude Include="Blur.h" />
+    <ClInclude Include="ClipNVpr.h" />
     <ClInclude Include="DrawEventRecorder.h" />
     <ClInclude Include="DrawTargetCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -168,21 +169,27 @@
     <ClInclude Include="DrawTargetD2D.h" />
     <ClInclude Include="DrawTargetD2D1.h" />
     <ClInclude Include="DrawTargetDual.h" />
+    <ClInclude Include="DrawTargetNVpr.h" />
     <ClInclude Include="DrawTargetRecording.h" />
     <ClInclude Include="DrawTargetSkia.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="GLContextNVpr.h" />
+    <ClInclude Include="GradientShadersNVpr.h" />
     <ClInclude Include="GradientStopsD2D.h" />
+    <ClInclude Include="GradientStopsNVpr.h" />
     <ClInclude Include="HelpersD2D.h" />
     <ClInclude Include="ImageScaling.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="PathBuilderNVpr.h" />
     <ClInclude Include="PathCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="PathD2D.h" />
+    <ClInclude Include="PathNVpr.h" />
     <ClInclude Include="PathRecording.h" />
     <ClInclude Include="PathSkia.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -199,6 +206,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="ScaledFontDWrite.h" />
+    <ClInclude Include="ScaledFontNVpr.h" />
     <ClInclude Include="ScaledFontSkia.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -211,6 +219,7 @@
     <ClInclude Include="SourceSurfaceD2D.h" />
     <ClInclude Include="SourceSurfaceD2D1.h" />
     <ClInclude Include="SourceSurfaceD2DTarget.h" />
+    <ClInclude Include="SourceSurfaceNVpr.h" />
     <ClInclude Include="SourceSurfaceRawData.h" />
     <ClInclude Include="SourceSurfaceSkia.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -223,6 +232,7 @@
   <ItemGroup>
     <ClCompile Include="Blur.cpp" />
     <ClCompile Include="BlurSSE2.cpp" />
+    <ClCompile Include="ClipNVpr.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -231,20 +241,26 @@
     <ClCompile Include="DrawTargetD2D.cpp" />
     <ClCompile Include="DrawTargetD2D1.cpp" />
     <ClCompile Include="DrawTargetDual.cpp" />
+    <ClCompile Include="DrawTargetNVpr.cpp" />
     <ClCompile Include="DrawTargetRecording.cpp" />
     <ClCompile Include="DrawTargetSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Factory.cpp" />
+    <ClCompile Include="GLContextNVpr.cpp" />
+    <ClCompile Include="GLContextNVpr_WGL.cpp" />
+    <ClCompile Include="GradientStopsNVpr.cpp" />
     <ClCompile Include="ImageScaling.cpp" />
     <ClCompile Include="ImageScalingSSE2.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="PathBuilderNVpr.cpp" />
     <ClCompile Include="PathCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="PathD2D.cpp" />
+    <ClCompile Include="PathNVpr.cpp" />
     <ClCompile Include="PathRecording.cpp" />
     <ClCompile Include="PathSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -258,6 +274,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="ScaledFontDWrite.cpp" />
+    <ClCompile Include="ScaledFontNVpr.cpp" />
     <ClCompile Include="ScaledFontSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -270,6 +287,7 @@
     <ClCompile Include="SourceSurfaceD2D.cpp" />
     <ClCompile Include="SourceSurfaceD2D1.cpp" />
     <ClCompile Include="SourceSurfaceD2DTarget.cpp" />
+    <ClCompile Include="SourceSurfaceNVpr.cpp" />
     <ClCompile Include="SourceSurfaceRawData.cpp" />
     <ClCompile Include="SourceSurfaceSkia.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

@@ -8,7 +8,7 @@
 #define MOZILLA_GFX_PATHBUILDERNVPR_H_
 
 #include "2D.h"
-#include <GL/gl.h>
+#include "GLContextNVpr.h"
 #include <vector>
 
 namespace mozilla {

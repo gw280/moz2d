@@ -8,7 +8,7 @@
 #define MOZILLA_GFX_SOURCESURFACENVPR_H_
 
 #include "2D.h"
-#include <GL/gl.h>
+#include "GLContextNVpr.h"
 #include <mozilla/WeakPtr.h>
 #include <vector>
 

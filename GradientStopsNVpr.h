@@ -8,13 +8,13 @@
 #define MOZILLA_GFX_GRADIENTSTOPSNVPR_H_
 
 #include "2D.h"
-#include <GL/gl.h>
+#include "GLContextNVpr.h"
 #include <mozilla/RefPtr.h>
 
 namespace mozilla {
 namespace gfx {
 
-class GradientShadersNVpr;
+struct GradientShadersNVpr;
 
 class GradientStopsNVpr : public GradientStops {
 public:

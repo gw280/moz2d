@@ -4,9 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "ScaledFontNVpr.h"
 #include "GLContextNVpr.h"
-#include <GL/glext.h>
+#include "ScaledFontNVpr.h"
 #include <map>
 #include <sstream>
 #include <fstream>
@@ -44,7 +43,15 @@ ScaledFontNVpr::Create(const uint8_t* aData, uint32_t aFileSize,
                        uint32_t aIndex, GLfloat aSize)
 {
   ostringstream tempFontFile;
+#ifdef WIN32
+  // XXX - Terrible hacking time! We need a way to get this into a file for
+  // the API to be able to accept this.
+  CHAR buf [MAX_PATH];
+  ::GetTempPathA(MAX_PATH, buf);
+  tempFontFile << buf << "nvpr-font-" << rand() << rand() << rand() << rand();
+#else
   tempFontFile << "/tmp/nvpr-font-" << rand() << rand() << rand() << rand();
+#endif
 
   ofstream outputFile(tempFontFile.str(), ofstream::binary);
   outputFile.write((const char*)aData, aFileSize);
@@ -88,8 +95,8 @@ FontNVpr::FontNVpr(const FontOptions* aFont)
                      GL_SKIP_MISSING_GLYPH_NV, templatePath, 1);
 
   struct {GLfloat x1, y1, x2, y2;} bounds;
-  gl->GetPathMetricRangeNV(GL_FONT_X_MIN_BOUNDS_NV | GL_FONT_Y_MIN_BOUNDS_NV
-                         | GL_FONT_X_MAX_BOUNDS_NV | GL_FONT_Y_MAX_BOUNDS_NV,
+  gl->GetPathMetricRangeNV(GL_FONT_X_MIN_BOUNDS_BIT_NV | GL_FONT_Y_MIN_BOUNDS_BIT_NV
+                         | GL_FONT_X_MAX_BOUNDS_BIT_NV | GL_FONT_Y_MAX_BOUNDS_BIT_NV,
                          mGlyphPaths, 1, 0, &bounds.x1);
 
   // HACK! The driver currently seems to return all -1's.

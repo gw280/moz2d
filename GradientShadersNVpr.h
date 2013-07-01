@@ -100,10 +100,12 @@ class GradientShader {
 public:
   GradientShader(const GLchar* aFragShaderSource,
                  const GLchar* aDefines = "")
-    : mFragShaderSources{aDefines, aFragShaderSource}
-    , mShaderProgram(0)
+    : mShaderProgram(0)
     , mFragShader(0)
-  {}
+  {
+    mFragShaderSources[0] = aDefines;
+    mFragShaderSources[1] = aFragShaderSource;
+  }
   virtual ~GradientShader() {}
 
   operator GLuint()
@@ -127,8 +129,8 @@ public:
   }
 
 private:
-  GradientShader(const GradientShader&) = delete;
-  GradientShader& operator=(const GradientShader&) = delete;
+  GradientShader(const GradientShader&) {}
+  GradientShader& operator=(const GradientShader&) {}
 
   const GLchar* mFragShaderSources[2];
   GLuint mShaderProgram;

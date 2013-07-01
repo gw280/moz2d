@@ -7,8 +7,13 @@
 #ifndef MOZILLA_GFX_GLCONTEXTNVPR_H_
 #define MOZILLA_GFX_GLCONTEXTNVPR_H_
 
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 #include "2D.h"
 #include <GL/gl.h>
+#include "GL/glext.h"
 #include <memory>
 #include <stack>
 
@@ -66,7 +71,8 @@
   MACRO(TransformPathNV) \
   MACRO(GetPathParameterivNV) \
   MACRO(GetPathCommandsNV) \
-  MACRO(GetPathCoordsNV)
+  MACRO(GetPathCoordsNV) \
+  MACRO(GetString)
 
 #define FOR_ALL_PRIVATE_GL_ENTRY_POINTS(MACRO) \
   MACRO(DeleteTextures) \
@@ -214,8 +220,6 @@ private:
 
   GLContextNVpr();
   ~GLContextNVpr();
-  GLContextNVpr(const GLContextNVpr&) = delete;
-  GLContextNVpr& operator =(const GLContextNVpr&) = delete;
 
   bool InitGLContext();
   void DestroyGLContext();
@@ -269,6 +273,8 @@ private:
 
 #undef DECLARE_GL_METHOD
 
+  GLContextNVpr(const GLContextNVpr&) {}
+  GLContextNVpr& operator =(const GLContextNVpr&) {}
 };
 
 }

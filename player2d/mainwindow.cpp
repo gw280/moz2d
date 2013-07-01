@@ -45,6 +45,8 @@ NameForBackend(uint32_t aType)
     return "Accelerated Quartz";
   case BACKEND_SKIA:
     return "Skia";
+  case BACKEND_NVPR:
+    return "NVidia Path Rendering";
   default:
     return "Unknown";
   }
@@ -119,6 +121,10 @@ MainWindow::MainWindow(QWidget *parent) :
 #ifdef USE_SKIA
   ui->menuBackend->addAction(mBackends[BACKEND_SKIA]);
   ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_SKIA]);
+#endif
+#ifdef USE_NVPR
+  ui->menuBackend->addAction(mBackends[BACKEND_NVPR]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_NVPR]);
 #endif
 
   ui->menuBackend->actions()[0]->toggle();

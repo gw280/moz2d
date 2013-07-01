@@ -8,8 +8,7 @@
 #define MOZILLA_GFX_DRAWTARGETNVPR_H_
 
 #include "2D.h"
-#include "SkRefCnt.h"
-#include <GL/gl.h>
+#include "GLContextNVpr.h"
 
 namespace mozilla {
 namespace gfx {
