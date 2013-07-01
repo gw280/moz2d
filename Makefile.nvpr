@@ -1,0 +1,21 @@
+DEFINES += USE_NVPR GL_GLEXT_PROTOTYPES
+
+LIBS += -ldl -lX11
+
+MOZ2D_CPPSRCS += \
+  GradientStopsNVpr.cpp \
+  ScaledFontNVpr.cpp \
+  DrawTargetNVpr.cpp \
+  SourceSurfaceNVpr.cpp \
+  PathNVpr.cpp \
+  ClipNVpr.cpp \
+  PathBuilderNVpr.cpp \
+  GLContextNVpr.cpp \
+  GLContextNVpr_GLX.cpp \
+  $(NULL)
+
+UNITTEST_CPPSRCS += \
+  $(NULL)
+  
+PERFTEST_CPPSRCS += \
+  $(NULL)
