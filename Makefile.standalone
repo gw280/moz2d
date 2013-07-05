@@ -9,6 +9,11 @@ DEBUGFLAGS=-g
 RELEASEFLAGS=-O3
 DEFINES=
 
+# Mark these targets as phony because we don't know all the dependencies for
+# player2d at this level, so invoke the player2d Makefiles every time and let
+# the submake deal with it.
+.PHONY: $(OBJDIR_RELEASE)/player2d/player2d $(OBJDIR_DEBUG)/player2d/player2d
+
 # ================ OS FEATURES ================
 UNAME = $(shell uname)
 ifeq ($(UNAME),Darwin)
@@ -173,7 +178,7 @@ $(OBJDIR_RELEASE)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done $(OBJDIR_RELE
 
 $(OBJDIR_DEBUG)/player2d/player2d: $(OBJDIR_DEBUG)/.mkdir.done $(OBJDIR_DEBUG)/libmoz2d.a
 	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
-	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && qmake ../../player2d $(QMAKE_PARAMS) && make
+	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && qmake ../../player2d $(QMAKE_PARAMS) MOZ2D_DEBUG=1 && make
 
 check: $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest
 	$(OBJDIR_RELEASE)/unittest/unittest
@@ -196,9 +201,9 @@ clean:
 
 $(OBJDIR_RELEASE)/%.o: %.cpp $(OBJDIR_RELEASE)/.mkdir.done
 	$(CXX) -c $(COMPILER_DEFINES) $(RELEASEFLAGS) $(CXXFLAGS) -o $@ $<
-	$(CXX) -MM $(COMPILER_DEFINES) $(RELEASEFLAGS) $(CXXFLAGS) -o $(@:.o=.d) $<
+	$(CXX) -MM -MT $@ $(COMPILER_DEFINES) $(RELEASEFLAGS) $(CXXFLAGS) -o $(@:.o=.d) $<
 
 $(OBJDIR_DEBUG)/%.o: %.cpp $(OBJDIR_DEBUG)/.mkdir.done
 	$(CXX) $(COMPILER_DEFINES) $(DEBUGFLAGS) $(CXXFLAGS) -c -o $@ $<
-	$(CXX) -MM $(COMPILER_DEFINES) $(DEBUGFLAGS) $(CXXFLAGS) -o $(@:.o=.d) $<
+	$(CXX) -MM -MT $@ $(COMPILER_DEFINES) $(DEBUGFLAGS) $(CXXFLAGS) -o $(@:.o=.d) $<
 

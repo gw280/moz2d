@@ -51,6 +51,9 @@ FORMS    += mainwindow.ui \
 !isEmpty(MOZ2D_NVPR) {
   DEFINES += USE_NVPR
 }
+!isEmpty(MOZ2D_DEBUG) {
+  CONFIG += debug
+}
 
 CONFIG(release, debug|release) {
   CONFIG_PREFIX = "Release"
@@ -92,6 +95,9 @@ static: DEFINES += QT_STATIC
 
 win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../release/gfx2d.lib
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../debug/gfx2d.lib
+
+unix:CONFIG(release, debug|release): PRE_TARGETDEPS += $$PWD/../release/libmoz2d.a
+else:unix:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$PWD/../debug/libmoz2d.a
 
 win32: LIBS += -ld3d10_1 -ld3d11
 win32: DEFINES += INITGUID USE_D2D1_1

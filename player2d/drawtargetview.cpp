@@ -2,7 +2,7 @@
 #include "ui_drawtargetview.h"
 #include "2D.h"
 #include "RecordedEvent.h"
-#include "MainWindow.h"
+#include "mainwindow.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;
