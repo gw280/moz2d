@@ -62,7 +62,7 @@ bool GLContextNVpr::InitGLContext()
 
   int nelements;
   GLXFBConfig *fbc = ctx.ChooseFBConfig(ctx.mDisplay, DefaultScreen(ctx.mDisplay),
-                                       0, &nelements);
+                                        0, &nelements);
   XVisualInfo *vi = ctx.GetVisualFromFBConfig(ctx.mDisplay, fbc[0]);
 
   ctx.mPixmap = XCreatePixmap(ctx.mDisplay, RootWindow(ctx.mDisplay, vi->screen),
@@ -70,6 +70,8 @@ bool GLContextNVpr::InitGLContext()
   ctx.mGLXPixmap = ctx.CreateGLXPixmap(ctx.mDisplay, vi, ctx.mPixmap);
 
   ctx.mContext = ctx.CreateContext(ctx.mDisplay, vi, 0, true);
+
+  MakeCurrent();
 
 #define LOAD_GL_METHOD(NAME) \
   NAME = reinterpret_cast<decltype(NAME)>(ctx.GetProcAddress(reinterpret_cast<const GLubyte*>("gl"#NAME))); \
@@ -88,6 +90,9 @@ bool GLContextNVpr::InitGLContext()
 void GLContextNVpr::DestroyGLContext()
 {
   PlatformContextData& ctx = *mContextData;
+  if (!ctx.mLibGL) {
+    return;
+  }
 
   ctx.MakeCurrent(ctx.mDisplay, 0, 0);
 

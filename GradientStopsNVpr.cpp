@@ -58,18 +58,18 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
 
   // Render the gradient stops into the color ramp texture.
   gl->SetTargetSize(IntSize(rampSize, 1));
-  gl->AttachTexture1DToFramebuffer(GL_FRAMEBUFFER, mRampTextureId);
+  gl->SetFramebufferToTexture(GL_FRAMEBUFFER, GL_TEXTURE_1D, mRampTextureId);
 
   Matrix colorRampCoords;
   colorRampCoords.Scale(rampSize, 1);
   colorRampCoords.Translate(0, 0.5f);
-  GLContextNVpr::ScopedPushTransform pushTransform(colorRampCoords);
+  gl->SetTransform(colorRampCoords, gl->GetUniqueId());
 
   gl->EnableColorWrites();
   gl->SetColor(sortedStops.front().color);
+  gl->DisableClipPlanes();
   gl->DisableTexturing();
   gl->DisableShading();
-  // TODO: disable clip planes
 
   gl->Begin(GL_LINE_STRIP); {
 

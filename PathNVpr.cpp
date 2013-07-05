@@ -15,8 +15,7 @@ namespace gfx {
 
 PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                                const Point& aStartPoint,
-                               const Point& aCurrentPoint,
-                               vector<Line>& aConvexOutline)
+                               const Point& aCurrentPoint)
   : mStartPoint(aStartPoint)
   , mCurrentPoint(aCurrentPoint)
   , mStrokeWidth(1)
@@ -25,8 +24,6 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
   , mJoinStyle(JOIN_MITER_OR_BEVEL)
   , mCapStyle(CAP_BUTT)
 {
-  swap(mConvexOutline, aConvexOutline);
-
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
@@ -34,6 +31,15 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
   gl->PathCommandsNV(mObject, aDescription.mCommands.size(),
                      aDescription.mCommands.data(), aDescription.mCoords.size(),
                      GL_FLOAT, aDescription.mCoords.data());
+}
+
+PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
+                               const Point& aStartPoint,
+                               const Point& aCurrentPoint,
+                               ConvexPolygon&& aPassPolygon)
+  : PathObjectNVpr(aDescription, aStartPoint, aCurrentPoint)
+{
+  mPolygon.Swap(aPassPolygon);
 }
 
 PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
@@ -47,20 +53,8 @@ PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
   , mJoinStyle(aPathObject.mJoinStyle)
   , mCapStyle(aPathObject.mCapStyle)
 {
-  if (!aPathObject.mConvexOutline.empty()) {
-    mConvexOutline.reserve(aPathObject.mConvexOutline.size());
-
-    // Multiply normals by the inverse transpose.
-    Matrix inverse = aTransform;
-    inverse.Invert();
-
-    for (size_t i = 0; i < aPathObject.mConvexOutline.size(); i++) {
-      const Line& line = aPathObject.mConvexOutline[i];
-      mConvexOutline.push_back(Line(line.A * inverse._11 + line.B * inverse._12,
-                                    line.A * inverse._21 + line.B * inverse._22,
-                                    line.C));
-    }
-  }
+  mPolygon = aPathObject.mPolygon;
+  mPolygon.Transform(aTransform);
 
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
@@ -255,12 +249,6 @@ bool
 PathNVpr::IsSamePath(const PathNVpr* aPath) const
 {
   return mFillRule == aPath->mFillRule && mPathObject == aPath->mPathObject;
-}
-
-const vector<Line>&
-PathNVpr::ConvexOutline() const
-{
-  return mPathObject->ConvexOutline();
 }
 
 TemporaryRef<PathNVpr>

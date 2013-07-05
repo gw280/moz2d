@@ -5,30 +5,40 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "GLContextNVpr.h"
+#include "ConvexPolygon.h"
+#include "Line.h"
+#include "Logging.h"
 #include <iterator>
+#include <iostream>
 #include <sstream>
 #include <string>
 
-#include "Logging.h"
-
 using namespace std;
+
+#ifdef WIN32
+#define STDCALL __stdcall
+#else
+#define STDCALL
+#endif
 
 namespace mozilla {
 namespace gfx {
-#ifdef WIN32
-static void __stdcall GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
-#else
-static void GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
-#endif
-                            GLenum aSeverity, GLsizei aLength,
-                            const GLchar* aMessage, const void* aUserParam)
+
+static void STDCALL GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
+                                    GLenum aSeverity, GLsizei aLength,
+                                    const GLchar* aMessage,
+                                    const void* aUserParam)
 {
   if (aSeverity == GL_DEBUG_SEVERITY_LOW) {
     return;
   }
-  gfxWarning() << "===> Debug callback: source=0x%x, type=0x%x, id=%u, severity=0x%x\n" <<
-    aSource << aType << aId << aSeverity;
-  gfxWarning() <<  "===> message: %s\n" << aMessage;
+
+  gfxWarning() << "--- OpenGL Debug Callback ---";
+  gfxWarning() << "  Source: 0x" << hex << aSource;
+  gfxWarning() << "  Type: 0x" << hex << aType;
+  gfxWarning() << "  Id: " << aId;
+  gfxWarning() << "  Severity: 0x" << hex << aSeverity;
+  gfxWarning() << "  Message: " << aMessage;
 }
 
 GLContextNVpr* GLContextNVpr::Instance()
@@ -43,9 +53,12 @@ GLContextNVpr* GLContextNVpr::Instance()
 }
 
 GLContextNVpr::GLContextNVpr()
-  : mReadFramebuffer(0)
+  : mNextUniqueId(1)
+  , mReadFramebuffer(0)
   , mDrawFramebuffer(0)
   , mColorWritesEnabled(true)
+  , mNumClipPlanes(0)
+  , mClipPolygonId(0)
   , mColor(1, 1, 1, 1)
   , mStencilTestEnabled(false)
   , mStencilTest(ALWAYS_PASS)
@@ -64,9 +77,9 @@ GLContextNVpr::GLContextNVpr()
   , mSourceBlendFactorAlpha(GL_ONE)
   , mDestBlendFactorAlpha(GL_ZERO)
 {
+  mTransformIdStack.push(0);
   memset(mTexgenCoefficients, 0, sizeof(mTexgenCoefficients));
-  mTexgenCoefficients[0] = 1;
-  mTexgenCoefficients[4] = 1;
+
   mIsValid = false;
 
   if (!InitGLContext()) {
@@ -119,8 +132,8 @@ GLContextNVpr::GLContextNVpr()
     mMaxAnisotropy = 1;
   }
 
-  GenFramebuffers(1, &mTexture1DFBO);
-  GenFramebuffers(1, &mTexture2DFBO);
+  GenFramebuffers(1, &mTextureFramebuffer1D);
+  GenFramebuffers(1, &mTextureFramebuffer2D);
 
   TexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
   TexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
@@ -143,49 +156,6 @@ GLContextNVpr::~GLContextNVpr()
 }
 
 void
-GLContextNVpr::SetTransform(const Matrix& aTransform)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!memcmp(&mTransform, &aTransform, sizeof(Matrix))) {
-    return;
-  }
-
-  const GLfloat matrix[] = {
-    aTransform._11,  aTransform._12,  0,  0,
-    aTransform._21,  aTransform._22,  0,  0,
-    0,               0,               1,  0,
-    aTransform._31,  aTransform._32,  0,  1
-  };
-
-  MatrixLoadfEXT(GL_MODELVIEW, matrix);
-
-  mTransform = aTransform;
-}
-
-void
-GLContextNVpr::PushTransform(const Matrix& aTransform)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  MatrixPushEXT(GL_MODELVIEW);
-
-  mTransformStack.push(mTransform);
-  SetTransform(aTransform);
-}
-
-void
-GLContextNVpr::PopTransform()
-{
-  MOZ_ASSERT(IsCurrent());
-
-  MatrixPopEXT(GL_MODELVIEW);
-
-  mTransform = mTransformStack.top();
-  mTransformStack.pop();
-}
-
-void
 GLContextNVpr::SetTargetSize(const IntSize& aSize)
 {
   MOZ_ASSERT(IsCurrent());
@@ -205,62 +175,136 @@ GLContextNVpr::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 {
   MOZ_ASSERT(IsCurrent());
 
-  const bool texture1DFBOWasBound = mReadFramebuffer == mTexture1DFBO
-                                    || mDrawFramebuffer == mTexture1DFBO;
-  const bool texture2DFBOWasBound = mReadFramebuffer == mTexture2DFBO
-                                    || mDrawFramebuffer == mTexture2DFBO;
+  bool clearTextureFramebuffer1D;
+  bool clearTextureFramebuffer2D;
 
-  if (aFramebufferTarget == GL_FRAMEBUFFER) {
-    if (mReadFramebuffer == aFramebuffer && mDrawFramebuffer == aFramebuffer) {
-      return;
-    }
-    BindFramebuffer(GL_FRAMEBUFFER, aFramebuffer);
-    mReadFramebuffer = mDrawFramebuffer = aFramebuffer;
-  } else if (aFramebufferTarget == GL_READ_FRAMEBUFFER) {
-    if (mReadFramebuffer == aFramebuffer) {
-      return;
-    }
-    BindFramebuffer(GL_READ_FRAMEBUFFER, aFramebuffer);
-    mReadFramebuffer = aFramebuffer;
-  } else if (aFramebufferTarget == GL_DRAW_FRAMEBUFFER) {
-    if (mDrawFramebuffer == aFramebuffer) {
-      return;
-    }
-    BindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
-    mDrawFramebuffer = aFramebuffer;
+  switch (aFramebufferTarget) {
+    case GL_FRAMEBUFFER:
+      if (mReadFramebuffer == aFramebuffer && mDrawFramebuffer == aFramebuffer) {
+        return;
+      }
+
+      BindFramebuffer(GL_FRAMEBUFFER, aFramebuffer);
+
+      clearTextureFramebuffer1D = (aFramebuffer != mTextureFramebuffer1D)
+                                  && (mDrawFramebuffer == mTextureFramebuffer1D
+                                      || mReadFramebuffer == mTextureFramebuffer1D);
+      clearTextureFramebuffer2D = (aFramebuffer != mTextureFramebuffer2D)
+                                  && (mDrawFramebuffer == mTextureFramebuffer2D
+                                      || mReadFramebuffer == mTextureFramebuffer2D);
+      mReadFramebuffer = mDrawFramebuffer = aFramebuffer;
+      break;
+
+    case GL_READ_FRAMEBUFFER:
+      if (mReadFramebuffer == aFramebuffer) {
+        return;
+      }
+
+      BindFramebuffer(GL_READ_FRAMEBUFFER, aFramebuffer);
+
+      clearTextureFramebuffer1D = (mReadFramebuffer == mTextureFramebuffer1D);
+      clearTextureFramebuffer2D = (mReadFramebuffer == mTextureFramebuffer2D);
+      mReadFramebuffer = aFramebuffer;
+      break;
+
+    case GL_DRAW_FRAMEBUFFER:
+      if (mDrawFramebuffer == aFramebuffer) {
+        return;
+      }
+
+      BindFramebuffer(GL_DRAW_FRAMEBUFFER, aFramebuffer);
+
+      clearTextureFramebuffer1D = (mDrawFramebuffer == mTextureFramebuffer1D);
+      clearTextureFramebuffer2D = (mDrawFramebuffer == mTextureFramebuffer2D);
+      mDrawFramebuffer = aFramebuffer;
+      break;
+
+    default:
+      MOZ_ASSERT(!"Invalid framebuffer target.");
+      break;
   }
 
-  if (texture1DFBOWasBound && mReadFramebuffer != mTexture1DFBO
-      && mDrawFramebuffer != mTexture1DFBO) {
-    NamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
+  if (clearTextureFramebuffer1D) {
+    NamedFramebufferTexture1DEXT(mTextureFramebuffer1D, GL_COLOR_ATTACHMENT0,
                                  GL_TEXTURE_1D, 0, 0);  
   }
 
-  if (texture2DFBOWasBound && mReadFramebuffer != mTexture2DFBO
-      && mDrawFramebuffer != mTexture2DFBO) {
-    NamedFramebufferTexture1DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
+  if (clearTextureFramebuffer2D) {
+    NamedFramebufferTexture2DEXT(mTextureFramebuffer2D, GL_COLOR_ATTACHMENT0,
                                  GL_TEXTURE_2D, 0, 0);  
   }
 }
 
 void
-GLContextNVpr::AttachTexture1DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
+GLContextNVpr::SetFramebufferToTexture(GLenum aFramebufferTarget,
+                                       GLenum aTextureTarget, GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  NamedFramebufferTexture1DEXT(mTexture1DFBO, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_1D, aTextureId, 0);
-  SetFramebuffer(aFramebufferTarget, mTexture1DFBO);  
+  switch (aTextureTarget) {
+    case GL_TEXTURE_1D:
+      NamedFramebufferTexture1DEXT(mTextureFramebuffer1D, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_1D, aTextureId, 0);
+      SetFramebuffer(aFramebufferTarget, mTextureFramebuffer1D);
+      break;
+
+    case GL_TEXTURE_2D:
+      NamedFramebufferTexture2DEXT(mTextureFramebuffer2D, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_2D, aTextureId, 0);
+      SetFramebuffer(aFramebufferTarget, mTextureFramebuffer2D);
+      break;
+
+    default:
+      MOZ_ASSERT(!"Invalid texture target.");
+      break;
+  }
 }
 
 void
-GLContextNVpr::AttachTexture2DToFramebuffer(GLenum aFramebufferTarget, GLuint aTextureId)
+GLContextNVpr::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  NamedFramebufferTexture2DEXT(mTexture2DFBO, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_2D, aTextureId, 0);
-  SetFramebuffer(aFramebufferTarget, mTexture2DFBO);  
+  if (mTransformIdStack.top() == aTransformId) {
+    return;
+  }
+
+  const GLfloat matrix[] = {
+    aTransform._11,  aTransform._12,  0,  0,
+    aTransform._21,  aTransform._22,  0,  0,
+    0,               0,               1,  0,
+    aTransform._31,  aTransform._32,  0,  1
+  };
+
+  MatrixLoadfEXT(GL_MODELVIEW, matrix);
+
+  mTransformIdStack.top() = aTransformId;
+}
+
+void
+GLContextNVpr::SetTransformToIdentity()
+{
+  MOZ_ASSERT(IsCurrent());
+
+  MatrixLoadIdentityEXT(GL_MODELVIEW);
+  mTransformIdStack.top() = 0;
+}
+
+void
+GLContextNVpr::PushTransform(const Matrix& aTransform)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  MatrixPushEXT(GL_MODELVIEW);
+  mTransformIdStack.push(mTransformIdStack.top());
+  SetTransform(aTransform, GetUniqueId());
+}
+
+void
+GLContextNVpr::PopTransform()
+{
+  mTransformIdStack.pop();
+  MatrixPopEXT(GL_MODELVIEW);
 }
 
 void
@@ -287,6 +331,99 @@ GLContextNVpr::DisableColorWrites()
 
   ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   mColorWritesEnabled = false;
+}
+
+void
+GLContextNVpr::SetColor(const Color& aColor)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (!memcmp(&mColor, &aColor, sizeof(Color))) {
+    return;
+  }
+
+  if (aColor.a == 1) {
+    Color4f(aColor.r, aColor.g, aColor.b, 1);
+  } else {
+    const float a = aColor.a;
+    Color4f(a * aColor.r, a * aColor.g, a * aColor.b, a);
+  }
+
+  mColor = aColor;
+}
+
+void
+GLContextNVpr::SetColor(const Color& aColor, GLfloat aAlpha)
+{
+  SetColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
+}
+
+void
+GLContextNVpr::SetColorToAlpha(GLfloat aAlpha)
+{
+  SetColor(Color(1, 1, 1, aAlpha));
+}
+
+void
+GLContextNVpr::EnableClipPlanes(const ConvexPolygon& aPolygon,
+                                UniqueId aPolygonId)
+{
+  MOZ_ASSERT(IsCurrent());
+  MOZ_ASSERT(aPolygon.NumSides() <= mMaxClipPlanes);
+
+  if (mClipPolygonId == aPolygonId) {
+    return;
+  }
+
+  if (aPolygon.IsEmpty()) {
+    if (!mNumClipPlanes) {
+      Enable(GL_CLIP_PLANE0);
+    } else {
+      for (size_t i = 1; i < mNumClipPlanes; i++) {
+        Disable(GL_CLIP_PLANE0 + i);
+      }
+    }
+
+    mNumClipPlanes = 1;
+
+    // We specify a single clip plane equation that fails for all vertices.
+    const double planeEquation[] = {0, 0, 0, -1};
+    ClipPlane(GL_CLIP_PLANE0, planeEquation);
+
+    mClipPolygonId = aPolygonId;
+
+    return;
+  }
+
+  for (size_t i = mNumClipPlanes; i < aPolygon.NumSides(); i++) {
+    Enable(GL_CLIP_PLANE0 + i);
+  }
+  for (size_t i = aPolygon.NumSides(); i < mNumClipPlanes; i++) {
+    Disable(GL_CLIP_PLANE0 + i);
+  }
+
+  mNumClipPlanes = aPolygon.NumSides();
+
+  for (size_t i = 0; i < aPolygon.NumSides(); i++) {
+    const Line& line = aPolygon.Sides()[i];
+    const double planeEquation[] = {line.A, line.B, 0, -line.C};
+    ClipPlane(GL_CLIP_PLANE0 + i, planeEquation);
+  }
+
+  mClipPolygonId = aPolygonId;
+}
+
+void
+GLContextNVpr::DisableClipPlanes()
+{
+  MOZ_ASSERT(IsCurrent());
+
+  for (size_t i = 0; i < mNumClipPlanes; i++) {
+    Disable(GL_CLIP_PLANE0 + i);
+  }
+
+  mNumClipPlanes = 0;
+  mClipPolygonId = 0;
 }
 
 void
@@ -393,37 +530,6 @@ GLContextNVpr::ConfigurePathStencilTest(GLubyte aClipBits)
   }
 
   mPathStencilFuncBits = aClipBits;
-}
-
-void
-GLContextNVpr::SetColor(const Color& aColor)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!memcmp(&mColor, &aColor, sizeof(Color))) {
-    return;
-  }
-
-  if (aColor.a == 1) {
-    Color4f(aColor.r, aColor.g, aColor.b, 1);
-  } else {
-    const float a = aColor.a;
-    Color4f(a * aColor.r, a * aColor.g, a * aColor.b, a);
-  }
-
-  mColor = aColor;
-}
-
-void
-GLContextNVpr::SetColor(const Color& aColor, GLfloat aAlpha)
-{
-  SetColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
-}
-
-void
-GLContextNVpr::SetColorToAlpha(GLfloat aAlpha)
-{
-  SetColor(Color(1, 1, 1, aAlpha));
 }
 
 void

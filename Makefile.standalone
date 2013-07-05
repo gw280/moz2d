@@ -27,6 +27,7 @@ endif
 MOZ2D_CPPSRCS_ALLPLATFORMS = \
   Blur.cpp \
   BlurSSE2.cpp \
+  ConvexPolygon.cpp \
   DrawEventRecorder.cpp \
   DrawTargetDual.cpp \
   DrawTargetRecording.cpp \

@@ -30,7 +30,7 @@ struct PathDescriptionNVpr {
   PathDescriptionNVpr() {}
 
   PathDescriptionNVpr(const PathDescriptionNVpr& aOther);
-  PathDescriptionNVpr(const PathDescriptionNVpr&& aOther);
+  PathDescriptionNVpr(PathDescriptionNVpr&& aOther) noexcept;
 
   bool operator <(const PathDescriptionNVpr& aOther) const;
 
@@ -40,8 +40,8 @@ struct PathDescriptionNVpr {
   void AppendPoint(const Point& aPt) { AppendFloat(aPt.x); AppendFloat(aPt.y); }
   void AppendFloat(float aVal) { mCoords.push_back(aVal); }
 
-  mutable std::vector<GLubyte> mCommands;
-  mutable std::vector<GLfloat> mCoords;
+  std::vector<GLubyte> mCommands;
+  std::vector<GLfloat> mCoords;
 };
 
 /**

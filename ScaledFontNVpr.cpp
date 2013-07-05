@@ -91,13 +91,13 @@ FontNVpr::FontNVpr(const FontOptions* aFont)
 
   mGlyphPaths = gl->GenPathsNV(MAX_UNICODE_INDEX + 1);
   gl->PathGlyphRangeNV(mGlyphPaths, GL_FILE_NAME_NV, aFont->mName.c_str(),
-                     fontStyle, 0, MAX_UNICODE_INDEX + 1,
-                     GL_SKIP_MISSING_GLYPH_NV, templatePath, 1);
+                       fontStyle, 0, MAX_UNICODE_INDEX + 1,
+                       GL_SKIP_MISSING_GLYPH_NV, templatePath, 1);
 
   struct {GLfloat x1, y1, x2, y2;} bounds;
   gl->GetPathMetricRangeNV(GL_FONT_X_MIN_BOUNDS_BIT_NV | GL_FONT_Y_MIN_BOUNDS_BIT_NV
-                         | GL_FONT_X_MAX_BOUNDS_BIT_NV | GL_FONT_Y_MAX_BOUNDS_BIT_NV,
-                         mGlyphPaths, 1, 0, &bounds.x1);
+                           | GL_FONT_X_MAX_BOUNDS_BIT_NV | GL_FONT_Y_MAX_BOUNDS_BIT_NV,
+                           mGlyphPaths, 1, 0, &bounds.x1);
 
   // HACK! The driver currently seems to return all -1's.
   bounds.x1 = -.25;

@@ -8,6 +8,7 @@
 #define MOZILLA_GFX_PATHNVPR_H_
 
 #include "2D.h"
+#include "ConvexPolygon.h"
 #include "GLContextNVpr.h"
 #include <vector>
 
@@ -25,14 +26,16 @@ struct PathDescriptionNVpr;
 class PathObjectNVpr : public RefCounted<PathObjectNVpr> {
 public:
   PathObjectNVpr(const PathDescriptionNVpr& aDescription,
+                   const Point& aStartPoint, const Point& aCurrentPoint);
+  PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                  const Point& aStartPoint, const Point& aCurrentPoint,
-                 std::vector<Line>& aConvexOutline);
+                 ConvexPolygon&& aPassPolygon);
   PathObjectNVpr(const PathObjectNVpr& aPath, const Matrix& aTransform);
   ~PathObjectNVpr();
 
   const Point& StartPoint() const { return mStartPoint; }
   const Point& CurrentPoint() const { return mCurrentPoint; }
-  const std::vector<Line>& ConvexOutline() const { return mConvexOutline; }
+  const ConvexPolygon& Polygon() const { return mPolygon; }
   operator GLuint() const { return mObject; }
 
   void ApplySencliClipBits(GLuint aClipBits);
@@ -41,7 +44,7 @@ public:
 private:
   const Point mStartPoint;
   const Point mCurrentPoint;
-  std::vector<Line> mConvexOutline;
+  ConvexPolygon mPolygon;
   GLuint mObject;
 
   GLuint mStencilClipBits;
@@ -84,7 +87,7 @@ public:
 
   bool IsSamePath(const PathNVpr* aPath) const;
 
-  const std::vector<Line>& ConvexOutline() const;
+  const ConvexPolygon& Polygon() const { return mPathObject->Polygon(); }
 
   operator GLuint() const { return *mPathObject; }
 

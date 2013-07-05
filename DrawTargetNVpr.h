@@ -9,13 +9,15 @@
 
 #include "2D.h"
 #include "GLContextNVpr.h"
+#include <string>
+#include <stack>
 
 namespace mozilla {
 namespace gfx {
 
-class ClipNVpr;
-class GLContextNVpr;
 class PathNVpr;
+class PlanesClipNVpr;
+class StencilClipNVpr;
 
 class DrawTargetNVpr : public DrawTarget
 {
@@ -25,10 +27,7 @@ public:
   {
     bool success;
     RefPtr<DrawTargetNVpr> drawTarget = new DrawTargetNVpr(aSize, aFormat, success);
-    if (!success) {
-      return nullptr;
-    }
-    return drawTarget.forget();
+    return success ? drawTarget.forget() : nullptr;
   }
   virtual ~DrawTargetNVpr();
 
@@ -132,14 +131,17 @@ public:
   GLubyte ReserveStencilClipBit();
   void ReleaseStencilClipBits(GLubyte aBits);
 
-  GLuint ReserveClipPlanes(size_t count);
-  void ReleaseClipPlanes(GLuint aIndex);
-
 private:
   DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat, bool& aSuccess);
 
-  void PushClip(const Matrix& aTransform, const PathNVpr* aPath);
-  void Validate();
+  enum ValidationFlag {
+    FRAMEBUFFER = 1 << 0,
+    CLIPPING = 1 << 1,
+    TRANSFORM = 1 << 2,
+    COLOR_WRITES_ENABLED = 1 << 3
+  };
+  typedef unsigned ValidationFlags;
+  void Validate(ValidationFlags aFlags = ~0);
 
   void ApplyPattern(const Pattern& aPattern, const DrawOptions& aOptions);
   void ApplyPattern(const ColorPattern& aPattern, float aAlpha);
@@ -159,10 +161,13 @@ private:
   GLuint mFramebuffer;
   RefPtr<SourceSurface> mSnapshot;
   RefPtr<PathNVpr> mUnitSquarePath;
-  RefPtr<ClipNVpr> mClip;
-  ClipNVpr* mPoppedClips;
+  enum ClipType { PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };
+  std::stack<ClipType> mClipTypeStack;
+  RefPtr<PlanesClipNVpr> mTopPlanesClip;
+  RefPtr<StencilClipNVpr> mTopStencilClip;
+  StencilClipNVpr* mPoppedStencilClips;
+  GLContextNVpr::UniqueId mTransformId;
   GLubyte mStencilClipBits;
-  GLuint mActiveClipPlanes;
 };
 
 }

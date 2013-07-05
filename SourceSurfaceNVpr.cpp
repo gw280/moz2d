@@ -130,7 +130,7 @@ SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& a
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
-  gl->AttachTexture2DToFramebuffer(GL_DRAW_FRAMEBUFFER, surface->mTextureId);
+  gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
 
   gl->BlitFramebuffer(0, surface->mSize.height, surface->mSize.width, 0,
                       0, 0, surface->mSize.width, surface->mSize.height,

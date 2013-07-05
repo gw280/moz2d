@@ -27,9 +27,9 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   , mColorBuffer(0)
   , mStencilBuffer(0)
   , mFramebuffer(0)
-  , mPoppedClips(0)
+  , mPoppedStencilClips(nullptr)
+  , mTransformId(0)
   , mStencilClipBits(0)
-  , mActiveClipPlanes(0)
 {
   aSuccess = false;
 
@@ -75,11 +75,11 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   }
   gl->GenRenderbuffers(1, &mColorBuffer);
   gl->NamedRenderbufferStorageMultisampleEXT(mColorBuffer, 16, colorBufferFormat,
-                                           mSize.width, mSize.height);
+                                             mSize.width, mSize.height);
 
   gl->GenRenderbuffers(1, &mStencilBuffer);
   gl->NamedRenderbufferStorageMultisampleEXT(mStencilBuffer, 16, GL_STENCIL_INDEX8,
-                                           mSize.width, mSize.height);
+                                             mSize.width, mSize.height);
 
   gl->GenFramebuffers(1, &mFramebuffer);
   gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_COLOR_ATTACHMENT0,
@@ -96,6 +96,12 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
 DrawTargetNVpr::~DrawTargetNVpr()
 {
+  GLContextNVpr* const gl = GLContextNVpr::Instance();
+  gl->MakeCurrent();
+
+  gl->DeleteRenderbuffers(1, &mColorBuffer);
+  gl->DeleteRenderbuffers(1, &mStencilBuffer);
+  gl->DeleteFramebuffers(1, &mFramebuffer);
 }
 
 DrawTargetNVpr::operator string() const
@@ -129,9 +135,6 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
 
   SourceSurfaceNVpr* const surface = static_cast<SourceSurfaceNVpr*>(aSurface);
 
-  Rect textureRect = aSource;
-  textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
-
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
@@ -153,6 +156,8 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
   surface->ApplyTexturingOptions(aSurfOptions.mFilter, EXTEND_CLAMP,
                                  aSurfOptions.mSamplingBounds);
 
+  Rect textureRect = aSource;
+  textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
   const GLfloat texCoords[] = {
     textureRect.x, textureRect.y,
     textureRect.x + textureRect.width, textureRect.y,
@@ -216,7 +221,7 @@ DrawTargetNVpr::CopySurface(SourceSurface* aSurface,
 
   // TODO: Consider using NV_draw_texture instead.
 
-  gl->AttachTexture2DToFramebuffer(GL_READ_FRAMEBUFFER, *surface);
+  gl->SetFramebufferToTexture(GL_READ_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
   gl->SetFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
 
   gl->BlitFramebuffer(aSourceRect.x, aSourceRect.YMost(), aSourceRect.XMost(),
@@ -360,11 +365,11 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   {
     Matrix transform = GetTransform();
     transform.Scale(font->Size(), -font->Size());
-    GLContextNVpr::ScopedPushTransform pushTransform(transform);
+    GLContextNVpr::ScopedPushTransform pushTransform(gl, transform);
 
+    struct Position {GLfloat x, y;};
     vector<GLuint> characters(aBuffer.mNumGlyphs);
-    struct position {GLfloat x, y;};
-    vector<position> positions(aBuffer.mNumGlyphs);
+    vector<Position> positions(aBuffer.mNumGlyphs);
 
     for (size_t i = 0; i < aBuffer.mNumGlyphs; i++) {
       // TODO: How can we know the real mapping index -> unicode?
@@ -375,8 +380,8 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
 
     gl->ConfigurePathStencilTest(mStencilClipBits);
     gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, &characters.front(),
-                                 *font, GL_COUNT_UP_NV, countingMask,
-                                 GL_TRANSLATE_2D_NV, &positions[0].x);
+                                   *font, GL_COUNT_UP_NV, countingMask,
+                                   GL_TRANSLATE_2D_NV, &positions[0].x);
   }
 
   const Rect& glyphBounds = font->GlyphsBoundingBox();
@@ -434,12 +439,38 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
-  PushClip(GetTransform(), path);
+  if (!path->Polygon().IsEmpty()) {
+    if (RefPtr<PlanesClipNVpr> planesClip
+          = PlanesClipNVpr::Create(this, mTopPlanesClip, GetTransform(),
+                                   ConvexPolygon(path->Polygon()))) {
+      mTopPlanesClip = planesClip.forget();
+      mClipTypeStack.push(PLANES_CLIP_TYPE);
+      return;
+    }
+  }
+
+  Validate(FRAMEBUFFER | CLIPPING);
+
+  mTopStencilClip = StencilClipNVpr::Create(this, mTopStencilClip.forget(),
+                                            GetTransform(), mTransformId,
+                                            path->Clone());
+
+  mTopStencilClip->ApplyToStencilBuffer();
+
+  mClipTypeStack.push(STENCIL_CLIP_TYPE);
 }
 
 void
 DrawTargetNVpr::PushClipRect(const Rect& aRect)
 {
+  if (RefPtr<PlanesClipNVpr> planesClip
+        = PlanesClipNVpr::Create(this, mTopPlanesClip, GetTransform(),
+                                 ConvexPolygon(aRect))) {
+    mTopPlanesClip = planesClip.forget();
+    mClipTypeStack.push(PLANES_CLIP_TYPE);
+    return;
+  }
+
   if (!mUnitSquarePath) {
     PathBuilderNVpr pathBuilder(FILL_WINDING);
     pathBuilder.MoveTo(Point(0, 0));
@@ -455,46 +486,31 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
   transform.Translate(aRect.x, aRect.y);
   transform.Scale(aRect.width, aRect.height);
 
-  PushClip(transform, mUnitSquarePath.get());
-}
-
-void
-DrawTargetNVpr::PushClip(const Matrix& aTransform, const PathNVpr* aPath)
-{
-  if (mPoppedClips && mPoppedClips->IsForPath(aTransform, aPath)) {
-    mPoppedClips = mPoppedClips->GetNext();
-    return;
-  }
-
   GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
 
-  Validate();
+  Validate(FRAMEBUFFER | CLIPPING);
 
-  RefPtr<ClipNVpr> clip;
-#if 0
-  if (!aPath->ConvexOutline().empty()
-      && mActiveClipPlanes + aPath->ConvexOutline().size() <= mMaxClipPlanes) {
-    clip = new PlanesClipNVpr(this, aTransform, aPath->Clone());
-  } else {
-    clip = new StencilClipNVpr(this, aTransform, aPath->Clone());
-  }
-#else
-  // Driver clipping planes + instanced bug.
-  clip = new StencilClipNVpr(this, aTransform, aPath->Clone());
-#endif
+  mTopStencilClip = StencilClipNVpr::Create(this, mTopStencilClip.forget(),
+                                            transform, gl->GetUniqueId(),
+                                            mUnitSquarePath->Clone());
 
-  clip->Prepend(mClip.forget());
-  mClip = clip.forget();
+  mTopStencilClip->ApplyToStencilBuffer();
 
-  mClip->Apply();
+  mClipTypeStack.push(STENCIL_CLIP_TYPE);
 }
 
 void
 DrawTargetNVpr::PopClip()
 {
-  mPoppedClips = !mPoppedClips ? mClip.get() : mPoppedClips->GetPrevious();
-  MOZ_ASSERT(mPoppedClips);
+  if (mClipTypeStack.top() == PLANES_CLIP_TYPE) {
+    mTopPlanesClip = mTopPlanesClip->Pop();
+  } else {
+    MOZ_ASSERT(mClipTypeStack.top() == STENCIL_CLIP_TYPE);
+    mPoppedStencilClips = !mPoppedStencilClips ? mTopStencilClip.get()
+                                               : mPoppedStencilClips->GetPrevious();
+  }
+
+  mClipTypeStack.pop();
 }
 
 TemporaryRef<SourceSurface> 
@@ -557,26 +573,46 @@ DrawTargetNVpr::SetTransform(const Matrix& aTransform)
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  gl->SetTransform(aTransform);
+  mTransformId = gl->GetUniqueId();
+  gl->SetTransform(aTransform, mTransformId);
 
   DrawTarget::SetTransform(aTransform);
 }
 
 void
-DrawTargetNVpr::Validate()
+DrawTargetNVpr::Validate(ValidationFlags aFlags)
 {
   GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
-  gl->SetTargetSize(mSize);
-  gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
-  gl->SetTransform(GetTransform());
-  gl->EnableColorWrites();
+  if (aFlags & FRAMEBUFFER) {
+    gl->SetTargetSize(mSize);
+    gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+  }
 
-  if (mPoppedClips) {
-    mPoppedClips->RestorePreviousClipState();
-    mClip = mPoppedClips->DetachFromPrevious();
-    mPoppedClips = 0;
+  if (aFlags & CLIPPING) {
+    if (mTopPlanesClip) {
+      if (gl->ClipPolygonId() != mTopPlanesClip->PolygonId()) {
+        gl->SetTransformToIdentity();
+        gl->EnableClipPlanes(mTopPlanesClip->Polygon(), mTopPlanesClip->PolygonId());
+      }
+    } else {
+      gl->DisableClipPlanes();
+    }
+
+    if (mPoppedStencilClips) {
+      mPoppedStencilClips->RestoreStencilBuffer();
+      mTopStencilClip = mPoppedStencilClips->Pop();
+      mPoppedStencilClips = nullptr;
+    }
+  }
+
+  if (aFlags & TRANSFORM) {
+    gl->SetTransform(GetTransform(), mTransformId);
+  }
+
+  if (aFlags & COLOR_WRITES_ENABLED) {
+    gl->EnableColorWrites();
   }
 }
 
@@ -774,36 +810,6 @@ DrawTargetNVpr::ReleaseStencilClipBits(GLubyte aBits)
   // The clip bits need to be a consecutive run of most-significant bits (in
   // other words, they need to be released in reverse order).
   MOZ_ASSERT((~mStencilClipBits & 0xff) & ((~mStencilClipBits & 0xff) - 1));
-}
-
-GLuint
-DrawTargetNVpr::ReserveClipPlanes(size_t count)
-{
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  MOZ_ASSERT(GLContextNVpr::Instance()->IsCurrent());
-  MOZ_ASSERT(mActiveClipPlanes + count <= mMaxClipPlanes);
-
-  const GLuint planes = mActiveClipPlanes;
-  mActiveClipPlanes += count;
-
-  for (GLuint i = planes; i < mActiveClipPlanes; i++) {
-    gl->Enable(GL_CLIP_PLANE0 + i);
-  }
-
-  return planes;
-}
-
-void
-DrawTargetNVpr::ReleaseClipPlanes(GLuint aIndex)
-{
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  MOZ_ASSERT(GLContextNVpr::Instance()->IsCurrent());
-
-  for (GLuint i = aIndex; i < mActiveClipPlanes; i++) {
-    gl->Disable(GL_CLIP_PLANE0 + i);
-  }
-
-  mActiveClipPlanes = aIndex;
 }
 
 }

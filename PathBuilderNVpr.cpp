@@ -5,19 +5,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "PathBuilderNVpr.h"
+#include "ConvexPolygon.h"
 #include "PathNVpr.h"
 #include "Line.h"
 #include <map>
 
 using namespace std;
-
-inline static int sign(float f)
-{
-  if (!f) {
-    return 0;
-  }
-  return f > 0 ? 1 : -1;
-}
 
 namespace mozilla {
 namespace gfx {
@@ -39,6 +32,7 @@ PathBuilderNVpr::PathBuilderNVpr(FillRule aFillRule,
 {
   RefPtr<PathObjectNVpr> pathObject = aPathObject;
   mPathObject = pathObject.forget();
+  mIsPolygon = mPathObject->Polygon().IsEmpty();
 }
 
 PathBuilderNVpr::PathBuilderNVpr(FillRule aFillRule,
@@ -48,6 +42,7 @@ PathBuilderNVpr::PathBuilderNVpr(FillRule aFillRule,
 {
   RefPtr<PathObjectNVpr> pathObject = aPathObject;
   mPathObject = new PathObjectNVpr(*pathObject, aTransform);
+  mIsPolygon = mPathObject->Polygon().IsEmpty();
 }
 
 PathBuilderNVpr::~PathBuilderNVpr()
@@ -213,53 +208,18 @@ PathBuilderNVpr::Finish()
     return new PathNVpr(mFillRule, pathObject);
   }
 
-  vector<Line> convexOutline;
-  if (mIsPolygon && mDescription.mCoords.size() >= 3 * 2) {
-
-    const vector<float>& coords = mDescription.mCoords;
-
-    convexOutline.reserve(coords.size() / 2);
-
-    convexOutline.push_back(Line(Point(*(coords.end() - 2), coords.back()),
-                                 Point(coords.front(), coords[1])));
-
-    int outlineAngleSign = 0;
-
-    for (size_t i = 2; i < coords.size(); i += 2) {
-      const Point pt1(coords[i - 2], coords[i - 1]);
-      const Point pt2(coords[i], coords[i + 1]);
-
-      int angleSign = sign(convexOutline.back().A * (pt2.x - pt1.x)
-                           + convexOutline.back().B * (pt2.y - pt1.y));
-      if (!angleSign) {
-        // This line is parallel to the previous one.
-        continue;
-      }
-
-      if (outlineAngleSign && angleSign != outlineAngleSign) {
-        // Two angle signs differ, the polygon is not convex.
-        convexOutline.clear();
-        outlineAngleSign = 0;
-        break;
-      }
-
-      convexOutline.push_back(Line(pt1, pt2));
-      outlineAngleSign = angleSign;
+  if (mIsPolygon) {
+    vector<Point> points(mDescription.mCoords.size() / 2);
+    for (size_t i = 0; i < mDescription.mCoords.size(); i += 2) {
+      points.push_back(Point(mDescription.mCoords[i],
+                             mDescription.mCoords[i + 1]));
     }
 
-    if (!outlineAngleSign) {
-      // All points in the path are co-linear.
-      convexOutline.clear();
-    } else if (outlineAngleSign < 0) {
-       // Reverse the lines so all normals point toward the center.
-      for (size_t i = 0; i < convexOutline.size(); i++) {
-        convexOutline[i] = -convexOutline[i];
-      }
-    }
+    pathObject = new PathObjectNVpr(mDescription, mStartPoint, mCurrentPoint,
+                                    ConvexPolygon(points));
+  } else {
+    pathObject = new PathObjectNVpr(mDescription, mStartPoint, mCurrentPoint);
   }
-
-  pathObject = new PathObjectNVpr(mDescription, mStartPoint,
-                                  mCurrentPoint, convexOutline);
 
   return new PathNVpr(mFillRule, pathObject);
 }
@@ -310,7 +270,7 @@ PathDescriptionNVpr::PathDescriptionNVpr(const PathDescriptionNVpr& aOther)
 {
 }
 
-PathDescriptionNVpr::PathDescriptionNVpr(const PathDescriptionNVpr&& aOther)
+PathDescriptionNVpr::PathDescriptionNVpr(PathDescriptionNVpr&& aOther) noexcept
 {
   swap(mCommands, aOther.mCommands);
   swap(mCoords, aOther.mCoords);
