@@ -22,6 +22,9 @@ BackendType sTestedBackends[] =
 #ifdef USE_SKIA
   , BACKEND_SKIA
 #endif
+#ifdef USE_NVPR
+  , BACKEND_NVPR
+#endif
 };
 
 string
@@ -34,6 +37,8 @@ GetBackendName(BackendType aType)
     return "Skia";
   case BACKEND_CAIRO:
     return "Cairo";
+  case BACKEND_NVPR:
+    return "NVidia Path Rendering";
   default:
     return "Unknown";
   }

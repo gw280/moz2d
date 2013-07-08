@@ -108,7 +108,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>../</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_MBCS;USE_D2D1_1;;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;WIN32;_MBCS;USE_D2D1_1;;%(PreprocessorDefinitions);</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>

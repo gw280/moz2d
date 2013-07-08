@@ -32,7 +32,7 @@ ConvexPolygon::ConvexPolygon(const ConvexPolygon& aPolygon)
 {
 }
 
-ConvexPolygon::ConvexPolygon(ConvexPolygon&& aPolygon) noexcept
+ConvexPolygon::ConvexPolygon(ConvexPolygon&& aPolygon)
 {
   Swap(aPolygon);
 }
@@ -94,7 +94,7 @@ ConvexPolygon::operator =(const ConvexPolygon& aPolygon)
 }
 
 ConvexPolygon&
-ConvexPolygon::operator =(ConvexPolygon&& aPolygon) noexcept
+ConvexPolygon::operator =(ConvexPolygon&& aPolygon)
 {
   Swap(aPolygon);
   return *this;

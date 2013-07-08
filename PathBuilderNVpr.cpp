@@ -274,7 +274,7 @@ PathDescriptionNVpr::PathDescriptionNVpr(const PathDescriptionNVpr& aOther)
 {
 }
 
-PathDescriptionNVpr::PathDescriptionNVpr(PathDescriptionNVpr&& aOther) noexcept
+PathDescriptionNVpr::PathDescriptionNVpr(PathDescriptionNVpr&& aOther)
 {
   swap(mCommands, aOther.mCommands);
   swap(mCoords, aOther.mCoords);

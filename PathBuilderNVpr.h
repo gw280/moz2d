@@ -33,7 +33,7 @@ struct PathDescriptionNVpr {
   PathDescriptionNVpr() {}
 
   PathDescriptionNVpr(const PathDescriptionNVpr& aOther);
-  PathDescriptionNVpr(PathDescriptionNVpr&& aOther) noexcept;
+  PathDescriptionNVpr(PathDescriptionNVpr&& aOther);
 
   bool operator <(const PathDescriptionNVpr& aOther) const;
 

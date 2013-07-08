@@ -37,8 +37,8 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                                const Point& aStartPoint,
                                const Point& aCurrentPoint,
                                ConvexPolygon&& aPassPolygon)
-  : PathObjectNVpr(aDescription, aStartPoint, aCurrentPoint)
 {
+  PathObjectNVpr(aDescription, aStartPoint, aCurrentPoint);
   mPolygon.Swap(aPassPolygon);
 }
 

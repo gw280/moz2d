@@ -103,6 +103,8 @@ RawTranslator::GetDesiredFontType()
       return FONT_CAIRO;
     case BACKEND_SKIA:
       return FONT_SKIA;
+    case BACKEND_NVPR:
+      return FONT_NVPR;
     default:
       MOZ_ASSERT(false);
       return FONT_DWRITE;

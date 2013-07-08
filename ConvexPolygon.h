@@ -20,12 +20,12 @@ class ConvexPolygon {
 public:
   ConvexPolygon() {}
   ConvexPolygon(const ConvexPolygon& aPolygon);
-  ConvexPolygon(ConvexPolygon&& aPolygon) noexcept;
+  ConvexPolygon(ConvexPolygon&& aPolygon);
   ConvexPolygon(const Rect& aRect);
   ConvexPolygon(const std::vector<Point>& aPoints);
 
   ConvexPolygon& operator =(const ConvexPolygon& aPolygon);
-  ConvexPolygon& operator =(ConvexPolygon&& aPolygon) noexcept;
+  ConvexPolygon& operator =(ConvexPolygon&& aPolygon);
 
   bool IsEmpty() const { return mPoints.empty(); }
   size_t NumSides() const { return mPoints.size(); }

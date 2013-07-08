@@ -232,7 +232,7 @@
   <ItemGroup>
     <ClCompile Include="Blur.cpp" />
     <ClCompile Include="BlurSSE2.cpp" />
-    <ClCompile Include="ClipNVpr.cpp" />
+    <ClCompile Include="ConvexPolygon.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -248,12 +248,13 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Factory.cpp" />
-    <ClCompile Include="GLContextNVpr.cpp" />
-    <ClCompile Include="GLContextNVpr_WGL.cpp" />
     <ClCompile Include="GradientStopsNVpr.cpp" />
     <ClCompile Include="ImageScaling.cpp" />
     <ClCompile Include="ImageScalingSSE2.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="nvpr\Clip.cpp" />
+    <ClCompile Include="nvpr\GL.cpp" />
+    <ClCompile Include="nvpr\WGL.cpp" />
     <ClCompile Include="PathBuilderNVpr.cpp" />
     <ClCompile Include="PathCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

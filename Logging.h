@@ -78,8 +78,8 @@ public:
   Log() {}
   ~Log() { mMessage << '\n'; WriteLog(mMessage.str()); }
 
-  template<typename T> Log &operator <<(T aValue)
-    { mMessage << aValue; return *this; }
+  Log &operator <<(const std::string &aLogText) { mMessage << aLogText; return *this; }
+  Log &operator <<(unsigned int aInt) { mMessage << aInt; return *this; }
   Log &operator <<(const Size &aSize)
     { mMessage << "(" << aSize.width << "x" << aSize.height << ")"; return *this; }
   Log &operator <<(const IntSize &aSize)

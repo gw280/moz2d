@@ -8,8 +8,8 @@
 #include "nvpr/GradientShaders.h"
 #include <vector>
 
-static constexpr int MaxColorRampSize = 4096;
-static constexpr size_t MaxRampTexturePoolSize = 4096;
+static const int MaxColorRampSize = 4096;
+static const size_t MaxRampTexturePoolSize = 4096;
 
 using namespace mozilla::gfx::nvpr;
 using namespace std;
