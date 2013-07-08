@@ -4,23 +4,22 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "ClipNVpr.h"
+#include "Clip.h"
 #include "DrawTargetNVpr.h"
-#include "GLContextNVpr.h"
+#include "GL.h"
 #include "Matrix.h"
 
 namespace mozilla {
 namespace gfx {
+namespace nvpr {
 
-PlanesClipNVpr::PlanesClipNVpr(DrawTargetNVpr* aDrawTarget,
-                               TemporaryRef<PlanesClipNVpr> aPrevious,
-                               const Matrix& aTransform,
-                               ConvexPolygon& aPolygon, bool& aSuccess)
-  : ClipNVpr(aDrawTarget, aPrevious)
+PlanesClip::PlanesClip(DrawTargetNVpr* aDrawTarget,
+                       TemporaryRef<PlanesClip> aPrevious,
+                       const Matrix& aTransform,
+                       ConvexPolygon& aPolygon, bool& aSuccess)
+  : Clip(aDrawTarget, aPrevious)
 {
   mPolygon.Swap(aPolygon);
-
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
 
   aSuccess = false;
 
@@ -38,11 +37,9 @@ PlanesClipNVpr::PlanesClipNVpr(DrawTargetNVpr* aDrawTarget,
   aSuccess = true;
 }
 
-void StencilClipNVpr::ApplyToStencilBuffer()
+void StencilClip::ApplyToStencilBuffer()
 {
   MOZ_ASSERT(!mOwnClipBit);
-
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetTransform(mTransform, mTransformId);
@@ -60,9 +57,8 @@ void StencilClipNVpr::ApplyToStencilBuffer()
                           (mPath->GetFillRule() == FILL_WINDING)
                           ? mOwnClipBit - 1 : 0x1);
 
-    gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_EQUAL,
-                          mOwnClipBit, mOwnClipBit - 1,
-                          GLContextNVpr::REPLACE_PASSING_WITH_COMPARAND,
+    gl->EnableStencilTest(GL::PASS_IF_NOT_EQUAL, mOwnClipBit, mOwnClipBit - 1,
+                          GL::REPLACE_PASSING_WITH_COMPARAND,
                           mOwnClipBit | (mOwnClipBit - 1));
     gl->CoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
 
@@ -71,7 +67,7 @@ void StencilClipNVpr::ApplyToStencilBuffer()
 
   // There aren't enough stencil bit planes left for us to get our own. We have
   // to destructively intersect our path into an existing clip bit.
-  const StencilClipNVpr* lastClipBitOwner = GetLastClipBitOwner();
+  const StencilClip* lastClipBitOwner = GetLastClipBitOwner();
   MOZ_ASSERT(lastClipBitOwner);
 
   const GLubyte sharedClipBit = lastClipBitOwner->mOwnClipBit;
@@ -84,14 +80,13 @@ void StencilClipNVpr::ApplyToStencilBuffer()
 
   gl->SetTransform(lastClipBitOwner->mTransform, lastClipBitOwner->mTransformId);
 
-  gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_EQUAL,
-                        sharedClipBit, sharedClipBit - 1,
-                        GLContextNVpr::REPLACE_PASSING_CLEAR_FAILING,
+  gl->EnableStencilTest(GL::PASS_IF_NOT_EQUAL, sharedClipBit, sharedClipBit - 1,
+                        GL::REPLACE_PASSING_CLEAR_FAILING,
                         sharedClipBit | (sharedClipBit - 1));
   gl->CoverFillPathNV(*lastClipBitOwner->mPath, GL_BOUNDING_BOX_NV);
 }
 
-void StencilClipNVpr::RestoreStencilBuffer()
+void StencilClip::RestoreStencilBuffer()
 {
   if (!mOwnClipBit) {
     // We destroyed the previous clip state when we intersected our path into an
@@ -103,7 +98,6 @@ void StencilClipNVpr::RestoreStencilBuffer()
     return;
   }
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetTransform(mTransform, mTransformId);
@@ -114,16 +108,14 @@ void StencilClipNVpr::RestoreStencilBuffer()
   // In order to reset the stencil buffer to the previous clipping state, we
   // need to clear our bit plane as well as any stencil data from future clips.
   const GLuint newFreeBits = mOwnClipBit | (mOwnClipBit - 1);
-  gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, newFreeBits,
-                        GLContextNVpr::CLEAR_PASSING_VALUES,
-                        newFreeBits);
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, newFreeBits,
+                        GL::CLEAR_PASSING_VALUES, newFreeBits);
   gl->CoverFillPathNV(*mPath, GL_BOUNDING_BOX_NV);
 
   mDrawTarget->ReleaseStencilClipBits(newFreeBits);
   mOwnClipBit = 0;
 }
 
-
-
+}
 }
 }

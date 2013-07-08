@@ -4,14 +4,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GLContextNVpr.h"
 #include "ScaledFontNVpr.h"
+#include "nvpr/GL.h"
 #include <map>
 #include <sstream>
 #include <fstream>
 
 #define MAX_UNICODE_INDEX 0x10ffff
 
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 namespace mozilla {
@@ -83,7 +84,6 @@ FontNVpr::FontNVpr(const FontOptions* aFont)
       break;
   }
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   GLuint templatePath = gl->GenPathsNV(1);

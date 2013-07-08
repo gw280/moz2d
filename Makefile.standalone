@@ -198,6 +198,7 @@ clean:
 	mkdir -p $(dir $@)/unittest
 	mkdir -p $(dir $@)/recordbench
 	mkdir -p $(dir $@)/player2d
+	mkdir -p $(dir $@)/nvpr
 	mkdir -p $@
 
 $(OBJDIR_RELEASE)/%.o: %.cpp $(OBJDIR_RELEASE)/.mkdir.done

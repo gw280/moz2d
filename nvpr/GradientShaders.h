@@ -4,11 +4,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef MOZILLA_GFX_GRADIENTSHADERS_H_
-#define MOZILLA_GFX_GRADIENTSHADERS_H_
+#ifndef MOZILLA_GFX_NVPR_GRADIENTSHADERS_H_
+#define MOZILLA_GFX_NVPR_GRADIENTSHADERS_H_
 
 #include "2D.h"
-#include "GLContextNVpr.h"
+#include "GL.h"
 #include <GL/gl.h>
 
 static const GLchar kFocalGradCenteredShaderSource[] = "\
@@ -95,6 +95,7 @@ void main(void) {                                                               
 
 namespace mozilla {
 namespace gfx {
+namespace nvpr {
 
 class GradientShader {
 public:
@@ -110,7 +111,6 @@ public:
 
   operator GLuint()
   {
-    GLContextNVpr* const gl = GLContextNVpr::Instance();
     MOZ_ASSERT(gl->IsCurrent());
 
     if (mShaderProgram) {
@@ -150,8 +150,6 @@ protected:
 
   GLint Location()
   {
-    GLContextNVpr* const gl = GLContextNVpr::Instance();
-
     if (mLocation == -1) {
       mLocation = gl->GetUniformLocation(*mShader, mName);
     }
@@ -174,8 +172,6 @@ public:
 
   void operator =(GLfloat aValue)
   {
-    GLContextNVpr* const gl = GLContextNVpr::Instance();
-
     if (mValue == aValue) {
       return;
     }
@@ -196,8 +192,6 @@ public:
 
   void operator =(const Point& aValue)
   {
-    GLContextNVpr* const gl = GLContextNVpr::Instance();
-
     if (mValue == aValue) {
       return;
     }
@@ -268,8 +262,8 @@ public:
   UniformFloat uOffsetBound;
 };
 
-struct GradientShadersNVpr : public UserDataNVpr::Object {
-  GradientShadersNVpr()
+struct GradientShaders : public UserData::Object {
+  GradientShaders()
     : mFocalGradCenteredShader(kFocalGradCenteredShaderSource)
     , mFocalGradInsideShader(kFocalGradInsideShaderSource)
     , mFocalGradOutsideShader(kFocalGradOutsideShaderSource)
@@ -292,5 +286,6 @@ struct GradientShadersNVpr : public UserDataNVpr::Object {
 
 }
 }
+}
 
-#endif /* MOZILLA_GFX_GRADIENTSHADERS_H_ */
+#endif /* MOZILLA_GFX_NVPR_GRADIENTSHADERS_H_ */

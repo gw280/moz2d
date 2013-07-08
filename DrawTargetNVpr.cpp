@@ -5,16 +5,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "DrawTargetNVpr.h"
-#include "ClipNVpr.h"
-#include "GLContextNVpr.h"
 #include "GradientStopsNVpr.h"
 #include "PathBuilderNVpr.h"
 #include "PathNVpr.h"
 #include "ScaledFontNVpr.h"
 #include "SourceSurfaceNVpr.h"
+#include "nvpr/Clip.h"
 #include <sstream>
 #include <vector>
 
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 namespace mozilla {
@@ -35,17 +35,17 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   MOZ_ASSERT(mSize.width >= 0 && mSize.height >= 0);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
+  GL::InitializeIfNeeded();
   if (!gl->IsValid()) {
     return;
   }
 
   gl->MakeCurrent();
 
-  if (!gl->HasExtension(GLContextNVpr::EXT_direct_state_access)
-      || !gl->HasExtension(GLContextNVpr::NV_path_rendering)
-      || !gl->HasExtension(GLContextNVpr::EXT_framebuffer_multisample)
-      || !gl->HasExtension(GLContextNVpr::EXT_framebuffer_blit)) {
+  if (!gl->HasExtension(GL::EXT_direct_state_access)
+      || !gl->HasExtension(GL::NV_path_rendering)
+      || !gl->HasExtension(GL::EXT_framebuffer_multisample)
+      || !gl->HasExtension(GL::EXT_framebuffer_blit)) {
     return;
   }
 
@@ -96,9 +96,7 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
 DrawTargetNVpr::~DrawTargetNVpr()
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
-
   gl->DeleteRenderbuffers(1, &mColorBuffer);
   gl->DeleteRenderbuffers(1, &mStencilBuffer);
   gl->DeleteFramebuffers(1, &mFramebuffer);
@@ -115,9 +113,7 @@ TemporaryRef<SourceSurface>
 DrawTargetNVpr::Snapshot()
 {
   if (!mSnapshot) {
-    GLContextNVpr* const gl = GLContextNVpr::Instance();
     gl->MakeCurrent();
-
     gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
     mSnapshot = SourceSurfaceNVpr::CreateFromFramebuffer(mFormat, mSize);
   }
@@ -135,20 +131,19 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
 
   SourceSurfaceNVpr* const surface = static_cast<SourceSurfaceNVpr*>(aSurface);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
 
   if (mStencilClipBits) {
-    gl->EnableStencilTest(GLContextNVpr::PASS_IF_ALL_SET, mStencilClipBits,
-                          GLContextNVpr::LEAVE_UNCHANGED);
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
   } else {
     gl->DisableStencilTest();
   }
 
   gl->SetColorToAlpha(aOptions.mAlpha);
-  gl->EnableTexturing(GL_TEXTURE_2D, *surface, GLContextNVpr::TEXGEN_NONE);
+  gl->EnableTexturing(GL_TEXTURE_2D, *surface, GL::TEXGEN_NONE);
   gl->DisableShading();
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -191,7 +186,6 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   SourceSurfaceNVpr* const surface = static_cast<SourceSurfaceNVpr*>(aSurface);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -216,7 +210,6 @@ DrawTargetNVpr::CopySurface(SourceSurface* aSurface,
 
   SourceSurfaceNVpr* const surface = static_cast<SourceSurfaceNVpr*>(aSurface);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   // TODO: Consider using NV_draw_texture instead.
@@ -235,14 +228,13 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
                          const Pattern& aPattern,
                          const DrawOptions& aOptions)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
 
   if (mStencilClipBits) {
-    gl->EnableStencilTest(GLContextNVpr::PASS_IF_ALL_SET, mStencilClipBits,
-                          GLContextNVpr::LEAVE_UNCHANGED);
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
   } else {
     gl->DisableStencilTest();
   }
@@ -295,7 +287,6 @@ DrawTargetNVpr::Stroke(const Path* aPath,
 
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -304,8 +295,7 @@ DrawTargetNVpr::Stroke(const Path* aPath,
   path->ApplyStrokeOptions(aStrokeOptions);
   gl->StencilStrokePathNV(*path, 0x1, 0x1);
 
-  gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, 0x1,
-                        GLContextNVpr::CLEAR_PASSING_VALUES, 0x1);
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, 1, GL::CLEAR_PASSING_VALUES, 1);
   ApplyPattern(aPattern, aOptions);
   gl->CoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
 
@@ -321,7 +311,6 @@ DrawTargetNVpr::Fill(const Path* aPath,
 
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -332,8 +321,8 @@ DrawTargetNVpr::Fill(const Path* aPath,
   gl->ConfigurePathStencilTest(mStencilClipBits);
   gl->StencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
 
-  gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, countingMask,
-                        GLContextNVpr::CLEAR_PASSING_VALUES, countingMask);
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
+                        GL::CLEAR_PASSING_VALUES, countingMask);
   ApplyPattern(aPattern, aOptions);
   gl->CoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
 
@@ -355,7 +344,6 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
 
   const ScaledFontNVpr* const font = static_cast<const ScaledFontNVpr*>(aFont);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -365,7 +353,7 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   {
     Matrix transform = GetTransform();
     transform.Scale(font->Size(), -font->Size());
-    GLContextNVpr::ScopedPushTransform pushTransform(gl, transform);
+    GL::ScopedPushTransform pushTransform(transform);
 
     struct Position {GLfloat x, y;};
     vector<GLuint> characters(aBuffer.mNumGlyphs);
@@ -379,9 +367,10 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
     }
 
     gl->ConfigurePathStencilTest(mStencilClipBits);
-    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT, &characters.front(),
-                                   *font, GL_COUNT_UP_NV, countingMask,
-                                   GL_TRANSLATE_2D_NV, &positions[0].x);
+    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT,
+                                   &characters.front(), *font, GL_COUNT_UP_NV,
+                                   countingMask, GL_TRANSLATE_2D_NV,
+                                   &positions[0].x);
   }
 
   const Rect& glyphBounds = font->GlyphsBoundingBox();
@@ -394,8 +383,8 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
     maxPoint = Point(max(maxPoint.x, pt.x), max(maxPoint.y, pt.y));
   }
 
-  gl->EnableStencilTest(GLContextNVpr::PASS_IF_NOT_ZERO, countingMask,
-                        GLContextNVpr::CLEAR_PASSING_VALUES, countingMask);
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
+                        GL::CLEAR_PASSING_VALUES, countingMask);
   ApplyPattern(aPattern, aOptions);
   gl->Rectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
             maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
@@ -408,7 +397,6 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
                      const Pattern& aMask,
                      const DrawOptions& aOptions)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -423,7 +411,6 @@ DrawTargetNVpr::MaskSurface(const Pattern &aSource,
                             Point aOffset,
                             const DrawOptions &aOptions)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   Validate();
@@ -440,9 +427,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
   if (!path->Polygon().IsEmpty()) {
-    if (RefPtr<PlanesClipNVpr> planesClip
-          = PlanesClipNVpr::Create(this, mTopPlanesClip, GetTransform(),
-                                   ConvexPolygon(path->Polygon()))) {
+    if (RefPtr<nvpr::PlanesClip> planesClip
+          = nvpr::PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                                     ConvexPolygon(path->Polygon()))) {
       mTopPlanesClip = planesClip.forget();
       mClipTypeStack.push(PLANES_CLIP_TYPE);
       return;
@@ -451,9 +438,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 
   Validate(FRAMEBUFFER | CLIPPING);
 
-  mTopStencilClip = StencilClipNVpr::Create(this, mTopStencilClip.forget(),
-                                            GetTransform(), mTransformId,
-                                            path->Clone());
+  mTopStencilClip = nvpr::StencilClip::Create(this, mTopStencilClip.forget(),
+                                              GetTransform(), mTransformId,
+                                              path->Clone());
 
   mTopStencilClip->ApplyToStencilBuffer();
 
@@ -463,9 +450,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 void
 DrawTargetNVpr::PushClipRect(const Rect& aRect)
 {
-  if (RefPtr<PlanesClipNVpr> planesClip
-        = PlanesClipNVpr::Create(this, mTopPlanesClip, GetTransform(),
-                                 ConvexPolygon(aRect))) {
+  if (RefPtr<nvpr::PlanesClip> planesClip
+        = nvpr::PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                                   ConvexPolygon(aRect))) {
     mTopPlanesClip = planesClip.forget();
     mClipTypeStack.push(PLANES_CLIP_TYPE);
     return;
@@ -486,13 +473,11 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
   transform.Translate(aRect.x, aRect.y);
   transform.Scale(aRect.width, aRect.height);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-
   Validate(FRAMEBUFFER | CLIPPING);
 
-  mTopStencilClip = StencilClipNVpr::Create(this, mTopStencilClip.forget(),
-                                            transform, gl->GetUniqueId(),
-                                            mUnitSquarePath->Clone());
+  mTopStencilClip = nvpr::StencilClip::Create(this, mTopStencilClip.forget(),
+                                              transform, gl->GetUniqueId(),
+                                              mUnitSquarePath->Clone());
 
   mTopStencilClip->ApplyToStencilBuffer();
 
@@ -543,7 +528,8 @@ DrawTargetNVpr::CreateSourceSurfaceFromNativeSurface(const NativeSurface& aSurfa
 }
 
 TemporaryRef<DrawTarget>
-DrawTargetNVpr::CreateSimilarDrawTarget(const IntSize& aSize, SurfaceFormat aFormat) const
+DrawTargetNVpr::CreateSimilarDrawTarget(const IntSize& aSize,
+                                        SurfaceFormat aFormat) const
 {
   return Create(aSize, aFormat);
 }
@@ -555,7 +541,8 @@ DrawTargetNVpr::CreatePathBuilder(FillRule aFillRule) const
 }
 
 TemporaryRef<GradientStops>
-DrawTargetNVpr::CreateGradientStops(GradientStop* rawStops, uint32_t aNumStops, ExtendMode aExtendMode) const
+DrawTargetNVpr::CreateGradientStops(GradientStop* rawStops, uint32_t aNumStops,
+                                    ExtendMode aExtendMode) const
 {
   return GradientStopsNVpr::create(rawStops, aNumStops, aExtendMode);
 }
@@ -570,7 +557,6 @@ DrawTargetNVpr::GetNativeSurface(NativeSurfaceType aType)
 void
 DrawTargetNVpr::SetTransform(const Matrix& aTransform)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   mTransformId = gl->GetUniqueId();
@@ -582,7 +568,6 @@ DrawTargetNVpr::SetTransform(const Matrix& aTransform)
 void
 DrawTargetNVpr::Validate(ValidationFlags aFlags)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   if (aFlags & FRAMEBUFFER) {
@@ -594,7 +579,8 @@ DrawTargetNVpr::Validate(ValidationFlags aFlags)
     if (mTopPlanesClip) {
       if (gl->ClipPolygonId() != mTopPlanesClip->PolygonId()) {
         gl->SetTransformToIdentity();
-        gl->EnableClipPlanes(mTopPlanesClip->Polygon(), mTopPlanesClip->PolygonId());
+        gl->EnableClipPlanes(mTopPlanesClip->Polygon(),
+                             mTopPlanesClip->PolygonId());
       }
     } else {
       gl->DisableClipPlanes();
@@ -651,7 +637,6 @@ DrawTargetNVpr::ApplyPattern(const Pattern& aPattern,
 void
 DrawTargetNVpr::ApplyPattern(const ColorPattern& aPattern, float aAlpha)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetColor(aPattern.mColor, aAlpha);
@@ -667,7 +652,6 @@ DrawTargetNVpr::ApplyPattern(const SurfacePattern& aPattern, float aAlpha)
   SourceSurfaceNVpr* const surface
     = static_cast<SourceSurfaceNVpr*>(aPattern.mSurface.get());
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   Matrix textureCoords = aPattern.mMatrix;
@@ -676,8 +660,7 @@ DrawTargetNVpr::ApplyPattern(const SurfacePattern& aPattern, float aAlpha)
                           1.0f / surface->GetSize().height);
 
   gl->SetColorToAlpha(aAlpha);
-  gl->EnableTexturing(GL_TEXTURE_2D, *surface,
-                      GLContextNVpr::TEXGEN_ST, textureCoords);
+  gl->EnableTexturing(GL_TEXTURE_2D, *surface, GL::TEXGEN_ST, textureCoords);
   gl->DisableShading();
 
   surface->ApplyTexturingOptions(aPattern.mFilter, aPattern.mExtendMode);
@@ -723,7 +706,6 @@ DrawTargetNVpr::ApplyDrawOptions(CompositionOp aCompositionOp,
                                  AntialiasMode aAntialiasMode,
                                  Snapping aSnapping)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   switch (aCompositionOp) {

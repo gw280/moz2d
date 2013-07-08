@@ -4,9 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GLContextNVpr.h"
 #include "SourceSurfaceNVpr.h"
 
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 namespace mozilla {
@@ -25,7 +25,6 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
 
   aSuccess = false;
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   if (max(mSize.width, mSize.height) > gl->MaxTextureSize()) {
@@ -86,7 +85,7 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
   gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
                            GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
-  if (gl->HasExtension(GLContextNVpr::EXT_texture_filter_anisotropic)) {
+  if (gl->HasExtension(GL::EXT_texture_filter_anisotropic)) {
     gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
                              GL_TEXTURE_MAX_ANISOTROPY_EXT, gl->MaxAnisotropy());
   }
@@ -121,13 +120,11 @@ TemporaryRef<SourceSurfaceNVpr>
 SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& aSize)
 {
   bool success;
-  RefPtr<SourceSurfaceNVpr> surface
-    = new SourceSurfaceNVpr(aFormat, aSize, success);
+  RefPtr<SourceSurfaceNVpr> surface = new SourceSurfaceNVpr(aFormat, aSize, success);
   if (!success) {
    return nullptr;
   }
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
@@ -141,9 +138,7 @@ SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& a
 
 SourceSurfaceNVpr::~SourceSurfaceNVpr()
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
-
   gl->DeleteTexture(mTextureId);
 }
 
@@ -151,7 +146,6 @@ void
 SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
                                          SamplingBounds aSamplingBounds)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   if (mFilter != aFilter) {
@@ -177,7 +171,7 @@ SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
     gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
                              GL_TEXTURE_MAG_FILTER, magFilter);
 
-    if (gl->HasExtension(GLContextNVpr::EXT_texture_filter_anisotropic)) {
+    if (gl->HasExtension(GL::EXT_texture_filter_anisotropic)) {
       gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
                                GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
     }
@@ -222,12 +216,11 @@ SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
 void
 SourceSurfaceNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
-
   const GLsizei bytesPerRow = mSize.width * mBytesPerPixel;
   const GLubyte* pixelData = static_cast<const GLubyte*>(aData);
   vector<GLubyte> packBuffer;
+
+  gl->MakeCurrent();
 
   if (aStride == 0 || aStride == bytesPerRow) {
     gl->PixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -255,9 +248,7 @@ SourceSurfaceNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
 void
 SourceSurfaceNVpr::ReadPixels(GLvoid* aBuffer)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
-
   gl->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
   gl->GetTextureImageEXT(mTextureId, GL_TEXTURE_2D, 0, mGLFormat, mGLType, aBuffer);
 }

@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef MOZILLA_GFX_GLCONTEXTNVPR_H_
-#define MOZILLA_GFX_GLCONTEXTNVPR_H_
+#ifndef MOZILLA_GFX_NVPR_GL_H_
+#define MOZILLA_GFX_NVPR_GL_H_
 
 #ifdef WIN32
 #include <Windows.h>
@@ -22,18 +22,26 @@ namespace gfx {
 
 class ConvexPolygon;
 
-struct UserDataNVpr {
+namespace nvpr {
+
+typedef uint64_t UniqueId;
+
+struct UserData {
   class Object { public: virtual ~Object() {} };
 
   std::unique_ptr<Object> mPathCache;
+  std::unique_ptr<Object> mColorRampData;
   std::unique_ptr<Object> mGradientShaders;
   std::unique_ptr<Object> mFonts;
 };
 
-class GLContextNVpr
+class GL;
+extern GL* gl;
+
+class GL
 {
 public:
-  static GLContextNVpr* Instance();
+  static void InitializeIfNeeded();
 
   bool IsValid() const { return mIsValid; }
 
@@ -58,9 +66,8 @@ public:
   GLint MaxClipPlanes() const { return mMaxClipPlanes; }
   GLint MaxAnisotropy() const { return mMaxAnisotropy; }
 
-  UserDataNVpr& UserData() { return mUserData; }
+  UserData& GetUserData() { return mUserData; }
 
-  typedef uint64_t UniqueId;
   UniqueId GetUniqueId() { return mNextUniqueId++; }
   UniqueId TransformId() const { return mTransformIdStack.top(); }
   UniqueId ClipPolygonId() const { return mClipPolygonId; }
@@ -79,8 +86,7 @@ public:
 
   class ScopedPushTransform {
   public:
-    ScopedPushTransform(GLContextNVpr* aGL, const Matrix& aTransform)
-      : gl(aGL)
+    ScopedPushTransform(const Matrix& aTransform)
     {
       gl->PushTransform(aTransform);
     }
@@ -88,9 +94,6 @@ public:
     {
       gl->PopTransform();
     }
-
-  private:
-    GLContextNVpr* const gl;
   };
 
   void EnableColorWrites();
@@ -142,8 +145,8 @@ public:
 private:
   struct PlatformContextData;
 
-  GLContextNVpr();
-  ~GLContextNVpr();
+  GL();
+  ~GL();
 
   bool InitGLContext();
   void DestroyGLContext();
@@ -156,7 +159,7 @@ private:
   GLint mMaxTextureSize;
   GLint mMaxClipPlanes;
   GLint mMaxAnisotropy;
-  UserDataNVpr mUserData;
+  UserData mUserData;
   UniqueId mNextUniqueId;
   GLuint mTextureFramebuffer1D;
   GLuint mTextureFramebuffer2D;
@@ -216,10 +219,10 @@ private:
   MACRO(DeleteFramebuffers) \
   MACRO(PixelStorei) \
   MACRO(ClipPlane) \
-  MACRO(TextureImage1DEXT) \
+  MACRO(TextureStorage1DEXT) \
+  MACRO(TextureSubImage1DEXT) \
   MACRO(GenerateTextureMipmapEXT) \
   MACRO(TextureParameteriEXT) \
-  MACRO(TextureSubImage1DEXT) \
   MACRO(NamedRenderbufferStorageMultisampleEXT) \
   MACRO(NamedFramebufferRenderbufferEXT) \
   MACRO(TextureImage2DEXT) \
@@ -287,11 +290,12 @@ private:
 
 #undef DECLARE_GL_METHOD
 
-  GLContextNVpr(const GLContextNVpr&);
-  GLContextNVpr& operator =(const GLContextNVpr&);
+  GL(const GL&);
+  GL& operator =(const GL&);
 };
 
 }
 }
+}
 
-#endif /* MOZILLA_GFX_GLCONTEXTNVPR_H_ */
+#endif /* MOZILLA_GFX_NVPR_GL_H_ */

@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GLContextNVpr.h"
+#include "GL.h"
 #include "ConvexPolygon.h"
 #include "Line.h"
 #include "Logging.h"
@@ -41,18 +41,20 @@ static void STDCALL GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
   gfxWarning() << "  Message: " << aMessage;
 }
 
-GLContextNVpr* GLContextNVpr::Instance()
+
+namespace nvpr {
+
+GL* gl;
+
+void GL::InitializeIfNeeded()
 {
-  static GLContextNVpr* context;
-
-  if (!context) {
-    context = new GLContextNVpr();
+  if (gl) {
+    return;
   }
-
-  return context;
+  gl = new GL();
 }
 
-GLContextNVpr::GLContextNVpr()
+GL::GL()
   : mNextUniqueId(1)
   , mReadFramebuffer(0)
   , mDrawFramebuffer(0)
@@ -148,7 +150,7 @@ GLContextNVpr::GLContextNVpr()
   mIsValid = true;
 }
 
-GLContextNVpr::~GLContextNVpr()
+GL::~GL()
 {
   DestroyGLContext();
   // No need to delete the GL objects. They automatically went away when the
@@ -156,7 +158,7 @@ GLContextNVpr::~GLContextNVpr()
 }
 
 void
-GLContextNVpr::SetTargetSize(const IntSize& aSize)
+GL::SetTargetSize(const IntSize& aSize)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -171,7 +173,7 @@ GLContextNVpr::SetTargetSize(const IntSize& aSize)
 }
 
 void
-GLContextNVpr::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
+GL::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -236,7 +238,7 @@ GLContextNVpr::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 }
 
 void
-GLContextNVpr::SetFramebufferToTexture(GLenum aFramebufferTarget,
+GL::SetFramebufferToTexture(GLenum aFramebufferTarget,
                                        GLenum aTextureTarget, GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
@@ -261,7 +263,7 @@ GLContextNVpr::SetFramebufferToTexture(GLenum aFramebufferTarget,
 }
 
 void
-GLContextNVpr::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
+GL::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -282,7 +284,7 @@ GLContextNVpr::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
 }
 
 void
-GLContextNVpr::SetTransformToIdentity()
+GL::SetTransformToIdentity()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -291,7 +293,7 @@ GLContextNVpr::SetTransformToIdentity()
 }
 
 void
-GLContextNVpr::PushTransform(const Matrix& aTransform)
+GL::PushTransform(const Matrix& aTransform)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -301,14 +303,14 @@ GLContextNVpr::PushTransform(const Matrix& aTransform)
 }
 
 void
-GLContextNVpr::PopTransform()
+GL::PopTransform()
 {
   mTransformIdStack.pop();
   MatrixPopEXT(GL_MODELVIEW);
 }
 
 void
-GLContextNVpr::EnableColorWrites()
+GL::EnableColorWrites()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -321,7 +323,7 @@ GLContextNVpr::EnableColorWrites()
 }
 
 void
-GLContextNVpr::DisableColorWrites()
+GL::DisableColorWrites()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -334,7 +336,7 @@ GLContextNVpr::DisableColorWrites()
 }
 
 void
-GLContextNVpr::SetColor(const Color& aColor)
+GL::SetColor(const Color& aColor)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -353,19 +355,19 @@ GLContextNVpr::SetColor(const Color& aColor)
 }
 
 void
-GLContextNVpr::SetColor(const Color& aColor, GLfloat aAlpha)
+GL::SetColor(const Color& aColor, GLfloat aAlpha)
 {
   SetColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
 }
 
 void
-GLContextNVpr::SetColorToAlpha(GLfloat aAlpha)
+GL::SetColorToAlpha(GLfloat aAlpha)
 {
   SetColor(Color(1, 1, 1, aAlpha));
 }
 
 void
-GLContextNVpr::EnableClipPlanes(const ConvexPolygon& aPolygon,
+GL::EnableClipPlanes(const ConvexPolygon& aPolygon,
                                 UniqueId aPolygonId)
 {
   MOZ_ASSERT(IsCurrent());
@@ -414,7 +416,7 @@ GLContextNVpr::EnableClipPlanes(const ConvexPolygon& aPolygon,
 }
 
 void
-GLContextNVpr::DisableClipPlanes()
+GL::DisableClipPlanes()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -427,7 +429,7 @@ GLContextNVpr::DisableClipPlanes()
 }
 
 void
-GLContextNVpr::EnableStencilTest(UnaryStencilTest aTest, GLuint aTestMask,
+GL::EnableStencilTest(UnaryStencilTest aTest, GLuint aTestMask,
                                  StencilOperation aOp, GLuint aWriteMask)
 {
   switch (aTest) {
@@ -441,7 +443,7 @@ GLContextNVpr::EnableStencilTest(UnaryStencilTest aTest, GLuint aTestMask,
 }
 
 void
-GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
+GL::EnableStencilTest(BinaryStencilTest aTest,
                                  GLint aComparand, GLuint aTestMask,
                                  StencilOperation aOp, GLuint aWriteMask)
 {
@@ -502,7 +504,7 @@ GLContextNVpr::EnableStencilTest(BinaryStencilTest aTest,
 }
 
 void
-GLContextNVpr::DisableStencilTest()
+GL::DisableStencilTest()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -515,7 +517,7 @@ GLContextNVpr::DisableStencilTest()
 }
 
 void
-GLContextNVpr::ConfigurePathStencilTest(GLubyte aClipBits)
+GL::ConfigurePathStencilTest(GLubyte aClipBits)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -533,7 +535,7 @@ GLContextNVpr::ConfigurePathStencilTest(GLubyte aClipBits)
 }
 
 void
-GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
+GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
                                TexgenComponents aTexgenComponents,
                                const GLfloat* aTexgenCoefficients)
 {
@@ -605,7 +607,7 @@ GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
 }
 
 void
-GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
+GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
                                TexgenComponents aTexgenComponents,
                                const Matrix& aTransform)
 {
@@ -617,7 +619,7 @@ GLContextNVpr::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
 }
 
 void
-GLContextNVpr::DisableTexturing()
+GL::DisableTexturing()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -644,7 +646,7 @@ GLContextNVpr::DisableTexturing()
 }
 
 void
-GLContextNVpr::DeleteTexture(GLuint aTextureId)
+GL::DeleteTexture(GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -656,7 +658,7 @@ GLContextNVpr::DeleteTexture(GLuint aTextureId)
 }
 
 void
-GLContextNVpr::EnableShading(GLuint aShaderProgram)
+GL::EnableShading(GLuint aShaderProgram)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -669,7 +671,7 @@ GLContextNVpr::EnableShading(GLuint aShaderProgram)
 }
 
 void
-GLContextNVpr::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
+GL::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
                               GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha)
 {
   MOZ_ASSERT(IsCurrent());
@@ -700,7 +702,7 @@ GLContextNVpr::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
 }
 
 void
-GLContextNVpr::DisableBlending()
+GL::DisableBlending()
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -712,5 +714,6 @@ GLContextNVpr::DisableBlending()
   mBlendingEnabled = false;
 }
 
+}
 }
 }

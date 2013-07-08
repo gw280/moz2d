@@ -8,7 +8,7 @@
 #define MOZILLA_GFX_DRAWTARGETNVPR_H_
 
 #include "2D.h"
-#include "GLContextNVpr.h"
+#include "nvpr/GL.h"
 #include <string>
 #include <stack>
 
@@ -16,8 +16,11 @@ namespace mozilla {
 namespace gfx {
 
 class PathNVpr;
-class PlanesClipNVpr;
-class StencilClipNVpr;
+
+namespace nvpr {
+class PlanesClip;
+class StencilClip;
+}
 
 class DrawTargetNVpr : public DrawTarget
 {
@@ -163,10 +166,10 @@ private:
   RefPtr<PathNVpr> mUnitSquarePath;
   enum ClipType { PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };
   std::stack<ClipType> mClipTypeStack;
-  RefPtr<PlanesClipNVpr> mTopPlanesClip;
-  RefPtr<StencilClipNVpr> mTopStencilClip;
-  StencilClipNVpr* mPoppedStencilClips;
-  GLContextNVpr::UniqueId mTransformId;
+  RefPtr<nvpr::PlanesClip> mTopPlanesClip;
+  RefPtr<nvpr::StencilClip> mTopStencilClip;
+  nvpr::StencilClip* mPoppedStencilClips;
+  nvpr::UniqueId mTransformId;
   GLubyte mStencilClipBits;
 };
 

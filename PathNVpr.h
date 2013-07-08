@@ -9,7 +9,7 @@
 
 #include "2D.h"
 #include "ConvexPolygon.h"
-#include "GLContextNVpr.h"
+#include "nvpr/GL.h"
 #include <vector>
 
 namespace mozilla {

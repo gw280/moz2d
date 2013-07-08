@@ -8,13 +8,16 @@
 #define MOZILLA_GFX_PATHBUILDERNVPR_H_
 
 #include "2D.h"
-#include "GLContextNVpr.h"
+#include "nvpr/GL.h"
 #include <vector>
 
 namespace mozilla {
 namespace gfx {
 
-class PathCacheNVpr;
+namespace nvpr {
+class PathCache;
+}
+
 class PathObjectNVpr;
 
 /**
@@ -80,7 +83,7 @@ public:
 
 private:
   void MakeWritable();
-  PathCacheNVpr& PathCache() const;
+  nvpr::PathCache& PathCache() const;
 
   const FillRule mFillRule;
   RefPtr<PathObjectNVpr> mPathObject;

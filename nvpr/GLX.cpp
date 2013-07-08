@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GLContextNVpr.h"
+#include "GL.h"
 #include <dlfcn.h>
 #include <GL/glx.h>
 
@@ -21,8 +21,9 @@
 
 namespace mozilla {
 namespace gfx {
+namespace nvpr {
 
-struct GLContextNVpr::PlatformContextData {
+struct GL::PlatformContextData {
   void* mLibGL;
 
 #define DECLARE_GLX_METHOD(NAME) \
@@ -38,7 +39,8 @@ struct GLContextNVpr::PlatformContextData {
   GLXContext mContext;
 };
 
-bool GLContextNVpr::InitGLContext()
+bool
+GL::InitGLContext()
 {
   mContextData = new PlatformContextData();
   PlatformContextData& ctx = *mContextData;
@@ -87,7 +89,8 @@ bool GLContextNVpr::InitGLContext()
   return true;
 }
 
-void GLContextNVpr::DestroyGLContext()
+void
+GL::DestroyGLContext()
 {
   PlatformContextData& ctx = *mContextData;
   if (!ctx.mLibGL) {
@@ -113,14 +116,16 @@ void GLContextNVpr::DestroyGLContext()
   dlclose(ctx.mLibGL);
 }
 
-bool GLContextNVpr::IsCurrent() const
+bool
+GL::IsCurrent() const
 {
   PlatformContextData& ctx = *mContextData;
 
   return ctx.GetCurrentContext() == ctx.mContext;
 }
 
-void GLContextNVpr::MakeCurrent() const
+void
+GL::MakeCurrent() const
 {
   PlatformContextData& ctx = *mContextData;
 
@@ -131,5 +136,6 @@ void GLContextNVpr::MakeCurrent() const
   ctx.MakeCurrent(ctx.mDisplay, ctx.mGLXPixmap, ctx.mContext);
 }
 
+}
 }
 }

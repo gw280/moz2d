@@ -8,15 +8,19 @@
 #define MOZILLA_GFX_GRADIENTSTOPSNVPR_H_
 
 #include "2D.h"
-#include "GLContextNVpr.h"
+#include "nvpr/GL.h"
 #include <mozilla/RefPtr.h>
 
 namespace mozilla {
 namespace gfx {
 
-struct GradientShadersNVpr;
+namespace nvpr {
+struct GradientShaders;
+}
 
 class GradientStopsNVpr : public GradientStops {
+  struct ColorRampData;
+
 public:
   static TemporaryRef<GradientStopsNVpr>
   create(GradientStop* aRawStops, uint32_t aNumStops, ExtendMode aExtendMode)
@@ -42,7 +46,8 @@ private:
   GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops,
                     ExtendMode aExtendMode);
 
-  GradientShadersNVpr& Shaders() const;
+  ColorRampData& RampData() const;
+  nvpr::GradientShaders& Shaders() const;
 
   GLuint mRampTextureId;
   Color mInitialColor;

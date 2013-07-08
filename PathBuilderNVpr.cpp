@@ -10,15 +10,20 @@
 #include "Line.h"
 #include <map>
 
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 namespace mozilla {
 namespace gfx {
 
-class PathCacheNVpr
+namespace nvpr {
+
+class PathCache
   : public map<PathDescriptionNVpr, RefPtr<PathObjectNVpr> >
-  , public UserDataNVpr::Object
+  , public UserData::Object
 {};
+
+}
 
 PathBuilderNVpr::PathBuilderNVpr(FillRule aFillRule)
   : mFillRule(aFillRule)
@@ -233,7 +238,6 @@ PathBuilderNVpr::MakeWritable()
 
   MOZ_ASSERT(mDescription.IsEmpty());
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   GLint commandCount;
@@ -252,15 +256,15 @@ PathBuilderNVpr::MakeWritable()
   mPathObject = nullptr;
 }
 
-PathCacheNVpr&
+PathCache&
 PathBuilderNVpr::PathCache() const
 {
-  UserDataNVpr& userData = GLContextNVpr::Instance()->UserData();
+  nvpr::UserData& userData = gl->GetUserData();
   if (!userData.mPathCache) {
-    userData.mPathCache.reset(new PathCacheNVpr());
+    userData.mPathCache.reset(new nvpr::PathCache());
   }
 
-  return static_cast<PathCacheNVpr&>(*userData.mPathCache);
+  return static_cast<nvpr::PathCache&>(*userData.mPathCache);
 }
 
 

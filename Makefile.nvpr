@@ -3,15 +3,15 @@ DEFINES += USE_NVPR GL_GLEXT_PROTOTYPES
 LIBS += -ldl -lX11
 
 MOZ2D_CPPSRCS += \
+  DrawTargetNVpr.cpp \
+  PathNVpr.cpp \
+  PathBuilderNVpr.cpp \
+  SourceSurfaceNVpr.cpp \
   GradientStopsNVpr.cpp \
   ScaledFontNVpr.cpp \
-  DrawTargetNVpr.cpp \
-  SourceSurfaceNVpr.cpp \
-  PathNVpr.cpp \
-  ClipNVpr.cpp \
-  PathBuilderNVpr.cpp \
-  GLContextNVpr.cpp \
-  GLContextNVpr_GLX.cpp \
+  nvpr/Clip.cpp \
+  nvpr/GL.cpp \
+  nvpr/GLX.cpp \
   $(NULL)
 
 UNITTEST_CPPSRCS += \

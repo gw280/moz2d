@@ -4,8 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef MOZILLA_GFX_CLIPNVPR_H_
-#define MOZILLA_GFX_CLIPNVPR_H_
+#ifndef MOZILLA_GFX_NVPR_CLIP_H_
+#define MOZILLA_GFX_NVPR_CLIP_H_
 
 #include "2D.h"
 #include "ConvexPolygon.h"
@@ -19,10 +19,12 @@ namespace gfx {
 class DrawTargetNVpr;
 class PathNVpr;
 
+namespace nvpr {
+
 template<typename SubclassType>
-class ClipNVpr : public RefCounted<SubclassType> {
+class Clip : public RefCounted<SubclassType> {
 public:
-  ClipNVpr(DrawTargetNVpr* aDrawTarget, TemporaryRef<SubclassType> aPrevious)
+  Clip(DrawTargetNVpr* aDrawTarget, TemporaryRef<SubclassType> aPrevious)
     : mPrevious(aPrevious)
     , mDrawTarget(aDrawTarget)
   {}
@@ -40,30 +42,28 @@ protected:
  * compute the intersection of all polygons in the stack and then use OpenGL
  * clipping planes to clip to that intersection.
  */
-class PlanesClipNVpr : public ClipNVpr<PlanesClipNVpr> {
+class PlanesClip : public Clip<PlanesClip> {
 public:
-  static TemporaryRef<PlanesClipNVpr>
-  Create(DrawTargetNVpr* aDrawTarget, TemporaryRef<PlanesClipNVpr> aPrevious,
+  static TemporaryRef<PlanesClip>
+  Create(DrawTargetNVpr* aDrawTarget, TemporaryRef<PlanesClip> aPrevious,
          const Matrix& aTransform, ConvexPolygon&& aPassPolygon)
   {
     bool success;
-    RefPtr<PlanesClipNVpr> clip = new PlanesClipNVpr(aDrawTarget, aPrevious,
-                                                     aTransform, aPassPolygon,
-                                                     success);
+    RefPtr<PlanesClip> clip = new PlanesClip(aDrawTarget, aPrevious, aTransform,
+                                             aPassPolygon, success);
     return success ? clip.forget() : nullptr;
   }
 
   const ConvexPolygon& Polygon() const { return mPolygon; }
-  GLContextNVpr::UniqueId PolygonId() const { return mPolygonId; }
+  UniqueId PolygonId() const { return mPolygonId; }
 
 private:
-  PlanesClipNVpr(DrawTargetNVpr* aDrawTarget,
-                 TemporaryRef<PlanesClipNVpr> aPrevious,
-                 const Matrix& aTransform, ConvexPolygon& aPassPolygon,
-                 bool& aSuccess);
+  PlanesClip(DrawTargetNVpr* aDrawTarget, TemporaryRef<PlanesClip> aPrevious,
+             const Matrix& aTransform, ConvexPolygon& aPassPolygon,
+             bool& aSuccess);
 
   ConvexPolygon mPolygon;
-  GLContextNVpr::UniqueId mPolygonId;
+  UniqueId mPolygonId;
 };
 
 /**
@@ -74,14 +74,14 @@ private:
  * or more they start sharing a clip bit (by etching in just the intersection of
  * paths). That way there are always at least 6 bits left for winding numbers.
  */
-class StencilClipNVpr : public ClipNVpr<StencilClipNVpr> {
+class StencilClip : public Clip<StencilClip> {
 public:
-  static TemporaryRef<StencilClipNVpr>
-  Create(DrawTargetNVpr* aDrawTarget, TemporaryRef<StencilClipNVpr> aPrevious,
-         const Matrix& aTransform, GLContextNVpr::UniqueId aTransformId,
+  static TemporaryRef<StencilClip>
+  Create(DrawTargetNVpr* aDrawTarget, TemporaryRef<StencilClip> aPrevious,
+         const Matrix& aTransform, UniqueId aTransformId,
          TemporaryRef<PathNVpr> aPath)
   {
-    return new StencilClipNVpr(aDrawTarget, aPrevious, aTransform, aTransformId, aPath);
+    return new StencilClip(aDrawTarget, aPrevious, aTransform, aTransformId, aPath);
   }
 
   void ApplyToStencilBuffer();
@@ -89,16 +89,15 @@ public:
   void RestoreStencilBuffer();
 
 private:
-  StencilClipNVpr* GetLastClipBitOwner()
+  StencilClip* GetLastClipBitOwner()
   {
     return mOwnClipBit ? this : mPrevious->GetLastClipBitOwner();
   }
 
-  StencilClipNVpr(DrawTargetNVpr* aDrawTarget,
-                  TemporaryRef<StencilClipNVpr> aPrevious,
-                  const Matrix& aTransform, GLContextNVpr::UniqueId aTransformId,
-                  TemporaryRef<PathNVpr> aPath)
-    : ClipNVpr(aDrawTarget, aPrevious)
+  StencilClip(DrawTargetNVpr* aDrawTarget, TemporaryRef<StencilClip> aPrevious,
+              const Matrix& aTransform, UniqueId aTransformId,
+              TemporaryRef<PathNVpr> aPath)
+    : Clip(aDrawTarget, aPrevious)
     , mTransform(aTransform)
     , mTransformId(aTransformId)
     , mPath(aPath)
@@ -106,12 +105,13 @@ private:
   {}
 
   const Matrix mTransform;
-  const GLContextNVpr::UniqueId mTransformId;
+  const UniqueId mTransformId;
   RefPtr<PathNVpr> mPath;
   GLubyte mOwnClipBit;
 };
 
 }
 }
+}
 
-#endif /* MOZILLA_GFX_CLIPNVPR_H_ */
+#endif /* MOZILLA_GFX_NVPR_CLIP_H_ */

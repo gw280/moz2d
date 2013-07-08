@@ -8,6 +8,7 @@
 #include "PathBuilderNVpr.h"
 #include "Line.h"
 
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 namespace mozilla {
@@ -18,15 +19,14 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                                const Point& aCurrentPoint)
   : mStartPoint(aStartPoint)
   , mCurrentPoint(aCurrentPoint)
+  , mStencilClipBits(0)
   , mStrokeWidth(1)
   , mMiterLimit(4)
   , mDashOffset(0)
   , mJoinStyle(JOIN_MITER_OR_BEVEL)
   , mCapStyle(CAP_BUTT)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
-
   mObject = gl->GenPathsNV(1);
   gl->PathCommandsNV(mObject, aDescription.mCommands.size(),
                      aDescription.mCommands.data(), aDescription.mCoords.size(),
@@ -56,7 +56,6 @@ PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
   mPolygon = aPathObject.mPolygon;
   mPolygon.Transform(aTransform);
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   GLfloat transform[] = {
@@ -70,15 +69,12 @@ PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,
 
 PathObjectNVpr::~PathObjectNVpr()
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
-
   gl->DeletePathsNV(mObject, 1);
 }
 
 void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   if (mStrokeWidth != aStrokeOptions.mLineWidth) {
@@ -179,13 +175,11 @@ PathNVpr::TransformedCopyToBuilder(const Matrix& aTransform, FillRule aFillRule)
 bool
 PathNVpr::ContainsPoint(const Point& aPoint, const Matrix& aTransform) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
-
   Matrix inverse = aTransform;
   inverse.Invert();
   Point transformed = inverse * aPoint;
 
+  gl->MakeCurrent();
   return gl->IsPointInFillPathNV(*mPathObject, mFillRule == FILL_WINDING ? ~0 : 0x1,
                                  transformed.x, transformed.y);
 }
@@ -195,13 +189,11 @@ PathNVpr::StrokeContainsPoint(const StrokeOptions& aStrokeOptions,
                               const Point& aPoint,
                               const Matrix& aTransform) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
-
   Matrix inverse = aTransform;
   inverse.Invert();
   Point transformed = inverse * aPoint;
 
+  gl->MakeCurrent();
   ApplyStrokeOptions(aStrokeOptions);
   return gl->IsPointInStrokePathNV(*mPathObject, transformed.x, transformed.y);
 }
@@ -209,7 +201,6 @@ PathNVpr::StrokeContainsPoint(const StrokeOptions& aStrokeOptions,
 Rect
 PathNVpr::GetBounds(const Matrix& aTransform) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
   GLfloat bounds[] = {0, 0, 0, 0};
@@ -228,10 +219,9 @@ Rect
 PathNVpr::GetStrokedBounds(const StrokeOptions& aStrokeOptions,
                            const Matrix& aTransform) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
-
   GLfloat bounds[] = {0, 0, 0, 0};
+
+  gl->MakeCurrent();
 
   ApplyStrokeOptions(aStrokeOptions);
 

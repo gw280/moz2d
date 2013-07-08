@@ -5,23 +5,49 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "GradientStopsNVpr.h"
-#include "GradientShadersNVpr.h"
+#include "nvpr/GradientShaders.h"
 #include <vector>
 
+static constexpr int MaxColorRampSize = 4096;
+static constexpr size_t MaxRampTexturePoolSize = 4096;
+
+using namespace mozilla::gfx::nvpr;
 using namespace std;
 
 struct TextureColor {
+  TextureColor() {}
   TextureColor(const mozilla::gfx::Color& color)
     : r(static_cast<GLubyte>(color.a * color.r * 255))
     , g(static_cast<GLubyte>(color.a * color.g * 255))
     , b(static_cast<GLubyte>(color.a * color.b * 255))
     , a(static_cast<GLubyte>(color.a * 255))
   {}
+  void Lerp(TextureColor aColor1, TextureColor aColor2, uint8_t aWeight)
+  {
+    r = (aColor1.r * (256 - aWeight) + aColor2.r * aWeight) >> 8;
+    g = (aColor1.g * (256 - aWeight) + aColor2.g * aWeight) >> 8;
+    b = (aColor1.b * (256 - aWeight) + aColor2.b * aWeight) >> 8;
+    a = (aColor1.a * (256 - aWeight) + aColor2.a * aWeight) >> 8;
+  }
+  void Average(TextureColor aColor1, TextureColor aColor2)
+  {
+    r = (aColor1.r + aColor2.r) >> 1;
+    g = (aColor1.g + aColor2.g) >> 1;
+    b = (aColor1.b + aColor2.b) >> 1;
+    a = (aColor1.a + aColor2.a) >> 1;
+  }
   GLubyte r, g, b, a;
 };
 
 namespace mozilla {
 namespace gfx {
+
+struct GradientStopsNVpr::ColorRampData : public nvpr::UserData::Object {
+  vector<TextureColor> mRampBuffer;
+  size_t mNumLevels;
+  stack<GLuint> mTexturePool;
+};
+
 
 GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops,
                                      ExtendMode aExtendMode)
@@ -38,63 +64,109 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
     return;
   }
 
-  vector<GradientStop> sortedStops;
-  sortedStops.resize(aNumStops);
+  vector<GradientStop> sortedStops(aNumStops);
   memcpy(sortedStops.data(), aRawStops, aNumStops * sizeof(GradientStop));
   sort(sortedStops.begin(), sortedStops.end());
 
   mInitialColor = sortedStops.front().color;
   mFinalColor = sortedStops.back().color;
 
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   gl->MakeCurrent();
 
-  // Create a 1D texture for the color ramp.
-  GLsizei rampSize = min(4096, gl->MaxTextureSize());
+  // Draw the color stops into a linear color ramp buffer.
+  // TODO: Optimize this with SSE/NEON.
+  ColorRampData& rampData = RampData();
+  vector<TextureColor>& ramp = rampData.mRampBuffer;
 
-  gl->GenTextures(1, &mRampTextureId);
-  gl->TextureImage1DEXT(mRampTextureId, GL_TEXTURE_1D, 0, GL_RGBA, rampSize, 0,
-                        GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+  if (ramp.empty()) {
+    ramp.resize(min(MaxColorRampSize, gl->MaxTextureSize()));
+    rampData.mNumLevels = 0;
+    for (size_t width = ramp.size(); width; width >>= 1) {
+      rampData.mNumLevels++;
+    }
+  }
 
-  // Render the gradient stops into the color ramp texture.
-  gl->SetTargetSize(IntSize(rampSize, 1));
-  gl->SetFramebufferToTexture(GL_FRAMEBUFFER, GL_TEXTURE_1D, mRampTextureId);
+  TextureColor startColor(mInitialColor);
+  MOZ_ASSERT(sortedStops[0].offset >= 0 && sortedStops[0].offset <= 1);
+  size_t startIndex = sortedStops[0].offset * (ramp.size() - 1);
+  for (size_t i = 0; i < startIndex; i++) {
+    ramp[i] = startColor;
+  }
 
-  Matrix colorRampCoords;
-  colorRampCoords.Scale(rampSize, 1);
-  colorRampCoords.Translate(0, 0.5f);
-  gl->SetTransform(colorRampCoords, gl->GetUniqueId());
+  for (size_t i = 1; i < sortedStops.size(); i++) {
+    MOZ_ASSERT(sortedStops[i].offset >= 0 && sortedStops[i].offset <= 1);
+    const TextureColor endColor(sortedStops[i].color);
+    const size_t endIndex = sortedStops[i].offset * (ramp.size() - 1);
 
-  gl->EnableColorWrites();
-  gl->SetColor(sortedStops.front().color);
-  gl->DisableClipPlanes();
-  gl->DisableTexturing();
-  gl->DisableShading();
-
-  gl->Begin(GL_LINE_STRIP); {
-
-    if (sortedStops.front().offset > 0) {
-      gl->Vertex2f(0, 0);
+    if (endIndex == startIndex) {
+      startColor = endColor;
+      continue;
     }
 
-    for (size_t i = 0; i < sortedStops.size(); i++) {
-      gl->SetColor(sortedStops[i].color);
-      gl->Vertex2f(sortedStops[i].offset, 0);
+    const uint16_t weightStep = (1 << 16) / (endIndex - startIndex);
+    uint16_t weight = 0;
+    for (size_t i = startIndex; i < endIndex; i++) {
+      ramp[i].Lerp(startColor, endColor, weight >> 8);
+      weight += weightStep;
     }
 
-    if (sortedStops.back().offset < 1) {
-      gl->Vertex2f(1, 0);
+    startColor = endColor;
+    startIndex = endIndex;
+  }
+
+  const TextureColor endColor(mFinalColor);
+  for (size_t i = startIndex; i < ramp.size(); i++) {
+    ramp[i] = endColor;
+  }
+
+  // Create a texture from the color ramp buffer.
+  if (!rampData.mTexturePool.empty()) {
+    mRampTextureId = rampData.mTexturePool.top();
+    rampData.mTexturePool.pop();
+  } else {
+    gl->GenTextures(1, &mRampTextureId);
+    gl->TextureStorage1DEXT(mRampTextureId, GL_TEXTURE_1D,
+                            rampData.mNumLevels, GL_RGBA8, ramp.size());
+  }
+
+  gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, 0, 0, ramp.size(),
+                           GL_RGBA, GL_UNSIGNED_BYTE, ramp.data());
+
+  size_t previousWidth = ramp.size();
+  for (size_t level = 1; level < rampData.mNumLevels - 1; level++) {
+    // Generate a mipmap image where the begin and end texels are the same
+    // colors as the begin and end stops, to ensure proper clamping.
+    const size_t width = previousWidth >> 1;
+    for (size_t i = 1; i < width - 1; i++) {
+      ramp[i].Average(ramp[2 * i], ramp[2 * i + 1]);
     }
+    ramp[width - 1] = ramp[previousWidth - 1];
 
-  } gl->End();
+    gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, 0, width,
+                             GL_RGBA, GL_UNSIGNED_BYTE, ramp.data());
 
-  gl->GenerateTextureMipmapEXT(mRampTextureId, GL_TEXTURE_1D);
+    previousWidth = width;
+  }
 
   // Configure texturing parameters.
   gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                           GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                           //GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                           GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
                            GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  if (aExtendMode == EXTEND_CLAMP) {
+    gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL,
+                             rampData.mNumLevels - 2);
+  } else {
+    gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL,
+                             rampData.mNumLevels - 1);
+    ramp[0].Average(ramp[0], ramp[1]);
+    gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D,
+                             rampData.mNumLevels - 1, 0, 1, GL_RGBA,
+                             GL_UNSIGNED_BYTE, ramp.data());
+  }
+
   GLenum wrapMode;
   switch (aExtendMode) {
     default:
@@ -111,33 +183,17 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   }
   gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
                            GL_TEXTURE_WRAP_S, wrapMode);
-
-  if (aExtendMode == EXTEND_CLAMP) {
-    // Ensure the left-most and right-most pixels are the color of the initial
-    // and final stops of the ramp. That way other image data won't bleed into
-    // the clamped colors.
-    const TextureColor initialColor(mInitialColor);
-    const TextureColor finalColor(mFinalColor);
-    GLsizei levelSize = rampSize;
-    GLint level = 0;
-    while (levelSize >= 2) {
-      gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, 0, 1,
-                               GL_RGBA, GL_UNSIGNED_BYTE, &initialColor);
-      gl->TextureSubImage1DEXT(mRampTextureId, GL_TEXTURE_1D, level, levelSize - 1,
-                               1, GL_RGBA, GL_UNSIGNED_BYTE, &finalColor);
-      levelSize >>= 1;
-      level++;
-    }
-    gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
-                             GL_TEXTURE_MAX_LEVEL, level - 1);
-  }
 }
 
 GradientStopsNVpr::~GradientStopsNVpr()
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  gl->MakeCurrent();
+  ColorRampData& rampData = RampData();
+  if (rampData.mTexturePool.size() < MaxRampTexturePoolSize) {
+    rampData.mTexturePool.push(mRampTextureId);
+    return;
+  }
 
+  gl->MakeCurrent();
   gl->DeleteTexture(mRampTextureId);
 }
 
@@ -146,11 +202,10 @@ void
 GradientStopsNVpr::ApplyLinearGradient(const Point& aBegin, const Point& aEnd,
                                        float aAlpha) const
 {
+  MOZ_ASSERT(gl->IsCurrent());
+
   const Point vector = aEnd - aBegin;
   const float lengthSquared = (vector.x * vector.x + vector.y * vector.y);
-
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
-  MOZ_ASSERT(gl->IsCurrent());
 
   if (!lengthSquared || !mRampTextureId) {
     gl->SetColor(mFinalColor, aAlpha);
@@ -167,7 +222,7 @@ GradientStopsNVpr::ApplyLinearGradient(const Point& aBegin, const Point& aEnd,
 
   gl->SetColorToAlpha(aAlpha);
   gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                      GLContextNVpr::TEXGEN_S, texgenCoefficients);
+                      GL::TEXGEN_S, texgenCoefficients);
   gl->DisableShading();
 }
 
@@ -176,7 +231,6 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
                                       const Point& aFocalPoint,
                                       float aAlpha) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   if (!aRadius) {
@@ -207,7 +261,7 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
 
   if (fabs(focalOffsetSquared) < 1e-5f) { // The focal point is at [0, 0].
     gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                        GLContextNVpr::TEXGEN_ST, gradientCoords);
+                        GL::TEXGEN_ST, gradientCoords);
     gl->EnableShading(Shaders().mFocalGradCenteredShader);
     return;
   }
@@ -256,8 +310,7 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
     //
     //        = dot(q, q) / (-2 * q.x)
     //
-    gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                          GLContextNVpr::TEXGEN_ST, qCoords);
+    gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId, GL::TEXGEN_ST, qCoords);
     gl->EnableShading(Shaders().mFocalGradTouchingShader);
 
     return;
@@ -280,9 +333,7 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
     //
     qCoords.PostScale(a, a);
 
-    gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                        GLContextNVpr::TEXGEN_ST, qCoords);
-
+    gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId, GL::TEXGEN_ST, qCoords);
     gl->EnableShading(Shaders().mFocalGradOutsideShader);
     Shaders().mFocalGradOutsideShader.uFocalX = focalPoint.x;
     Shaders().mFocalGradOutsideShader.u1MinusFx_2 = 1 - focalPoint.x
@@ -300,9 +351,7 @@ GradientStopsNVpr::ApplyFocalGradient(const Point& aCenter, float aRadius,
   //
   qCoords.PostScale(a, a * sqrt(1 - focalOffsetSquared));
 
-  gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                      GLContextNVpr::TEXGEN_ST, qCoords);
-
+  gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId, GL::TEXGEN_ST, qCoords);
   gl->EnableShading(Shaders().mFocalGradInsideShader);
   Shaders().mFocalGradInsideShader.uFocalX = focalPoint.x;
 }
@@ -313,7 +362,6 @@ void GradientStopsNVpr::ApplyRadialGradient(const Point& aBeginCenter,
                                             float aEndRadius,
                                             float aAlpha) const
 {
-  GLContextNVpr* const gl = GLContextNVpr::Instance();
   MOZ_ASSERT(gl->IsCurrent());
 
   if (aBeginCenter == aEndCenter && aBeginRadius == aEndRadius) {
@@ -369,8 +417,7 @@ void GradientStopsNVpr::ApplyRadialGradient(const Point& aBeginCenter,
   Matrix qCoords = gradientCoords;
   qCoords.PostScale(C, C);
 
-  gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId,
-                      GLContextNVpr::TEXGEN_ST, qCoords);
+  gl->EnableTexturing(GL_TEXTURE_1D, mRampTextureId, GL::TEXGEN_ST, qCoords);
 
   if (A >= 0) {
     RadialGradOutsideShader& shader = (aEndRadius - aBeginRadius > 1e-5f)
@@ -395,14 +442,24 @@ void GradientStopsNVpr::ApplyRadialGradient(const Point& aBeginCenter,
   shader.uC = C;
 }
 
-GradientShadersNVpr& GradientStopsNVpr::Shaders() const
+GradientStopsNVpr::ColorRampData& GradientStopsNVpr::RampData() const
 {
-  UserDataNVpr& userData = GLContextNVpr::Instance()->UserData();
-  if (!userData.mGradientShaders) {
-    userData.mGradientShaders.reset(new GradientShadersNVpr());
+  nvpr::UserData& userData = gl->GetUserData();
+  if (!userData.mColorRampData) {
+    userData.mColorRampData.reset(new ColorRampData());
   }
 
-  return static_cast<GradientShadersNVpr&>(*userData.mGradientShaders.get());
+  return static_cast<ColorRampData&>(*userData.mColorRampData.get());
+}
+
+GradientShaders& GradientStopsNVpr::Shaders() const
+{
+  nvpr::UserData& userData = gl->GetUserData();
+  if (!userData.mGradientShaders) {
+    userData.mGradientShaders.reset(new GradientShaders());
+  }
+
+  return static_cast<GradientShaders&>(*userData.mGradientShaders.get());
 }
 
 }
