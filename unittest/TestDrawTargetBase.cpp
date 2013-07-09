@@ -33,6 +33,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, CopySurface);
   REGISTER_TEST(TestDrawTargetBase, Shadow);
   REGISTER_TEST(TestDrawTargetBase, ColorMatrix);
+  REGISTER_TEST(TestDrawTargetBase, Blend);
 }
 
 void
@@ -411,6 +412,39 @@ TestDrawTargetBase::ColorMatrix()
 }
 
 void
+TestDrawTargetBase::Blend()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+
+  filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
+    data[i] = 0xff008000;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> src2 =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+    filter->SetInput(1, src2);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.25f, 0, 1.0f));
+}
+
+void
 TestDrawTargetBase::RefreshSnapshot()
 {
   RefPtr<SourceSurface> snapshot = mDT->Snapshot();
@@ -427,6 +461,22 @@ TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
   for (int y = 0; y < DT_HEIGHT; y++) {
     for (int x = 0; x < DT_WIDTH; x++) {
       if (colVal[y * (mDataSnapshot->Stride() / 4) + x] != expected) {
+        stringstream message;
+        uint32_t rawActual = colVal[y * (mDataSnapshot->Stride() / 4) + x];
+        uint32_t actb = rawActual & 0xFF;
+        uint32_t actg = (rawActual & 0xFF00) >> 8;
+        uint32_t actr = (rawActual & 0xFF0000) >> 16;
+        uint32_t acta = (rawActual & 0xFF000000) >> 24;
+        uint32_t expb = expected & 0xFF;
+        uint32_t expg = (expected & 0xFF00) >> 8;
+        uint32_t expr = (expected & 0xFF0000) >> 16;
+        uint32_t expa = (expected & 0xFF000000) >> 24;
+
+        message << "Verify Pixel (" << x << "x" << y << ") Failed."
+          " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
+          " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
+
+        LogMessage(message.str());
         LogMessage("VerifyAllPixels Failed\n");
         mTestFailed = true;
         return;

@@ -39,6 +39,7 @@ public:
   void CopySurface();
   void Shadow();
   void ColorMatrix();
+  void Blend();
   
 protected:
   TestDrawTargetBase();
