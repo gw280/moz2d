@@ -16,7 +16,7 @@ namespace mozilla {
 namespace gfx {
 
 class SourceSurface;
-class Point;
+struct Point;
 
 enum FilterType {
   FILTER_BLEND = 0,
@@ -98,7 +98,7 @@ public:
 protected:
   friend class Factory;
 
-  Filter() {}
+  FilterNode() {}
 };
 
 }
