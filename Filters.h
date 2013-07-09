@@ -51,6 +51,15 @@ enum BlendFilterAtts
   ATT_BLEND_BLENDMODE = 0
 };
 
+enum BlendMode
+{
+  BLEND_MODE_NORMAL = 0,
+  BLEND_MODE_MULTIPLY,
+  BLEND_MODE_SCREEN,
+  BLEND_MODE_DARKEN,
+  BLEND_MODE_LIGHTEN
+};
+
 enum BlendFilterInputs
 {
   IN_BLEND_IN = 0,
