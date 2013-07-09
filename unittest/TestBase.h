@@ -30,9 +30,6 @@ public:
 
   int RunTests(int *aFailures);
 
-protected:
-  static void LogMessage(std::string aMessage);
-
   struct Test {
     Test(TestCall aCall, std::string aName, void *aImplPointer)
       : funcCall(aCall)
@@ -44,6 +41,9 @@ protected:
     std::string name;
     void *implPointer;
   };
+protected:
+  static void LogMessage(std::string aMessage);
+
   std::vector<Test> mTests;
 
   bool mTestFailed;

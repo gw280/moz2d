@@ -32,6 +32,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, Mask);
   REGISTER_TEST(TestDrawTargetBase, CopySurface);
   REGISTER_TEST(TestDrawTargetBase, Shadow);
+  REGISTER_TEST(TestDrawTargetBase, ColorMatrix);
 }
 
 void
@@ -371,6 +372,38 @@ TestDrawTargetBase::Shadow()
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
   mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.5f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, OP_OVER);
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ColorMatrix()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
+
+  Matrix5x4 mat;
+  mat._52 = 1.0f;
+  mat._54 = 1.0f;
+
+  filter->SetAttribute(0, mat);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+
+  memset(data, 0, DT_WIDTH * DT_HEIGHT * 4);
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
 
   RefreshSnapshot();
 

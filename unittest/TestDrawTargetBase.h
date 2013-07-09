@@ -38,6 +38,7 @@ public:
   void Mask();
   void CopySurface();
   void Shadow();
+  void ColorMatrix();
   
 protected:
   TestDrawTargetBase();
