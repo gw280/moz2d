@@ -387,7 +387,7 @@ TestDrawTargetBase::ColorMatrix()
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
 
   Matrix5x4 mat;
-  mat._52 = 0.5f;
+  mat._52 = 127.0f / 255.0f;
   mat._54 = 1.0f;
 
   filter->SetAttribute(0, mat);
@@ -408,7 +408,7 @@ TestDrawTargetBase::ColorMatrix()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, mat._52, 0, mat._54));
 }
 
 void
