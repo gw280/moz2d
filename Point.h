@@ -8,6 +8,7 @@
 
 #include "Types.h"
 #include "BasePoint.h"
+#include "BasePoint3D.h"
 #include "BaseSize.h"
 
 namespace mozilla {
@@ -28,6 +29,14 @@ struct Point :
   Point() : Super() {}
   Point(Float aX, Float aY) : Super(aX, aY) {}
   Point(const IntPoint& point) : Super(float(point.x), float(point.y)) {}
+};
+
+struct Point3D :
+  public BasePoint3D<Float, Point3D> {
+  typedef BasePoint3D<Float, Point3D> Super;
+
+  Point3D() : Super() {}
+  Point3D(Float aX, Float aY, Float aZ) : Super(aX, aY, aZ) {}
 };
 
 struct IntSize :

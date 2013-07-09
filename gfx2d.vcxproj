@@ -175,6 +175,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="Filters.h" />
     <ClInclude Include="GLContextNVpr.h" />
     <ClInclude Include="GradientShadersNVpr.h" />
     <ClInclude Include="GradientStopsD2D.h" />
