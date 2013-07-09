@@ -29,12 +29,12 @@ struct BasePoint3D {
   // compiler generated default assignment operator
 
   T& operator[](int aIndex) {
-    NS_ABORT_IF_FALSE(aIndex >= 0 && aIndex <= 2, "Invalid array index");
+    MOZ_ASSERT(aIndex >= 0 && aIndex <= 2);
     return *((&x)+aIndex);
   }
 
   const T& operator[](int aIndex) const {
-    NS_ABORT_IF_FALSE(aIndex >= 0 && aIndex <= 2, "Invalid array index");
+    MOZ_ASSERT(aIndex >= 0 && aIndex <= 2);
     return *((&x)+aIndex);
   }
 
