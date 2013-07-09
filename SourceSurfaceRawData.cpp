@@ -5,7 +5,6 @@
 
 #include "SourceSurfaceRawData.h"
 #include "Logging.h"
-#include "Tools.h"
 
 namespace mozilla {
 namespace gfx {
@@ -22,6 +21,18 @@ SourceSurfaceRawData::InitWrappingData(uint8_t *aData,
   mStride = aStride;
   mFormat = aFormat;
   mOwnData = aOwnData;
+
+  return true;
+}
+
+bool
+SourceSurfaceAlignedRawData::Init(const IntSize &aSize,
+                                  SurfaceFormat aFormat)
+{
+  mStride = GetAlignedStride<16>(aSize.width * BytesPerPixel(aFormat));
+  mArray.Realloc(mStride * aSize.height);
+  mSize = aSize;
+  mFormat = aFormat;
 
   return true;
 }
