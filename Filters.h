@@ -18,6 +18,11 @@ namespace gfx {
 class SourceSurface;
 struct Point;
 
+enum FilterBackend {
+  FILTER_BACKEND_SOFTWARE = 0,
+  FILTER_BACKEND_DIRECT2D1_1
+};
+
 enum FilterType {
   FILTER_BLEND = 0,
   FILTER_MORPHOLOGY,
@@ -86,8 +91,10 @@ enum PointLightFilterInputs
 class FilterNode : public RefCounted<FilterNode>
 {
 public:
+  virtual FilterBackend GetBackendType() = 0;
+
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) { MOZ_CRASH(); }
-  virtual void SetInput(uint32_t aIndex, Filter *aFilter) { MOZ_CRASH(); }
+  virtual void SetInput(uint32_t aIndex, FilterNode *aFilter) { MOZ_CRASH(); }
 
   virtual void SetAttribute(uint32_t aIndex, uint32_t) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, Float) { MOZ_CRASH(); }

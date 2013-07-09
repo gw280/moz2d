@@ -175,6 +175,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="FilterNodeD2D1.h" />
     <ClInclude Include="Filters.h" />
     <ClInclude Include="GLContextNVpr.h" />
     <ClInclude Include="GradientShadersNVpr.h" />
@@ -249,6 +250,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="Factory.cpp" />
+    <ClCompile Include="FilterNodeD2D1.cpp" />
     <ClCompile Include="GradientStopsNVpr.cpp" />
     <ClCompile Include="ImageScaling.cpp" />
     <ClCompile Include="ImageScalingSSE2.cpp" />
