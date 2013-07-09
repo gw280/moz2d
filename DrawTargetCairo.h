@@ -66,7 +66,8 @@ public:
                            const DrawOptions &aOptions = DrawOptions());
   virtual void DrawFilter(FilterNode *aNode,
                           const Rect &aSourceRect,
-                          const Point &aDestPoint) { /* Implement me! */ MOZ_ASSERT(0); }
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
   virtual void DrawSurfaceWithShadow(SourceSurface *aSurface,
                                      const Point &aDest,
                                      const Color &aColor,

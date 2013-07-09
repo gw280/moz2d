@@ -49,7 +49,8 @@ public:
 
   virtual void DrawFilter(FilterNode *aNode,
                           const Rect &aSourceRect,
-                          const Point &aDestPoint) { /* Implement me! */ MOZ_ASSERT(0); }
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
 
   /*
    * Blend a surface to the draw target with a shadow. The shadow is drawn as a

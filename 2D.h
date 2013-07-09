@@ -597,7 +597,8 @@ public:
    */
   virtual void DrawFilter(FilterNode *aNode,
                           const Rect &aSourceRect,
-                          const Point &aDestPoint) = 0;
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions()) = 0;
 
   /*
    * Blend a surface to the draw target with a shadow. The shadow is drawn as a
