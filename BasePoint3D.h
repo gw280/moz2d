@@ -6,6 +6,8 @@
 #ifndef MOZILLA_BASEPOINT3D_H_
 #define MOZILLA_BASEPOINT3D_H_
 
+#include "mozilla/Assertions.h"
+
 namespace mozilla {
 namespace gfx {
 
