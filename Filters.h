@@ -397,6 +397,8 @@ enum UnpremultiplyInputs
 class FilterNode : public RefCounted<FilterNode>
 {
 public:
+  virtual ~FilterNode() {}
+
   virtual FilterBackend GetBackendType() = 0;
 
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) { MOZ_CRASH(); }
