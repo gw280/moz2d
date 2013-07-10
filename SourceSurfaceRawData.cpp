@@ -34,7 +34,7 @@ SourceSurfaceAlignedRawData::Init(const IntSize &aSize,
   mSize = aSize;
   mFormat = aFormat;
 
-  return true;
+  return mArray != nullptr;
 }
 
 }
