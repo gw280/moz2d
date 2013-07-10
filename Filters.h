@@ -120,12 +120,14 @@ enum TileFilterInputs
 
 enum TableTransferAtts
 {
-  ATT_TABLE_TRANSFER_TABLE_R = 0,           // std::vector<Float>
+  ATT_TABLE_TRANSFER_TABLE_R = 0,           // Float[]
   ATT_TABLE_TRANSFER_DISABLE_R,             // bool
-  ATT_TABLE_TRANSFER_TABLE_G,               // std::vector<Float>
+  ATT_TABLE_TRANSFER_TABLE_G,               // Float[]
   ATT_TABLE_TRANSFER_DISABLE_G,             // bool
-  ATT_TABLE_TRANSFER_TABLE_B,               // std::vector<Float>
-  ATT_TABLE_TRANSFER_DISABLE_B              // bool
+  ATT_TABLE_TRANSFER_TABLE_B,               // Float[]
+  ATT_TABLE_TRANSFER_DISABLE_B,             // bool
+  ATT_TABLE_TRANSFER_TABLE_A,               // Float[]
+  ATT_TABLE_TRANSFER_DISABLE_A              // bool
 };
 
 enum TableTransferInputs
@@ -135,12 +137,14 @@ enum TableTransferInputs
 
 enum DiscreteTransferAtts
 {
-  ATT_DISCRETE_TRANSFER_TABLE_R = 0,        // std::vector<Float>
+  ATT_DISCRETE_TRANSFER_TABLE_R = 0,        // Float[]
   ATT_DISCRETE_TRANSFER_DISABLE_R,          // bool
-  ATT_DISCRETE_TRANSFER_TABLE_G,            // std::vector<Float>
+  ATT_DISCRETE_TRANSFER_TABLE_G,            // Float[]
   ATT_DISCRETE_TRANSFER_DISABLE_G,          // bool
-  ATT_DISCRETE_TRANSFER_TABLE_B,            // std::vector<Float>
-  ATT_DISCRETE_TRANSFER_DISABLE_B           // bool
+  ATT_DISCRETE_TRANSFER_TABLE_B,            // Float[]
+  ATT_DISCRETE_TRANSFER_DISABLE_B,          // bool
+  ATT_DISCRETE_TRANSFER_TABLE_A,            // Float[]
+  ATT_DISCRETE_TRANSFER_DISABLE_A           // bool
 };
 
 enum DiscreteTransferInputs
@@ -150,8 +154,18 @@ enum DiscreteTransferInputs
 
 enum LinearTransferAtts
 {
-  ATT_LINEAR_TRANSFER_SLOPE = 0,            // Float
-  ATT_LINEAR_TRANSFER_INTERCEPT             // Float
+  ATT_LINEAR_TRANSFER_SLOPE_R = 0,          // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_R,          // Float
+  ATT_LINEAR_TRANSFER_DISABLE_R,            // bool
+  ATT_LINEAR_TRANSFER_SLOPE_G,              // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_G,          // Float
+  ATT_LINEAR_TRANSFER_DISABLE_G,            // bool
+  ATT_LINEAR_TRANSFER_SLOPE_B,              // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_B,          // Float
+  ATT_LINEAR_TRANSFER_DISABLE_B,            // bool
+  ATT_LINEAR_TRANSFER_SLOPE_A,              // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_A,          // Float
+  ATT_LINEAR_TRANSFER_DISABLE_A             // bool
 };
 
 enum LinearTransferInputs
@@ -161,9 +175,22 @@ enum LinearTransferInputs
 
 enum GammaTransferAtts
 {
-  ATT_GAMMA_TRANSFER_AMPLITUDE = 0,         // Float
-  ATT_GAMMA_TRANSFER_EXPONENT,              // Float
-  ATT_GAMMA_TRANSFER_OFFSET                 // Float
+  ATT_GAMMA_TRANSFER_AMPLITUDE_R = 0,         // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_R,              // Float
+  ATT_GAMMA_TRANSFER_OFFSET_R,                // Float
+  ATT_GAMMA_TRANSFER_DISABLE_R,               // Float
+  ATT_GAMMA_TRANSFER_AMPLITUDE_G,             // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_G,              // Float
+  ATT_GAMMA_TRANSFER_OFFSET_G,                // Float
+  ATT_GAMMA_TRANSFER_DISABLE_G,               // Float
+  ATT_GAMMA_TRANSFER_AMPLITUDE_B,             // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_B,              // Float
+  ATT_GAMMA_TRANSFER_OFFSET_B,                // Float
+  ATT_GAMMA_TRANSFER_DISABLE_B,               // Float
+  ATT_GAMMA_TRANSFER_AMPLITUDE_A,             // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_A,              // Float
+  ATT_GAMMA_TRANSFER_OFFSET_A,                // Float
+  ATT_GAMMA_TRANSFER_DISABLE_A                // Float
 };
 
 enum GammaTransferInputs
@@ -174,7 +201,7 @@ enum GammaTransferInputs
 enum ConvolveMatrixAtts
 {
   ATT_CONVOLVE_MATRIX_KERNEL_SIZE = 0,      // IntSize
-  ATT_CONVOLVE_MATRIX_KERNEL_MATRIX,        // std::vector<Float>
+  ATT_CONVOLVE_MATRIX_KERNEL_MATRIX,        // Float[]
   ATT_CONVOLVE_MATRIX_DIVISOR,              // Float
   ATT_CONVOLVE_MATRIX_BIAS,                 // Float
   ATT_CONVOLVE_MATRIX_TARGET,               // IntPoint
@@ -408,11 +435,13 @@ public:
   virtual void SetAttribute(uint32_t aIndex, uint32_t) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, Float) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntSize &) { MOZ_CRASH(); }
+  virtual void SetAttribute(uint32_t aIndex, const Rect &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntRect &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Point &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Matrix5x4 &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Point3D &) { MOZ_CRASH(); }
-  virtual void SetAttribute(uint32_t aIndex, const std::vector<Float> &) { MOZ_CRASH(); }
+  virtual void SetAttribute(uint32_t aIndex, const Color &) { MOZ_CRASH(); }
+  virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) { MOZ_CRASH(); }
 
 protected:
   friend class Factory;

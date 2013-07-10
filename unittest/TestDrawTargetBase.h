@@ -40,7 +40,14 @@ public:
   void Shadow();
   void ColorMatrix();
   void Blend();
-  
+  void Morphology();
+  void Flood();
+  void Tile();
+  void TableTransfer();
+  void DiscreteTransfer();
+  void LinearTransfer();
+  void GammaTransfer();
+
 protected:
   TestDrawTargetBase();
   
