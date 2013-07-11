@@ -27,6 +27,13 @@ ID2D1Factory1 *D2DFactory1()
   return DrawTargetD2D1::factory();
 }
 
+inline static ostream&
+operator <<(ostream& aStream, const DrawTargetD2D1& aDrawTarget)
+{
+  aStream << "DrawTargetD2D 1.1 (" << &aDrawTarget << ")";
+  return aStream;
+}
+
 DrawTargetD2D1::DrawTargetD2D1()
   : mClipsArePushed(false)
 {

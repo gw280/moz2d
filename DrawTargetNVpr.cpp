@@ -6,6 +6,7 @@
 
 #include "DrawTargetNVpr.h"
 #include "GradientStopsNVpr.h"
+#include "Logging.h"
 #include "PathBuilderNVpr.h"
 #include "PathNVpr.h"
 #include "ScaledFontNVpr.h"
@@ -19,6 +20,13 @@ using namespace std;
 
 namespace mozilla {
 namespace gfx {
+
+inline static ostream&
+operator <<(ostream& aStream, const DrawTargetNVpr& aDrawTarget)
+{
+  aStream << "DrawTargetNVpr(" << &aDrawTarget << ")";
+  return aStream;
+}
 
 DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
                                bool& aSuccess)
@@ -102,13 +110,6 @@ DrawTargetNVpr::~DrawTargetNVpr()
   gl->DeleteFramebuffers(1, &mFramebuffer);
 }
 
-DrawTargetNVpr::operator string() const
-{
-  stringstream stream;
-  stream << "DrawTargetNVpr(" << this << ")";
-  return stream.str();
-}
-
 TemporaryRef<SourceSurface>
 DrawTargetNVpr::Snapshot()
 {
@@ -190,7 +191,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   Validate();
 
-  fprintf(stderr, "@@@@> TODO: implement DrawTargetNVpr::DrawSurfaceWithShadow [%u]\n", GLuint(*surface));
+  gfxWarning() << *this << ": DrawSurfaceWithShadow not implemented";
 
   MarkChanged();
 }
@@ -400,7 +401,7 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
   gl->MakeCurrent();
 
   Validate();
-  fprintf(stderr, "@@@@> TODO: implement DrawTargetNVpr::Mask\n");
+  gfxWarning() << *this << ": Mask not implemented";
 
   MarkChanged();
 }
@@ -414,7 +415,7 @@ DrawTargetNVpr::MaskSurface(const Pattern &aSource,
   gl->MakeCurrent();
 
   Validate();
-  fprintf(stderr, "@@@@> TODO: implement DrawTargetNVpr::MaskSurface\n");
+  gfxWarning() << *this << ": MaskSurface not implemented";
 
   MarkChanged();
 }
@@ -523,7 +524,7 @@ DrawTargetNVpr::OptimizeSourceSurface(SourceSurface* aSurface) const
 TemporaryRef<SourceSurface>
 DrawTargetNVpr::CreateSourceSurfaceFromNativeSurface(const NativeSurface& aSurface) const
 {
-  fprintf(stderr, "@@@@@> CreateSourceSurfaceFromNativeSurface\n");
+  gfxWarning() << *this << ": CreateSourceSurfaceFromNativeSurface not implemented";
   return 0;
 }
 
@@ -550,7 +551,7 @@ DrawTargetNVpr::CreateGradientStops(GradientStop* rawStops, uint32_t aNumStops,
 void*
 DrawTargetNVpr::GetNativeSurface(NativeSurfaceType aType)
 {
-  fprintf(stderr, "@@@@@> GetNativeSurface\n");
+  gfxWarning() << *this << ": GetNativeSurface not implemented";
   return 0;
 }
 

@@ -36,8 +36,6 @@ public:
 
   virtual BackendType GetType() const { return BACKEND_NVPR; }
 
-  operator std::string() const;
-
   virtual TemporaryRef<SourceSurface> Snapshot();
   virtual IntSize GetSize() { return mSize; }
 

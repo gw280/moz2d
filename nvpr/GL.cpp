@@ -33,21 +33,13 @@ static void STDCALL GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
     return;
   }
 
-  std::stringstream stream;
-
-  gfxWarning() << "--- OpenGL Debug Callback ---";
-  // XXX - Bas - Fix this annoying hack needed because of template conversoin weirdness.
-  // there's probably a clean way to do this.
-  stream << hex << aSource;
-  gfxWarning() << "  Source: 0x" << stream.str();
-  stream.clear();
-  stream << hex << aType;
-  gfxWarning() << "  Type: 0x" << stream.str();
+  gfxWarning() << "OpenGL Debug Callback:";
+  gfxWarning() << "  Source: 0x" << hex << aSource;
+  gfxWarning() << "  Type: 0x" << hex << aType;
   gfxWarning() << "  Id: " << aId;
-  stream.clear();
-  stream << hex << aSeverity;
-  gfxWarning() << "  Severity: 0x" << stream.str();
+  gfxWarning() << "  Severity: 0x" << hex << aSeverity;
   gfxWarning() << "  Message: " << aMessage;
+  gfxWarning() << "";
 }
 
 

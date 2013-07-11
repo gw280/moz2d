@@ -16,7 +16,8 @@ namespace gfx {
 
 PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                                const Point& aStartPoint,
-                               const Point& aCurrentPoint)
+                               const Point& aCurrentPoint,
+                               ConvexPolygon&& aPassPolygon)
   : mStartPoint(aStartPoint)
   , mCurrentPoint(aCurrentPoint)
   , mStencilClipBits(0)
@@ -26,20 +27,13 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
   , mJoinStyle(JOIN_MITER_OR_BEVEL)
   , mCapStyle(CAP_BUTT)
 {
+  mPolygon.Swap(aPassPolygon);
+
   gl->MakeCurrent();
   mObject = gl->GenPathsNV(1);
   gl->PathCommandsNV(mObject, aDescription.mCommands.size(),
                      aDescription.mCommands.data(), aDescription.mCoords.size(),
                      GL_FLOAT, aDescription.mCoords.data());
-}
-
-PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
-                               const Point& aStartPoint,
-                               const Point& aCurrentPoint,
-                               ConvexPolygon&& aPassPolygon)
-{
-  PathObjectNVpr(aDescription, aStartPoint, aCurrentPoint);
-  mPolygon.Swap(aPassPolygon);
 }
 
 PathObjectNVpr::PathObjectNVpr(const PathObjectNVpr& aPathObject,

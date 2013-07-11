@@ -136,12 +136,6 @@ public:
   static void CleanupD2D();
   static IDWriteFactory *GetDWriteFactory();
 
-  operator std::string() const {
-    std::stringstream stream;
-    stream << "DrawTargetD2D(" << this << ")";
-    return stream.str();
-  }
-
   static uint64_t mVRAMUsageDT;
   static uint64_t mVRAMUsageSS;
 

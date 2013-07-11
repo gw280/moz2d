@@ -26,10 +26,8 @@ struct PathDescriptionNVpr;
 class PathObjectNVpr : public RefCounted<PathObjectNVpr> {
 public:
   PathObjectNVpr(const PathDescriptionNVpr& aDescription,
-                   const Point& aStartPoint, const Point& aCurrentPoint);
-  PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                  const Point& aStartPoint, const Point& aCurrentPoint,
-                 ConvexPolygon&& aPassPolygon);
+                 ConvexPolygon&& aPassPolygon = ConvexPolygon());
   PathObjectNVpr(const PathObjectNVpr& aPath, const Matrix& aTransform);
   ~PathObjectNVpr();
 

@@ -27,6 +27,8 @@
 # define USE_SOFT_CLIPPING true
 #endif
 
+using namespace std;
+
 namespace mozilla {
 namespace gfx {
 
@@ -74,6 +76,13 @@ public:
   int mCount;
   ExtendMode mExtendMode;
 };
+
+inline static ostream&
+operator <<(ostream& aStream, const DrawTargetSkia& aDrawTarget)
+{
+  aStream << "DrawTargetSkia(" << &aDrawTarget << ")";
+  return aStream;
+}
 
 DrawTargetSkia::DrawTargetSkia()
 {

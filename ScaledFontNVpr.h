@@ -8,7 +8,7 @@
 #define MOZILLA_GFX_SCALEDFONTNVPR_H_
 
 #include "2D.h"
-#include <GL/gl.h>
+#include "nvpr/GL.h"
 #include <mozilla/RefPtr.h>
 
 namespace mozilla {

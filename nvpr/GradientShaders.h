@@ -9,7 +9,6 @@
 
 #include "2D.h"
 #include "GL.h"
-#include <GL/gl.h>
 
 static const GLchar kFocalGradCenteredShaderSource[] = "\
 uniform sampler1D uColorRamp;                             \n\

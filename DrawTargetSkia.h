@@ -96,11 +96,6 @@ public:
   void Init(unsigned char* aData, const IntSize &aSize, int32_t aStride, SurfaceFormat aFormat);
   void InitWithFBO(unsigned int aFBOID, GrContext* aGrContext, const IntSize &aSize, SurfaceFormat aFormat);
   
-  operator std::string() const {
-    std::stringstream stream;
-    stream << "DrawTargetSkia(" << this << ")";
-    return stream.str();
-  }
 private:
   friend class SourceSurfaceSkia;
   void AppendSnapshot(SourceSurfaceSkia* aSnapshot);
