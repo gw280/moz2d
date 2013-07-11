@@ -458,11 +458,11 @@ TestDrawTargetBase::Morphology()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
 
-  filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(100, 100));
+  filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(10, 10));
   filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
-  dt->FillRect(Rect(100, 100, 300, 300), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  dt->FillRect(Rect(10, 10, 480, 480), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);
