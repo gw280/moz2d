@@ -32,6 +32,8 @@ public:
 
   ID2D1Image *GetImage() { return mImage; }
 
+  void EnsureIndependent() { if (!mDrawTarget) return; DrawTargetWillChange(); }
+
 private:
   friend class DrawTargetD2D1;
 

@@ -532,7 +532,7 @@ TestDrawTargetBase::TableTransfer()
   filter->SetAttribute(ATT_TABLE_TRANSFER_TABLE_B, coeffs, 3);
 
   uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
-  uint32_t pixelVal = 0xff << 24 & uint32_t(255.0f * 0.502f) << 16 & uint32_t(255.0f * 0.75f) << 8 & uint32_t(255.0f * 0.502f);
+  uint32_t pixelVal = Color(0.498f, 0.75f, 0.498f, 1.0f).ToABGR();
   for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
     data[i] = pixelVal;
   }
@@ -550,7 +550,7 @@ TestDrawTargetBase::TableTransfer()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.498f, 0, 1.0f));
 }
 
 void
@@ -572,7 +572,7 @@ TestDrawTargetBase::DiscreteTransfer()
   filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_B, coeffs, 3);
 
   uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
-  uint32_t pixelVal = 0xff << 24 & uint32_t(255.0f * 0.2f) << 16 & uint32_t(255.0f * 0.4f) << 8 & uint32_t(255.0f * 0.6f);
+  uint32_t pixelVal = Color(0.7f, 0.4f, 0.2f, 1.0f).ToABGR();
   for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
     data[i] = pixelVal;
   }

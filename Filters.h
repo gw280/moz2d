@@ -178,19 +178,19 @@ enum GammaTransferAtts
   ATT_GAMMA_TRANSFER_AMPLITUDE_R = 0,         // Float
   ATT_GAMMA_TRANSFER_EXPONENT_R,              // Float
   ATT_GAMMA_TRANSFER_OFFSET_R,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_R,               // Float
+  ATT_GAMMA_TRANSFER_DISABLE_R,               // bool
   ATT_GAMMA_TRANSFER_AMPLITUDE_G,             // Float
   ATT_GAMMA_TRANSFER_EXPONENT_G,              // Float
   ATT_GAMMA_TRANSFER_OFFSET_G,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_G,               // Float
+  ATT_GAMMA_TRANSFER_DISABLE_G,               // bool
   ATT_GAMMA_TRANSFER_AMPLITUDE_B,             // Float
   ATT_GAMMA_TRANSFER_EXPONENT_B,              // Float
   ATT_GAMMA_TRANSFER_OFFSET_B,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_B,               // Float
+  ATT_GAMMA_TRANSFER_DISABLE_B,               // bool
   ATT_GAMMA_TRANSFER_AMPLITUDE_A,             // Float
   ATT_GAMMA_TRANSFER_EXPONENT_A,              // Float
   ATT_GAMMA_TRANSFER_OFFSET_A,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_A                // Float
+  ATT_GAMMA_TRANSFER_DISABLE_A                // bool
 };
 
 enum GammaTransferInputs
