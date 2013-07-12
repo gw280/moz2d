@@ -47,6 +47,8 @@ public:
   void DiscreteTransfer();
   void LinearTransfer();
   void GammaTransfer();
+  void ConvolveMatrixNone();
+  void ConvolveMatrixWrap();
 
 protected:
   TestDrawTargetBase();

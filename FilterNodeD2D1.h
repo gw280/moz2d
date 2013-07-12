@@ -61,12 +61,38 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Rect &aValue);
   virtual void SetAttribute(uint32_t aIndex, bool aValue);
   virtual void SetAttribute(uint32_t aIndex, const Float *aValues, uint32_t aSize);
+  virtual void SetAttribute(uint32_t aIndex, const IntPoint &aValue);
 
-private:
+protected:
   friend class DrawTargetD2D1;
+  friend class FilterNodeConvolveD2D1;
 
   RefPtr<ID2D1Effect> mEffect;
   FilterType mType;
+};
+
+class FilterNodeConvolveD2D1 : public FilterNodeD2D1
+{
+public:
+  FilterNodeConvolveD2D1(ID2D1DeviceContext *aDC);
+
+  virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface);
+  virtual void SetInput(uint32_t aIndex, FilterNode *aFilter);
+
+  virtual void SetAttribute(uint32_t aIndex, uint32_t aValue);
+  virtual void SetAttribute(uint32_t aIndex, const IntSize &aValue);
+  virtual void SetAttribute(uint32_t aIndex, const IntPoint &aValue);
+
+private:
+  void UpdateChain();
+  void UpdateOffset();
+
+  RefPtr<ID2D1Effect> mBorderEffect;
+  RefPtr<ID2D1Image> mInput;
+  RefPtr<ID2D1Effect> mInputEffect;
+  ConvolveMatrixEdgeMode mEdgeMode;
+  IntPoint mTarget;
+  IntSize mKernelSize;
 };
 
 }

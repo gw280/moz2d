@@ -174,6 +174,14 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
       CONVERT_PROP(GAMMA_TRANSFER_OFFSET_A, GAMMATRANSFER_PROP_ALPHA_OFFSET);
     }
     break;
+  case FILTER_CONVOLVE_MATRIX:
+    switch (aIndex) {
+      CONVERT_PROP(CONVOLVE_MATRIX_BIAS, CONVOLVEMATRIX_PROP_BIAS);
+      CONVERT_PROP(CONVOLVE_MATRIX_KERNEL_MATRIX, CONVOLVEMATRIX_PROP_KERNEL_MATRIX);
+      CONVERT_PROP(CONVOLVE_MATRIX_DIVISOR, CONVOLVEMATRIX_PROP_DIVISOR);
+      CONVERT_PROP(CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, CONVOLVEMATRIX_PROP_KERNEL_UNIT_LENGTH);
+      CONVERT_PROP(CONVOLVE_MATRIX_PRESERVE_ALPHA, CONVOLVEMATRIX_PROP_PRESERVE_ALPHA);
+    }
   }
 
   return UINT32_MAX;
@@ -319,7 +327,153 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Float *aValues, uint32_t aSi
   UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
   MOZ_ASSERT(input < mEffect->GetPropertyCount());
 
-  mEffect->SetValue(aIndex, (BYTE*)aValues, sizeof(Float) * aSize);
+  mEffect->SetValue(input, (BYTE*)aValues, sizeof(Float) * aSize);
+}
+
+void
+FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntPoint &aValue)
+{
+  UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
+  MOZ_ASSERT(input < mEffect->GetPropertyCount());
+
+  mEffect->SetValue(input, D2DPoint(aValue));
+}
+
+FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(ID2D1DeviceContext *aDC)
+  : FilterNodeD2D1(nullptr, FILTER_CONVOLVE_MATRIX)
+  , mEdgeMode(EDGE_MODE_DUPLICATE)
+{
+  HRESULT hr;
+  
+  hr = aDC->CreateEffect(CLSID_D2D1ConvolveMatrix, byRef(mEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ConvolveMatrix filter!";
+    return;
+  }
+
+  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_BORDER_MODE, D2D1_BORDER_MODE_SOFT);
+
+  hr = aDC->CreateEffect(CLSID_D2D1Border, byRef(mBorderEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ConvolveMatrix filter!";
+    return;
+  }
+
+  UpdateChain();
+}
+
+void
+FilterNodeConvolveD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
+{
+  MOZ_ASSERT(aIndex == 0);
+
+  if (aSurface->GetType() != SURFACE_D2D1_1_IMAGE) {
+    gfxWarning() << "Unknown input SourceSurface set on effect.";
+    MOZ_ASSERT(0);
+    return;
+  }
+
+  mInput = static_cast<SourceSurfaceD2D1*>(aSurface)->GetImage();
+  mInputEffect = nullptr;
+
+  static_cast<SourceSurfaceD2D1*>(aSurface)->EnsureIndependent();
+
+  UpdateChain();
+}
+
+void
+FilterNodeConvolveD2D1::SetInput(uint32_t aIndex, FilterNode *aFilter)
+{
+  MOZ_ASSERT(aIndex == 0);
+
+  if (aFilter->GetBackendType() != FILTER_BACKEND_DIRECT2D1_1) {
+    gfxWarning() << "Unknown input SourceSurface set on effect.";
+    MOZ_ASSERT(0);
+    return;
+  }
+
+  mInput = nullptr;
+  mInputEffect = static_cast<FilterNodeD2D1*>(aFilter)->mEffect;
+
+  UpdateChain();
+}
+
+void
+FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, uint32_t aValue)
+{
+  if (aIndex != ATT_CONVOLVE_MATRIX_EDGE_MODE) {
+    return FilterNodeD2D1::SetAttribute(aIndex, aValue);
+  }
+
+  mEdgeMode = (ConvolveMatrixEdgeMode)aValue;
+
+  UpdateChain();
+}
+
+void
+FilterNodeConvolveD2D1::UpdateChain()
+{
+  ID2D1Effect *firstEffect = mBorderEffect;
+  if (mEdgeMode == EDGE_MODE_NONE) {
+    firstEffect = mEffect;
+  } else {
+    mEffect->SetInputEffect(0, mBorderEffect.get());
+  }
+
+  if (mInputEffect) {
+    firstEffect->SetInputEffect(0, mInputEffect);
+  } else {
+    firstEffect->SetInput(0, mInput);
+  }
+
+  if (mEdgeMode == EDGE_MODE_DUPLICATE) {
+    mBorderEffect->SetValue(D2D1_BORDER_PROP_EDGE_MODE_X, D2D1_BORDER_EDGE_MODE_CLAMP);
+    mBorderEffect->SetValue(D2D1_BORDER_PROP_EDGE_MODE_Y, D2D1_BORDER_EDGE_MODE_CLAMP);
+  } else if (mEdgeMode == EDGE_MODE_WRAP) {
+    mBorderEffect->SetValue(D2D1_BORDER_PROP_EDGE_MODE_X, D2D1_BORDER_EDGE_MODE_WRAP);
+    mBorderEffect->SetValue(D2D1_BORDER_PROP_EDGE_MODE_Y, D2D1_BORDER_EDGE_MODE_WRAP);
+  }
+}
+
+void
+FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, const IntSize &aValue)
+{
+  if (aIndex != ATT_CONVOLVE_MATRIX_KERNEL_SIZE) {
+    MOZ_ASSERT(false);
+    return;
+  }
+
+  mKernelSize = aValue;
+
+  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_SIZE_X, aValue.width);
+  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_SIZE_X, aValue.height);
+
+  UpdateOffset();
+}
+
+void
+FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, const IntPoint &aValue)
+{
+  if (aIndex != ATT_CONVOLVE_MATRIX_TARGET) {
+    MOZ_ASSERT(false);
+    return;
+  }
+
+  mTarget = aValue;
+
+  UpdateOffset();
+}
+
+void
+FilterNodeConvolveD2D1::UpdateOffset()
+{
+  D2D1_VECTOR_2F vector =
+    D2D1::Vector2F((Float(mKernelSize.width) - 1.0f) / 2.0f - Float(mTarget.x),
+                   (Float(mKernelSize.height) - 1.0f) / 2.0f - Float(mTarget.y));
+
+  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_OFFSET, vector);
 }
 
 }

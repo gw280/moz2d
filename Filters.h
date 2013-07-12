@@ -435,6 +435,7 @@ public:
   virtual void SetAttribute(uint32_t aIndex, uint32_t) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, Float) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntSize &) { MOZ_CRASH(); }
+  virtual void SetAttribute(uint32_t aIndex, const IntPoint &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Rect &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntRect &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Point &) { MOZ_CRASH(); }

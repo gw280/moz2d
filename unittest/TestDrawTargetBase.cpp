@@ -41,6 +41,8 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DiscreteTransfer);
   REGISTER_TEST(TestDrawTargetBase, LinearTransfer);
   REGISTER_TEST(TestDrawTargetBase, GammaTransfer);
+  REGISTER_TEST(TestDrawTargetBase, ConvolveMatrixNone);
+  REGISTER_TEST(TestDrawTargetBase, ConvolveMatrixWrap);
 }
 
 void
@@ -670,6 +672,79 @@ TestDrawTargetBase::GammaTransfer()
   }
 
   delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ConvolveMatrixNone()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0, 0, 1.0f)));
+  for (int x = 0; x < DT_WIDTH + 3; x += 3) {
+    dt->FillRect(Rect(x, 0, 1, DT_HEIGHT + 3), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
+  }
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_NONE);
+
+  Float kernel[] = { 1.0f, 1.0f, 1.0f,
+                     1.0f, 1.0f, 1.0f,
+                     1.0f, 1.0f, 1.0f };
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 9);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(3, 3));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, true);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 6.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, 1.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(0, 0));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ConvolveMatrixWrap()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_DUPLICATE);
+
+  Float kernel[] = { 1.0f, 1.0f,
+                     1.0f, 1.0f };
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 4);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(2, 2));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, true);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 4.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, 1.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(1, 0));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
   RefreshSnapshot();
 

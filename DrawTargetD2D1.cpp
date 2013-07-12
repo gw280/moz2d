@@ -590,6 +590,10 @@ DrawTargetD2D1::CreateGradientStops(GradientStop *rawStops, uint32_t aNumStops, 
 TemporaryRef<FilterNode>
 DrawTargetD2D1::CreateFilter(FilterType aType)
 {
+  if (aType == FILTER_CONVOLVE_MATRIX) {
+    return new FilterNodeConvolveD2D1(mDC);
+  }
+
   RefPtr<ID2D1Effect> effect;
   HRESULT hr;
   
