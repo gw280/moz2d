@@ -49,6 +49,8 @@ public:
   void GammaTransfer();
   void ConvolveMatrixNone();
   void ConvolveMatrixWrap();
+  void OffsetFilter();
+  void DisplacementMap();
 
 protected:
   TestDrawTargetBase();

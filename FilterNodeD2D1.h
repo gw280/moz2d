@@ -34,6 +34,10 @@ static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
     return CLSID_D2D1DiscreteTransfer;
   case FILTER_GAMMA_TRANSFER:
     return CLSID_D2D1GammaTransfer;
+  case FILTER_OFFSET:
+    return CLSID_D2D12DAffineTransform;
+  case FILTER_DISPLACEMENT_MAP:
+    return CLSID_D2D1DisplacementMap;
   }
   return GUID_NULL;
 }

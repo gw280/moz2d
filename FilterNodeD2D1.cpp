@@ -44,6 +44,23 @@ D2D1_MORPHOLOGY_MODE D2DMorphologyMode(uint32_t aMode)
   return D2D1_MORPHOLOGY_MODE_DILATE;
 }
 
+D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
+{
+  switch (aMode) {
+  case COLOR_CHANNEL_R:
+    return D2D1_CHANNEL_SELECTOR_R;
+  case COLOR_CHANNEL_G:
+    return D2D1_CHANNEL_SELECTOR_G;
+  case COLOR_CHANNEL_B:
+    return D2D1_CHANNEL_SELECTOR_B;
+  case COLOR_CHANNEL_A:
+    return D2D1_CHANNEL_SELECTOR_A;
+  }
+
+  MOZ_NOT_REACHED("Unknown enum value!");
+  return D2D1_CHANNEL_SELECTOR_R;
+}
+
 uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
 {
   switch (aType) {
@@ -57,6 +74,11 @@ uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
       aValue = D2DMorphologyMode(aValue);
     }
     break;
+  case FILTER_DISPLACEMENT_MAP:
+    if (aAttribute == ATT_DISPLACEMENT_MAP_X_CHANNEL ||
+        aAttribute == ATT_DISPLACEMENT_MAP_Y_CHANNEL) {
+      aValue = D2DChannelSelector(aValue);
+    }
   }
   return aValue;
 }
@@ -181,6 +203,12 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
       CONVERT_PROP(CONVOLVE_MATRIX_DIVISOR, CONVOLVEMATRIX_PROP_DIVISOR);
       CONVERT_PROP(CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, CONVOLVEMATRIX_PROP_KERNEL_UNIT_LENGTH);
       CONVERT_PROP(CONVOLVE_MATRIX_PRESERVE_ALPHA, CONVOLVEMATRIX_PROP_PRESERVE_ALPHA);
+    }
+  case FILTER_DISPLACEMENT_MAP:
+    switch (aIndex) {
+      CONVERT_PROP(DISPLACEMENT_MAP_SCALE, DISPLACEMENTMAP_PROP_SCALE);
+      CONVERT_PROP(DISPLACEMENT_MAP_X_CHANNEL, DISPLACEMENTMAP_PROP_X_CHANNEL_SELECT);
+      CONVERT_PROP(DISPLACEMENT_MAP_Y_CHANNEL, DISPLACEMENTMAP_PROP_Y_CHANNEL_SELECT);
     }
   }
 
@@ -333,6 +361,15 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Float *aValues, uint32_t aSi
 void
 FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntPoint &aValue)
 {
+  if (mType == FILTER_OFFSET) {
+    MOZ_ASSERT(aIndex == ATT_OFFSET_OFFSET);
+
+    Matrix mat;
+    mat.Translate(Float(aValue.x), Float(aValue.y));
+    mEffect->SetValue(D2D1_2DAFFINETRANSFORM_PROP_TRANSFORM_MATRIX, D2DMatrix(mat));
+    return;
+  }
+
   UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
   MOZ_ASSERT(input < mEffect->GetPropertyCount());
 

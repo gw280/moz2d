@@ -43,6 +43,8 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, GammaTransfer);
   REGISTER_TEST(TestDrawTargetBase, ConvolveMatrixNone);
   REGISTER_TEST(TestDrawTargetBase, ConvolveMatrixWrap);
+  REGISTER_TEST(TestDrawTargetBase, OffsetFilter);
+  REGISTER_TEST(TestDrawTargetBase, DisplacementMap);
 }
 
 void
@@ -743,6 +745,67 @@ TestDrawTargetBase::ConvolveMatrixWrap()
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, 1.0f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(1, 0));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::OffsetFilter()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_OFFSET);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_OFFSET_OFFSET, IntPoint(-100, -100));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+  TestDrawTargetBase::DisplacementMap()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISPLACEMENT_MAP);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dtDisplacement = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.502f, 0.502f, 0.502f, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 0, 100, 100), ColorPattern(Color(1.0f, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(100, 0, DT_WIDTH - 200, 100), ColorPattern(Color(0.502f, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, 0, 101, 100), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 100, 100, DT_HEIGHT - 200), ColorPattern(Color(1.0f, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, 100, 101, DT_HEIGHT - 200), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, DT_HEIGHT - 101, 100, 101), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(100, DT_HEIGHT - 101, DT_WIDTH - 200, 101), ColorPattern(Color(0.502f, 0, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, DT_HEIGHT - 101, 101, 101), ColorPattern(Color(0, 0, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  RefPtr<SourceSurface> srcDisplacement = dtDisplacement->Snapshot();
+  filter->SetInput(0, src);
+  filter->SetInput(1, srcDisplacement);
+
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_SCALE, 220.0f);
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_X_CHANNEL, (uint32_t)COLOR_CHANNEL_R);
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_Y_CHANNEL, (uint32_t)COLOR_CHANNEL_G);
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
