@@ -45,7 +45,7 @@ static void STDCALL GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
 
 namespace nvpr {
 
-GL* gl;
+GL* gl = nullptr;
 
 void GL::InitializeIfNeeded()
 {
@@ -63,6 +63,7 @@ GL::GL()
   , mNumClipPlanes(0)
   , mClipPolygonId(0)
   , mColor(1, 1, 1, 1)
+  , mScissorTestEnabled(false)
   , mStencilTestEnabled(false)
   , mStencilTest(ALWAYS_PASS)
   , mStencilComparand(0)
@@ -169,7 +170,7 @@ GL::SetTargetSize(const IntSize& aSize)
 
   Viewport(0, 0, aSize.width, aSize.height);
   MatrixLoadIdentityEXT(GL_PROJECTION);
-  MatrixOrthoEXT(GL_PROJECTION, 0, aSize.width, aSize.height, 0, -1, 1);
+  MatrixOrthoEXT(GL_PROJECTION, 0, aSize.width, 0, aSize.height, -1, 1);
   mTargetSize = aSize;
 }
 
@@ -240,7 +241,7 @@ GL::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 
 void
 GL::SetFramebufferToTexture(GLenum aFramebufferTarget,
-                                       GLenum aTextureTarget, GLuint aTextureId)
+                            GLenum aTextureTarget, GLuint aTextureId)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -337,6 +338,31 @@ GL::DisableColorWrites()
 }
 
 void
+GL::SetClearColor(const Color& aColor)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (!memcmp(&mClearColor, &aColor, sizeof(Color))) {
+    return;
+  }
+
+  if (aColor.a == 1) {
+    ClearColor(aColor.r, aColor.g, aColor.b, 1);
+  } else {
+    const float a = aColor.a;
+    ClearColor(a * aColor.r, a * aColor.g, a * aColor.b, a);
+  }
+
+  mClearColor = aColor;
+}
+
+void
+GL::SetClearColor(const Color& aColor, GLfloat aAlpha)
+{
+  SetClearColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
+}
+
+void
 GL::SetColor(const Color& aColor)
 {
   MOZ_ASSERT(IsCurrent());
@@ -368,8 +394,36 @@ GL::SetColorToAlpha(GLfloat aAlpha)
 }
 
 void
-GL::EnableClipPlanes(const ConvexPolygon& aPolygon,
-                                UniqueId aPolygonId)
+GL::EnableScissorTest(const IntRect& aScissorRect)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (!mScissorTestEnabled) {
+    Enable(GL_SCISSOR_TEST);
+    mScissorTestEnabled = true;
+  }
+
+  if (!mScissorRect.IsEqualInterior(aScissorRect)) {
+    Scissor(aScissorRect.x, aScissorRect.y, aScissorRect.width, aScissorRect.height);
+    mScissorRect = aScissorRect;
+  }
+}
+
+void
+GL::DisableScissorTest()
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (!mScissorTestEnabled) {
+    return;
+  }
+
+  Disable(GL_SCISSOR_TEST);
+  mScissorTestEnabled = false;
+}
+
+void
+GL::EnableClipPlanes(const ConvexPolygon& aPolygon, UniqueId aPolygonId)
 {
   MOZ_ASSERT(IsCurrent());
   MOZ_ASSERT(aPolygon.NumSides() <= mMaxClipPlanes);
@@ -431,7 +485,7 @@ GL::DisableClipPlanes()
 
 void
 GL::EnableStencilTest(UnaryStencilTest aTest, GLuint aTestMask,
-                                 StencilOperation aOp, GLuint aWriteMask)
+                      StencilOperation aOp, GLuint aWriteMask)
 {
   switch (aTest) {
     case PASS_IF_NOT_ZERO:
@@ -445,8 +499,8 @@ GL::EnableStencilTest(UnaryStencilTest aTest, GLuint aTestMask,
 
 void
 GL::EnableStencilTest(BinaryStencilTest aTest,
-                                 GLint aComparand, GLuint aTestMask,
-                                 StencilOperation aOp, GLuint aWriteMask)
+                      GLint aComparand, GLuint aTestMask,
+                      StencilOperation aOp, GLuint aWriteMask)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -537,8 +591,8 @@ GL::ConfigurePathStencilTest(GLubyte aClipBits)
 
 void
 GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                               TexgenComponents aTexgenComponents,
-                               const GLfloat* aTexgenCoefficients)
+                    TexgenComponents aTexgenComponents,
+                    const GLfloat* aTexgenCoefficients)
 {
   MOZ_ASSERT(IsCurrent());
 
@@ -609,8 +663,7 @@ GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
 
 void
 GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                               TexgenComponents aTexgenComponents,
-                               const Matrix& aTransform)
+                    TexgenComponents aTexgenComponents, const Matrix& aTransform)
 {
   GLfloat coefficients[] = {
     aTransform._11, aTransform._21, aTransform._31,
@@ -673,7 +726,7 @@ GL::EnableShading(GLuint aShaderProgram)
 
 void
 GL::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
-                              GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha)
+                   GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha)
 {
   MOZ_ASSERT(IsCurrent());
 

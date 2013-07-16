@@ -38,6 +38,31 @@ protected:
 };
 
 /**
+ * 'Scissor clips' are a stack of pixel-aligned clip rects that use glScissor.
+ */
+class ScissorClip : public Clip<ScissorClip> {
+public:
+  static TemporaryRef<ScissorClip>
+  Create(DrawTargetNVpr* aDrawTarget, TemporaryRef<ScissorClip> aPrevious,
+         const Matrix& aTransform, const Rect& aClipRect)
+  {
+    bool success;
+    RefPtr<ScissorClip> clip = new ScissorClip(aDrawTarget, aPrevious,
+                                               aTransform, aClipRect, success);
+    return success ? clip.forget() : nullptr;
+  }
+
+  const IntRect& ScissorRect() const { return mScissorRect; }
+
+private:
+  ScissorClip(DrawTargetNVpr* aDrawTarget, TemporaryRef<ScissorClip> aPrevious,
+              const Matrix& aTransform, const Rect& aClipRect,
+              bool& aSuccess);
+
+  IntRect mScissorRect;
+};
+
+/**
  * 'Planes clips' are a stack of convex polygons stored in device space. We
  * compute the intersection of all polygons in the stack and then use OpenGL
  * clipping planes to clip to that intersection.

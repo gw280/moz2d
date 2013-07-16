@@ -91,12 +91,14 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   gl->GenFramebuffers(1, &mFramebuffer);
   gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_COLOR_ATTACHMENT0,
-                                    GL_RENDERBUFFER, mColorBuffer);
+                                      GL_RENDERBUFFER, mColorBuffer);
   gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_STENCIL_ATTACHMENT,
-                                    GL_RENDERBUFFER, mStencilBuffer);
+                                      GL_RENDERBUFFER, mStencilBuffer);
 
-  gl->SetTargetSize(mSize);
-  gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
+  Validate(FRAMEBUFFER | COLOR_WRITES_ENABLED);
+
+  gl->DisableScissorTest();
+  gl->SetClearColor(Color());
   gl->Clear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
   aSuccess = true;
@@ -217,11 +219,13 @@ DrawTargetNVpr::CopySurface(SourceSurface* aSurface,
 
   gl->SetFramebufferToTexture(GL_READ_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
   gl->SetFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
+  gl->DisableScissorTest();
+  gl->EnableColorWrites();
 
-  gl->BlitFramebuffer(aSourceRect.x, aSourceRect.YMost(), aSourceRect.XMost(),
-                      aSourceRect.y, aDestination.x, aDestination.y, aDestination.x
-                      + aSourceRect.width, aDestination.y + aSourceRect.height,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  gl->BlitFramebuffer(aSourceRect.x, aSourceRect.y, aSourceRect.XMost(),
+                      aSourceRect.YMost(), aDestination.x, aDestination.y,
+                      aDestination.x + aSourceRect.width, aDestination.y
+                      + aSourceRect.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 }
 
 void
@@ -230,6 +234,33 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
                          const DrawOptions& aOptions)
 {
   gl->MakeCurrent();
+
+  if (aPattern.GetType() == PATTERN_COLOR) {
+    const Color& color = static_cast<const ColorPattern&>(aPattern).mColor;
+    const bool needsBlending = aOptions.mCompositionOp != OP_SOURCE
+                               && (aOptions.mCompositionOp != OP_OVER
+                                   || aOptions.mAlpha != 1 || color.a != 1);
+    const bool hasComplexClips = mTopPlanesClip || (mTopStencilClip
+                                   && (!mPoppedStencilClips
+                                       || mPoppedStencilClips->GetPrevious()));
+
+    IntRect scissorRect;
+    if (!needsBlending && !hasComplexClips && GetTransform().IsRectilinear()
+        && GetTransform().TransformBounds(aRect).ToIntRect(&scissorRect)) {
+
+      Validate(FRAMEBUFFER | COLOR_WRITES_ENABLED);
+
+      if (mTopScissorClip) {
+        scissorRect.IntersectRect(scissorRect, mTopScissorClip->ScissorRect());
+      }
+      gl->EnableScissorTest(scissorRect);
+      gl->SetClearColor(color, aOptions.mAlpha);
+      gl->Clear(GL_COLOR_BUFFER_BIT);
+
+      MarkChanged();
+      return;
+    }
+  }
 
   Validate();
 
@@ -428,9 +459,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
   if (!path->Polygon().IsEmpty()) {
-    if (RefPtr<nvpr::PlanesClip> planesClip
-          = nvpr::PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
-                                     ConvexPolygon(path->Polygon()))) {
+    if (RefPtr<PlanesClip> planesClip
+          = PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                               ConvexPolygon(path->Polygon()))) {
       mTopPlanesClip = planesClip.forget();
       mClipTypeStack.push(PLANES_CLIP_TYPE);
       return;
@@ -439,9 +470,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 
   Validate(FRAMEBUFFER | CLIPPING);
 
-  mTopStencilClip = nvpr::StencilClip::Create(this, mTopStencilClip.forget(),
-                                              GetTransform(), mTransformId,
-                                              path->Clone());
+  mTopStencilClip = StencilClip::Create(this, mTopStencilClip.forget(),
+                                        GetTransform(), mTransformId,
+                                        path->Clone());
 
   mTopStencilClip->ApplyToStencilBuffer();
 
@@ -451,9 +482,16 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 void
 DrawTargetNVpr::PushClipRect(const Rect& aRect)
 {
-  if (RefPtr<nvpr::PlanesClip> planesClip
-        = nvpr::PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
-                                   ConvexPolygon(aRect))) {
+  if (RefPtr<ScissorClip> scissorClip
+        = ScissorClip::Create(this, mTopScissorClip, GetTransform(), aRect)) {
+    mTopScissorClip = scissorClip.forget();
+    mClipTypeStack.push(SCISSOR_CLIP_TYPE);
+    return;
+  }
+
+  if (RefPtr<PlanesClip> planesClip
+        = PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                             ConvexPolygon(aRect))) {
     mTopPlanesClip = planesClip.forget();
     mClipTypeStack.push(PLANES_CLIP_TYPE);
     return;
@@ -476,9 +514,9 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
 
   Validate(FRAMEBUFFER | CLIPPING);
 
-  mTopStencilClip = nvpr::StencilClip::Create(this, mTopStencilClip.forget(),
-                                              transform, gl->GetUniqueId(),
-                                              mUnitSquarePath->Clone());
+  mTopStencilClip = StencilClip::Create(this, mTopStencilClip.forget(),
+                                        transform, gl->GetUniqueId(),
+                                        mUnitSquarePath->Clone());
 
   mTopStencilClip->ApplyToStencilBuffer();
 
@@ -488,12 +526,19 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
 void
 DrawTargetNVpr::PopClip()
 {
-  if (mClipTypeStack.top() == PLANES_CLIP_TYPE) {
-    mTopPlanesClip = mTopPlanesClip->Pop();
-  } else {
-    MOZ_ASSERT(mClipTypeStack.top() == STENCIL_CLIP_TYPE);
-    mPoppedStencilClips = !mPoppedStencilClips ? mTopStencilClip.get()
-                                               : mPoppedStencilClips->GetPrevious();
+  switch (mClipTypeStack.top()) {
+    case SCISSOR_CLIP_TYPE:
+      mTopScissorClip = mTopScissorClip->Pop();
+      break;
+    case PLANES_CLIP_TYPE:
+      mTopPlanesClip = mTopPlanesClip->Pop();
+      break;
+    case STENCIL_CLIP_TYPE:
+      mPoppedStencilClips = !mPoppedStencilClips ? mTopStencilClip.get()
+                                                 : mPoppedStencilClips->GetPrevious();
+      break;
+    default:
+      MOZ_ASSERT(!"Invalid clip type.");
   }
 
   mClipTypeStack.pop();
@@ -558,12 +603,8 @@ DrawTargetNVpr::GetNativeSurface(NativeSurfaceType aType)
 void
 DrawTargetNVpr::SetTransform(const Matrix& aTransform)
 {
-  gl->MakeCurrent();
-
-  mTransformId = gl->GetUniqueId();
-  gl->SetTransform(aTransform, mTransformId);
-
   DrawTarget::SetTransform(aTransform);
+  mTransformId = gl->GetUniqueId();
 }
 
 void
@@ -577,6 +618,12 @@ DrawTargetNVpr::Validate(ValidationFlags aFlags)
   }
 
   if (aFlags & CLIPPING) {
+    if (mTopScissorClip) {
+      gl->EnableScissorTest(mTopScissorClip->ScissorRect());
+    } else {
+      gl->DisableScissorTest();
+    }
+
     if (mTopPlanesClip) {
       if (gl->ClipPolygonId() != mTopPlanesClip->PolygonId()) {
         gl->SetTransformToIdentity();

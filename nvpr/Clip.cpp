@@ -13,6 +13,29 @@ namespace mozilla {
 namespace gfx {
 namespace nvpr {
 
+ScissorClip::ScissorClip(DrawTargetNVpr* aDrawTarget,
+                         TemporaryRef<ScissorClip> aPrevious,
+                         const Matrix& aTransform,
+                         const Rect& aClipRect, bool& aSuccess)
+  : Clip(aDrawTarget, aPrevious)
+{
+  aSuccess = false;
+
+  if (!aTransform.IsRectilinear()) {
+    return;
+  }
+
+  if (!aTransform.TransformBounds(aClipRect).ToIntRect(&mScissorRect)) {
+    return;
+  }
+
+  if (mPrevious) {
+    mScissorRect.IntersectRect(mScissorRect, mPrevious->mScissorRect);
+  }
+
+  aSuccess = true;
+}
+
 PlanesClip::PlanesClip(DrawTargetNVpr* aDrawTarget,
                        TemporaryRef<PlanesClip> aPrevious,
                        const Matrix& aTransform,

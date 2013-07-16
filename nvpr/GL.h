@@ -99,9 +99,15 @@ public:
   void EnableColorWrites();
   void DisableColorWrites();
 
+  void SetClearColor(const Color& aColor);
+  void SetClearColor(const Color& aColor, GLfloat aAlpha);
+
   void SetColor(const Color& aColor);
   void SetColor(const Color& aColor, GLfloat aAlpha);
   void SetColorToAlpha(GLfloat aAlpha);
+
+  void EnableScissorTest(const IntRect& aScissorRect);
+  void DisableScissorTest();
 
   void EnableClipPlanes(const ConvexPolygon& aPolygon, UniqueId aPolygonId);
   void DisableClipPlanes();
@@ -172,7 +178,10 @@ private:
   size_t mNumClipPlanes;
   UniqueId mClipPolygonId;
   bool mColorWritesEnabled;
+  Color mClearColor;
   Color mColor;
+  bool mScissorTestEnabled;
+  IntRect mScissorRect;
   bool mStencilTestEnabled;
   BinaryStencilTest mStencilTest;
   GLint mStencilComparand;
@@ -260,9 +269,11 @@ private:
   MACRO(Viewport) \
   MACRO(BindFramebuffer) \
   MACRO(ColorMask) \
+  MACRO(Scissor) \
   MACRO(StencilFunc) \
   MACRO(StencilOp) \
   MACRO(StencilMask) \
+  MACRO(ClearColor) \
   MACRO(Color4f) \
   MACRO(TexGenfv) \
   MACRO(BindTexture) \

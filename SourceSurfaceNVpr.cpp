@@ -41,7 +41,7 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
       return;
     case FORMAT_A8:
       // TODO: Use use GL_RED and have a shader treat it as alpha.
-      internalFormat = GL_RGBA8; // Grrr. GL_ALPHA was deprecated in OpenGL 3.
+      internalFormat = GL_ALPHA;
       mGLFormat = GL_UNSIGNED_BYTE;
       mGLType = GL_ALPHA;
       mBytesPerPixel = 1;
@@ -128,8 +128,10 @@ SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& a
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
+  gl->DisableScissorTest();
+  gl->EnableColorWrites();
 
-  gl->BlitFramebuffer(0, surface->mSize.height, surface->mSize.width, 0,
+  gl->BlitFramebuffer(0, 0, surface->mSize.width, surface->mSize.height,
                       0, 0, surface->mSize.width, surface->mSize.height,
                       GL_COLOR_BUFFER_BIT, GL_NEAREST);
 

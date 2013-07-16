@@ -18,6 +18,7 @@ namespace gfx {
 class PathNVpr;
 
 namespace nvpr {
+class ScissorClip;
 class PlanesClip;
 class StencilClip;
 }
@@ -162,8 +163,9 @@ private:
   GLuint mFramebuffer;
   RefPtr<SourceSurface> mSnapshot;
   RefPtr<PathNVpr> mUnitSquarePath;
-  enum ClipType { PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };
+  enum ClipType { SCISSOR_CLIP_TYPE, PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };
   std::stack<ClipType> mClipTypeStack;
+  RefPtr<nvpr::ScissorClip> mTopScissorClip;
   RefPtr<nvpr::PlanesClip> mTopPlanesClip;
   RefPtr<nvpr::StencilClip> mTopStencilClip;
   nvpr::StencilClip* mPoppedStencilClips;
