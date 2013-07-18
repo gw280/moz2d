@@ -38,6 +38,14 @@ static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
     return CLSID_D2D12DAffineTransform;
   case FILTER_DISPLACEMENT_MAP:
     return CLSID_D2D1DisplacementMap;
+  case FILTER_TURBULENCE:
+    return CLSID_D2D1Turbulence;
+  case FILTER_ARITHMETIC_COMBINE:
+    return CLSID_D2D1ArithmeticComposite;
+  case FILTER_COMPOSITE:
+    return CLSID_D2D1Composite;
+  case FILTER_GAUSSIAN_BLUR:
+    return CLSID_D2D1GaussianBlur;
   }
   return GUID_NULL;
 }

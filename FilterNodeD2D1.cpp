@@ -44,6 +44,38 @@ D2D1_MORPHOLOGY_MODE D2DMorphologyMode(uint32_t aMode)
   return D2D1_MORPHOLOGY_MODE_DILATE;
 }
 
+D2D1_TURBULENCE_NOISE D2DTurbulenceNoise(uint32_t aMode)
+{
+  switch (aMode) {
+  case TURBULENCE_TYPE_FRACTAL_NOISE:
+    return D2D1_TURBULENCE_NOISE_FRACTAL_SUM;
+  case TURBULENCE_TYPE_TURBULENCE:
+    return D2D1_TURBULENCE_NOISE_TURBULENCE;
+  }
+
+  MOZ_NOT_REACHED("Unknown enum value!");
+  return D2D1_TURBULENCE_NOISE_TURBULENCE;
+}
+
+D2D1_COMPOSITE_MODE D2DFilterCompositionMode(uint32_t aMode)
+{
+  switch (aMode) {
+  case COMPOSITE_OPERATOR_OVER:
+    return D2D1_COMPOSITE_MODE_SOURCE_OVER;
+  case COMPOSITE_OPERATOR_IN:
+    return D2D1_COMPOSITE_MODE_SOURCE_IN;
+  case COMPOSITE_OPERATOR_OUT:
+    return D2D1_COMPOSITE_MODE_SOURCE_OUT;
+  case COMPOSITE_OPERATOR_ATOP:
+    return D2D1_COMPOSITE_MODE_SOURCE_ATOP;
+  case COMPOSITE_OPERATOR_XOR:
+    return D2D1_COMPOSITE_MODE_XOR;
+  }
+
+  MOZ_NOT_REACHED("Unknown enum value!");
+  return D2D1_COMPOSITE_MODE_SOURCE_OVER;
+}
+
 D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
 {
   switch (aMode) {
@@ -79,7 +111,19 @@ uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
         aAttribute == ATT_DISPLACEMENT_MAP_Y_CHANNEL) {
       aValue = D2DChannelSelector(aValue);
     }
+    break;
+  case FILTER_TURBULENCE:
+    if (aAttribute == ATT_TURBULENCE_TYPE) {
+      aValue = D2DTurbulenceNoise(aValue);
+    }
+    break;
+  case FILTER_COMPOSITE:
+    if (aAttribute == ATT_COMPOSITE_OPERATOR) {
+      aValue = D2DFilterCompositionMode(aValue);
+    }
+    break;
   }
+
   return aValue;
 }
 
@@ -210,6 +254,26 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
       CONVERT_PROP(DISPLACEMENT_MAP_X_CHANNEL, DISPLACEMENTMAP_PROP_X_CHANNEL_SELECT);
       CONVERT_PROP(DISPLACEMENT_MAP_Y_CHANNEL, DISPLACEMENTMAP_PROP_Y_CHANNEL_SELECT);
     }
+  case FILTER_TURBULENCE:
+    switch (aIndex) {
+      CONVERT_PROP(TURBULENCE_BASE_FREQUENCY, TURBULENCE_PROP_BASE_FREQUENCY);
+      CONVERT_PROP(TURBULENCE_NUM_OCTAVES, TURBULENCE_PROP_NUM_OCTAVES);
+      CONVERT_PROP(TURBULENCE_SEED, TURBULENCE_PROP_SEED);
+      CONVERT_PROP(TURBULENCE_STITCHABLE, TURBULENCE_PROP_STITCHABLE);
+      CONVERT_PROP(TURBULENCE_TYPE, TURBULENCE_PROP_NOISE);
+    }
+  case FILTER_ARITHMETIC_COMBINE:
+    switch (aIndex) {
+      CONVERT_PROP(ARITHMETIC_COMBINE_COEFFICIENTS, ARITHMETICCOMPOSITE_PROP_COEFFICIENTS);
+    }
+  case FILTER_COMPOSITE:
+    switch (aIndex) {
+      CONVERT_PROP(COMPOSITE_OPERATOR, COMPOSITE_PROP_MODE);
+    }
+  case FILTER_GAUSSIAN_BLUR:
+    switch (aIndex) {
+      CONVERT_PROP(GAUSSIAN_BLUR_STD_DEVIATION, GAUSSIANBLUR_PROP_STANDARD_DEVIATION);
+    }
   }
 
   return UINT32_MAX;
@@ -266,6 +330,11 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, uint32_t aValue)
 {
   UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
   MOZ_ASSERT(input < mEffect->GetPropertyCount());
+
+  if (mType == FILTER_TURBULENCE && aIndex == ATT_TURBULENCE_BASE_FREQUENCY) {
+    mEffect->SetValue(input, D2D1::Vector2F(FLOAT(aValue), FLOAT(aValue)));
+    return;
+  }
 
   mEffect->SetValue(input, ConvertValue(mType, aIndex, aValue));
 }

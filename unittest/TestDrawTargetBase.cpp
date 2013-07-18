@@ -45,6 +45,10 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, ConvolveMatrixWrap);
   REGISTER_TEST(TestDrawTargetBase, OffsetFilter);
   REGISTER_TEST(TestDrawTargetBase, DisplacementMap);
+  REGISTER_TEST(TestDrawTargetBase, Turbulence);
+  REGISTER_TEST(TestDrawTargetBase, ArithmeticCombine);
+  REGISTER_TEST(TestDrawTargetBase, Composite);
+  REGISTER_TEST(TestDrawTargetBase, GaussianBlur);
 }
 
 void
@@ -812,6 +816,163 @@ void
   RefreshSnapshot();
 
   VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Turbulence()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
+
+  filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, 10.0f);
+  filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, uint32_t(1));
+  filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
+  filter->SetAttribute(ATT_TURBULENCE_TYPE, uint32_t(TURBULENCE_TYPE_FRACTAL_NOISE));
+
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
+
+  Float avgR = 0;
+  Float avgG = 0;
+  Float avgB = 0;
+  Float avgA = 0;
+  for (int y = 0; y < DT_HEIGHT; y++) {
+    Float avgRRow = 0;
+    Float avgGRow = 0;
+    Float avgBRow = 0;
+    Float avgARow = 0;
+    for (int x = 0; x < DT_WIDTH; x++) {
+      Color currentColor = Color::FromABGR(colVal[(y * mDataSnapshot->Stride()) / 4 + x]);
+      avgRRow += currentColor.r;
+      avgGRow += currentColor.g;
+      avgBRow += currentColor.b;
+      avgARow += currentColor.a;
+    }
+    avgRRow /= Float(DT_WIDTH);
+    avgGRow /= Float(DT_WIDTH);
+    avgBRow /= Float(DT_WIDTH);
+    avgARow /= Float(DT_WIDTH);
+    avgR += avgRRow;
+    avgG += avgGRow;
+    avgB += avgBRow;
+    avgA += avgARow;
+  }
+
+  avgR /= Float(DT_HEIGHT);
+  avgG /= Float(DT_HEIGHT);
+  avgB /= Float(DT_HEIGHT);
+  avgA /= Float(DT_HEIGHT);
+
+  if (avgR < 0.2f || avgR > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average red value outside of expected range.");
+    return;
+  }
+  if (avgG < 0.2f || avgG > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average green value outside of expected range.");
+    return;
+  }
+  if (avgB < 0.2f || avgB > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average blue value outside of expected range.");
+    return;
+  }
+  if (avgA < 0.45f || avgA > 0.55f) {
+    mTestFailed = true;
+    LogMessage("Average alpha value outside of expected range.");
+    return;
+  }
+}
+
+void
+TestDrawTargetBase::ArithmeticCombine()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.25f, 0.5f, 0.25f, 1.0f)));
+  src = dt2->Snapshot();
+  filter->SetInput(1, src);
+
+  Float coeffs[4] = { 1.0f, 1.0f, -1.0f, 0.25f };
+
+
+  filter->SetAttribute(ATT_ARITHMETIC_COMBINE_COEFFICIENTS, coeffs, 4);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Composite()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt3 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 1.0f, 0, 0.5f)));
+  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.33f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  src = dt2->Snapshot();
+  filter->SetInput(1, src);
+  src = dt3->Snapshot();
+  filter->SetInput(2, src);
+
+  filter->SetAttribute(ATT_COMPOSITE_OPERATOR, uint32_t(COMPOSITE_OPERATOR_OVER));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::GaussianBlur()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 44.0f);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  // XXX - Find a more solid test for this.
+  VerifyPixel(IntPoint(250, 250), Color(0, 0.5f, 0, 1.0f));
+  VerifyPixel(IntPoint(0, 0), Color(0, 0, 0, 0));
 }
 
 void

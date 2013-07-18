@@ -270,10 +270,7 @@ enum TurbulenceType
 
 enum ArithmeticCombineAtts
 {
-  ATT_ARITHMETIC_COMBINE_K1 = 0,            // Float
-  ATT_ARITHMETIC_COMBINE_K2,                // Float
-  ATT_ARITHMETIC_COMBINE_K3,                // Float
-  ATT_ARITHMETIC_COMBINE_K4                 // Float
+  ATT_ARITHMETIC_COMBINE_COEFFICIENTS = 0   // Float[4]
 };
 
 enum ArithmeticCombineInputs

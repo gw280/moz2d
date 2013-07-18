@@ -51,6 +51,10 @@ public:
   void ConvolveMatrixWrap();
   void OffsetFilter();
   void DisplacementMap();
+  void Turbulence();
+  void ArithmeticCombine();
+  void Composite();
+  void GaussianBlur();
 
 protected:
   TestDrawTargetBase();
