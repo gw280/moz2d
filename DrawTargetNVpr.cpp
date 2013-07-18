@@ -15,6 +15,8 @@
 #include <sstream>
 #include <vector>
 
+static const size_t sMaxSnapshotTexturePoolSize = 2;
+
 using namespace mozilla::gfx::nvpr;
 using namespace std;
 
@@ -28,6 +30,25 @@ operator <<(ostream& aStream, const DrawTargetNVpr& aDrawTarget)
   return aStream;
 }
 
+class SnapshotNVpr : public SourceSurfaceNVpr {
+public:
+  SnapshotNVpr(WeakPtr<DrawTargetNVpr> aDrawTarget,
+               TemporaryRef<TextureObjectNVpr> aTexture)
+    : SourceSurfaceNVpr(aTexture)
+    , mDrawTarget(aDrawTarget)
+  {}
+
+  virtual ~SnapshotNVpr()
+  {
+    if (mDrawTarget) {
+      mDrawTarget->OnSnapshotDeleted(Texture());
+    }
+  }
+
+private:
+  WeakPtr<DrawTargetNVpr> mDrawTarget;
+};
+
 DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
                                bool& aSuccess)
   : mSize(aSize)
@@ -35,6 +56,7 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   , mColorBuffer(0)
   , mStencilBuffer(0)
   , mFramebuffer(0)
+  , mSnapshotTextureCount(0)
   , mPoppedStencilClips(nullptr)
   , mTransformId(0)
   , mStencilClipBits(0)
@@ -116,11 +138,49 @@ TemporaryRef<SourceSurface>
 DrawTargetNVpr::Snapshot()
 {
   if (!mSnapshot) {
+    RefPtr<TextureObjectNVpr> texture;
+    if (!mSnapshotTexturePool.empty()) {
+      texture = mSnapshotTexturePool.front();
+      mSnapshotTexturePool.pop_front();
+    } else {
+      texture = TextureObjectNVpr::Create(mFormat, mSize);
+      mSnapshotTextureCount++;
+    }
+
     gl->MakeCurrent();
+
     gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
-    mSnapshot = SourceSurfaceNVpr::CreateFromFramebuffer(mFormat, mSize);
+    gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *texture);
+    gl->DisableScissorTest();
+    gl->EnableColorWrites();
+
+    gl->BlitFramebuffer(0, 0, mSize.width, mSize.height,
+                        0, 0, mSize.width, mSize.height,
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    mSnapshot = new SnapshotNVpr(this->asWeakPtr(), texture.forget());
   }
+
   return mSnapshot;
+}
+void
+DrawTargetNVpr::OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture)
+{
+  if (mSnapshotTextureCount > sMaxSnapshotTexturePoolSize) {
+    mSnapshotTextureCount--;
+    return;
+  }
+
+  mSnapshotTexturePool.push_back(aTexture);
+}
+
+bool
+DrawTargetNVpr::BlitToForeignTexture(PlatformGLContext aForeignContext,
+                                     GLuint aForeignTextureId)
+{
+  Snapshot();
+  return gl->BlitTextureToForeignTexture(mSize, *mSnapshot,
+                                         aForeignContext, aForeignTextureId);
 }
 
 void
@@ -385,7 +445,7 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   {
     Matrix transform = GetTransform();
     transform.Scale(font->Size(), -font->Size());
-    GL::ScopedPushTransform pushTransform(transform);
+    GL::ScopedPushTransform pushTransform(gl, transform);
 
     struct Position {GLfloat x, y;};
     vector<GLuint> characters(aBuffer.mNumGlyphs);
@@ -550,8 +610,10 @@ DrawTargetNVpr::CreateSourceSurfaceFromData(unsigned char* aData,
                                             int32_t aStride,
                                             SurfaceFormat aFormat) const
 {
-  // TODO: Is alpha premultiplied?
-  return SourceSurfaceNVpr::CreateFromData(aFormat, aSize, aData, aStride);
+ RefPtr<TextureObjectNVpr> texture
+   = TextureObjectNVpr::Create(aFormat, aSize, aData, aStride);
+
+  return texture ? new SourceSurfaceNVpr(texture.forget()) : nullptr;
 }
 
 TemporaryRef<SourceSurface> 
@@ -562,8 +624,9 @@ DrawTargetNVpr::OptimizeSourceSurface(SourceSurface* aSurface) const
   }
 
   RefPtr<DataSourceSurface> data = aSurface->GetDataSurface();
-  // TODO: Is alpha premultiplied?
-  return SourceSurfaceNVpr::CreateFromData(data.get());
+  RefPtr<TextureObjectNVpr> texture = TextureObjectNVpr::Create(data);
+
+  return texture ? new SourceSurfaceNVpr(texture.forget()) : nullptr;
 }
 
 TemporaryRef<SourceSurface>

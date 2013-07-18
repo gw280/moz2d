@@ -9,6 +9,9 @@
 
 #include "2D.h"
 #include "nvpr/GL.h"
+#include <mozilla/RefPtr.h>
+#include <mozilla/WeakPtr.h>
+#include <deque>
 #include <string>
 #include <stack>
 
@@ -16,6 +19,8 @@ namespace mozilla {
 namespace gfx {
 
 class PathNVpr;
+class SourceSurfaceNVpr;
+class TextureObjectNVpr;
 
 namespace nvpr {
 class ScissorClip;
@@ -23,7 +28,9 @@ class PlanesClip;
 class StencilClip;
 }
 
-class DrawTargetNVpr : public DrawTarget
+class DrawTargetNVpr
+  : public DrawTarget
+  , public SupportsWeakPtr<DrawTargetNVpr>
 {
 public:
   static TemporaryRef<DrawTargetNVpr> Create(const IntSize& aSize,
@@ -37,8 +44,13 @@ public:
 
   virtual BackendType GetType() const { return BACKEND_NVPR; }
 
-  virtual TemporaryRef<SourceSurface> Snapshot();
   virtual IntSize GetSize() { return mSize; }
+
+  virtual TemporaryRef<SourceSurface> Snapshot();
+  void OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture);
+
+  bool BlitToForeignTexture(PlatformGLContext aForeignContext,
+                            GLuint aForeignTextureId);
 
   virtual void Flush() {}
 
@@ -161,7 +173,9 @@ private:
   GLuint mColorBuffer;
   GLuint mStencilBuffer;
   GLuint mFramebuffer;
-  RefPtr<SourceSurface> mSnapshot;
+  size_t mSnapshotTextureCount;
+  std::deque<RefPtr<TextureObjectNVpr> > mSnapshotTexturePool;
+  RefPtr<SourceSurfaceNVpr> mSnapshot;
   RefPtr<PathNVpr> mUnitSquarePath;
   enum ClipType { SCISSOR_CLIP_TYPE, PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };
   std::stack<ClipType> mClipTypeStack;

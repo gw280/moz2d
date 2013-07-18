@@ -22,6 +22,8 @@ namespace gfx {
 
 class ConvexPolygon;
 
+typedef void* PlatformGLContext;
+
 namespace nvpr {
 
 typedef uint64_t UniqueId;
@@ -35,9 +37,6 @@ struct UserData {
   std::unique_ptr<Object> mFonts;
 };
 
-class GL;
-extern GL* gl;
-
 class GL
 {
 public:
@@ -47,6 +46,10 @@ public:
 
   bool IsCurrent() const;
   void MakeCurrent() const;
+
+  bool BlitTextureToForeignTexture(const IntSize& aSize, GLuint aSourceTextureId,
+                                   PlatformGLContext aForeignContext,
+                                   GLuint aForeignTextureId);
 
   enum Extension {
     EXT_direct_state_access,
@@ -86,14 +89,17 @@ public:
 
   class ScopedPushTransform {
   public:
-    ScopedPushTransform(const Matrix& aTransform)
+    ScopedPushTransform(GL* aGL, const Matrix& aTransform)
+      : mGL(aGL)
     {
-      gl->PushTransform(aTransform);
+      mGL->PushTransform(aTransform);
     }
     ~ScopedPushTransform()
     {
-      gl->PopTransform();
+      mGL->PopTransform();
     }
+  private:
+    GL* mGL;
   };
 
   void EnableColorWrites();
@@ -304,6 +310,8 @@ private:
   GL(const GL&);
   GL& operator =(const GL&);
 };
+
+extern GL* gl;
 
 }
 }

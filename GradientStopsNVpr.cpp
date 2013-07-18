@@ -8,8 +8,8 @@
 #include "nvpr/GradientShaders.h"
 #include <vector>
 
-static const int MaxColorRampSize = 4096;
-static const size_t MaxRampTexturePoolSize = 4096;
+static const int sMaxColorRampSize = 4096;
+static const size_t sMaxRampTexturePoolSize = 32;
 
 using namespace mozilla::gfx::nvpr;
 using namespace std;
@@ -79,7 +79,7 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   vector<TextureColor>& ramp = rampData.mRampBuffer;
 
   if (ramp.empty()) {
-    ramp.resize(min(MaxColorRampSize, gl->MaxTextureSize()));
+    ramp.resize(min(sMaxColorRampSize, gl->MaxTextureSize()));
     rampData.mNumLevels = 0;
     for (size_t width = ramp.size(); width; width >>= 1) {
       rampData.mNumLevels++;
@@ -188,7 +188,7 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
 GradientStopsNVpr::~GradientStopsNVpr()
 {
   ColorRampData& rampData = RampData();
-  if (rampData.mTexturePool.size() < MaxRampTexturePoolSize) {
+  if (rampData.mTexturePool.size() < sMaxRampTexturePoolSize) {
     rampData.mTexturePool.push(mRampTextureId);
     return;
   }

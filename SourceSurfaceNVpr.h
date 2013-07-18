@@ -9,6 +9,7 @@
 
 #include "2D.h"
 #include "nvpr/GL.h"
+#include <mozilla/RefPtr.h>
 #include <mozilla/WeakPtr.h>
 #include <vector>
 
@@ -17,42 +18,33 @@ namespace gfx {
 
 class DataSourceSurfaceNVpr;
 
-class SourceSurfaceNVpr : public SourceSurface
+class TextureObjectNVpr : public RefCounted<TextureObjectNVpr>
 {
   friend class DataSourceSurfaceNVpr;
 
 public:
-  static TemporaryRef<SourceSurfaceNVpr>
-  CreateFromData(DataSourceSurface* aData);
+  static TemporaryRef<TextureObjectNVpr>
+  Create(DataSourceSurface* aData);
 
-  static TemporaryRef<SourceSurfaceNVpr>
-  CreateFromData(SurfaceFormat aFormat, const IntSize& aSize,
-                 const GLvoid* aData, GLsizei aStride = 0);
+  static TemporaryRef<TextureObjectNVpr>
+  Create(SurfaceFormat aFormat, const IntSize& aSize,
+         const GLvoid* aData = nullptr, GLsizei aStride = 0);
 
-  static TemporaryRef<SourceSurfaceNVpr>
-  CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& aSize);
+  ~TextureObjectNVpr();
 
-  ~SourceSurfaceNVpr();
-
+  SurfaceFormat Format() const { return mFormat; }
+  IntSize Size() const { return mSize; }
   GLsizei BytesPerPixel() const { return mBytesPerPixel; }
   operator GLuint() const { return mTextureId; }
 
   void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
                              SamplingBounds aSamplingBounds = SAMPLING_UNBOUNDED);
-
-  virtual SurfaceType GetType() const { return SURFACE_NVPR_TEXTURE; }
-  virtual IntSize GetSize() const { return mSize; }
-  virtual SurfaceFormat GetFormat() const { return mFormat; }
-
-  virtual TemporaryRef<DataSourceSurface> GetDataSurface();
-
-
-private:
-  SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize,
-                    bool& aSuccess);
-
   void WritePixels(const GLvoid* aData, GLsizei aStride = 0);
   void ReadPixels(GLvoid* aBuffer);
+
+private:
+  TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize,
+                    bool& aSuccess);
 
   const SurfaceFormat mFormat;
   const IntSize mSize;
@@ -63,21 +55,45 @@ private:
   Filter mFilter;
   ExtendMode mExtendMode;
   bool mHasMipmaps;
-  WeakPtr<DataSourceSurfaceNVpr> mDataSurface;
 };
 
+class SourceSurfaceNVpr : public SourceSurface {
+public:
+  SourceSurfaceNVpr(TemporaryRef<TextureObjectNVpr> aTexture)
+    : mTexture(aTexture)
+  {}
+
+  TextureObjectNVpr* Texture() const { return mTexture; }
+  operator GLuint() const { return *mTexture; }
+
+  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
+                             SamplingBounds aSamplingBounds = SAMPLING_UNBOUNDED)
+  {
+    mTexture->ApplyTexturingOptions(aFilter, aExtendMode, aSamplingBounds);
+  }
+
+  virtual SurfaceType GetType() const { return SURFACE_NVPR_TEXTURE; }
+  virtual SurfaceFormat GetFormat() const { return mTexture->Format(); }
+  virtual IntSize GetSize() const { return mTexture->Size(); }
+
+  virtual TemporaryRef<DataSourceSurface> GetDataSurface();
+
+private:
+  RefPtr<TextureObjectNVpr> mTexture;
+  WeakPtr<DataSourceSurfaceNVpr> mDataSurface;
+};
 
 class DataSourceSurfaceNVpr
   : public DataSourceSurface
   , public SupportsWeakPtr<DataSourceSurfaceNVpr>
 {
 public:
-  DataSourceSurfaceNVpr(TemporaryRef<SourceSurfaceNVpr> aSourceSurface)
-    : mSourceSurface(aSourceSurface)
+  DataSourceSurfaceNVpr(TemporaryRef<TextureObjectNVpr> aTexture)
+    : mTexture(aTexture)
   {}
 
-  virtual IntSize GetSize() const { return mSourceSurface->GetSize(); }
-  virtual SurfaceFormat GetFormat() const { return mSourceSurface->GetFormat(); }
+  virtual IntSize GetSize() const { return mTexture->Size(); }
+  virtual SurfaceFormat GetFormat() const { return mTexture->Format(); }
 
   virtual unsigned char* GetData();
   virtual int32_t Stride();
@@ -85,7 +101,7 @@ public:
   virtual void MarkDirty();
 
 private:
-  RefPtr<SourceSurfaceNVpr> mSourceSurface;
+  RefPtr<TextureObjectNVpr> mTexture;
   std::vector<GLubyte> mShadowBuffer;
 };
 

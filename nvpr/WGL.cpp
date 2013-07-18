@@ -8,6 +8,13 @@
 
 #include "Logging.h"
 #include <Windows.h>
+#include "GL/wglext.h"
+#include <iterator>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+using namespace std;
 
 namespace mozilla {
 namespace gfx {
@@ -30,9 +37,27 @@ struct GL::PlatformContextData {
 
 #undef DECLARE_GLX_METHOD
 
+  PFNWGLGETEXTENSIONSSTRINGARBPROC GetExtensionsStringARB;
+  PFNWGLCOPYIMAGESUBDATANVPROC CopyImageSubDataNV;
+
   HDC mDC;
   HGLRC mGLContext;
   HMODULE mGLLibrary;
+
+  template<typename T> void LoadProcAddress(T& aPtr, const char* aName)
+  {
+    PROC ptr = GetProcAddress(aName);
+    if (!ptr) {
+      // The GL 1.1 functions have to be loaded directly from the dll.
+      ptr = ::GetProcAddress(mGLLibrary, aName);
+    }
+    if (!ptr) {
+      gfxWarning() << "Failed to load GL function " << aName << ".";
+      aPtr = nullptr;
+      return;
+    }
+    aPtr = reinterpret_cast<T>(ptr);
+  }
 };
 
 bool
@@ -49,6 +74,7 @@ GL::InitGLContext()
 #define LOAD_WGL_METHOD(NAME) \
   ctx.NAME = reinterpret_cast<decltype(ctx.NAME)>(::GetProcAddress(ctx.mGLLibrary, "wgl"#NAME)); \
   if (!ctx.NAME) { \
+    gfxWarning() << "Failed to find WGL function " #NAME "."; \
     return false; \
   }
   FOR_ALL_WGL_ENTRY_POINTS(LOAD_WGL_METHOD);
@@ -108,12 +134,31 @@ GL::InitGLContext()
 
   ctx.MakeCurrent(ctx.mDC, ctx.mGLContext);
 
+  ctx.LoadProcAddress(ctx.GetExtensionsStringARB, "wglGetExtensionsStringARB");
+  if (!ctx.GetExtensionsStringARB) {
+    return false;
+  }
+
+  stringstream extensions(ctx.GetExtensionsStringARB(ctx.mDC));
+  istream_iterator<string> iter(extensions);
+  istream_iterator<string> end;
+
+  ctx.CopyImageSubDataNV = nullptr;
+
+  for (; iter != end; iter++) {
+    const string& extension = *iter;
+
+    if (*iter == "WGL_NV_copy_image") {
+      ctx.LoadProcAddress(ctx.CopyImageSubDataNV, "wglCopyImageSubDataNV");
+      break;
+    }
+  }
+
 #define LOAD_GL_METHOD(NAME) \
   NAME = reinterpret_cast<decltype(NAME)>(ctx.GetProcAddress("gl"#NAME)); \
   if (!NAME) { \
-    NAME = reinterpret_cast<decltype(NAME)>(::GetProcAddress(ctx.mGLLibrary, "gl"#NAME)); \
+    ctx.LoadProcAddress(NAME, "gl"#NAME); \
     if (!NAME) { \
-    gfxWarning() << "Failed to find function " #NAME "."; \
       return false; \
     } \
   }
@@ -153,6 +198,24 @@ void GL::MakeCurrent() const
   }
 
   ctx.MakeCurrent(ctx.mDC, ctx.mGLContext);
+}
+
+bool
+GL::BlitTextureToForeignTexture(const IntSize& aSize, GLuint aSourceTextureId,
+                                PlatformGLContext aForeignContext,
+                                GLuint aForeignTextureId)
+{
+  PlatformContextData& ctx = *mContextData;
+
+  if (!ctx.CopyImageSubDataNV) {
+    return false;
+  }
+
+  ctx.CopyImageSubDataNV(ctx.mGLContext, aSourceTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
+                         static_cast<HGLRC>(aForeignContext), aForeignTextureId,
+                         GL_TEXTURE_2D, 0, 0, 0, 0, aSize.width, aSize.height, 1);
+
+  return true;
 }
 
 }

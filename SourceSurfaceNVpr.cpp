@@ -12,7 +12,7 @@ using namespace std;
 namespace mozilla {
 namespace gfx {
 
-SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize,
+TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize,
                                      bool& aSuccess)
   : mFormat(aFormat)
   , mSize(aSize)
@@ -40,7 +40,6 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
     default:
       return;
     case FORMAT_A8:
-      // TODO: Use use GL_RED and have a shader treat it as alpha.
       internalFormat = GL_ALPHA;
       mGLFormat = GL_UNSIGNED_BYTE;
       mGLType = GL_ALPHA;
@@ -93,59 +92,39 @@ SourceSurfaceNVpr::SourceSurfaceNVpr(SurfaceFormat aFormat, const IntSize& aSize
   aSuccess = true;
 }
 
-TemporaryRef<SourceSurfaceNVpr>
-SourceSurfaceNVpr::CreateFromData(DataSourceSurface* aData)
+TemporaryRef<TextureObjectNVpr>
+TextureObjectNVpr::Create(DataSourceSurface* aData)
 {
-  return CreateFromData(aData->GetFormat(), aData->GetSize(),
-                        aData->GetData(), aData->Stride());
+  return Create(aData->GetFormat(), aData->GetSize(), aData->GetData(),
+                aData->Stride());
 }
 
-TemporaryRef<SourceSurfaceNVpr>
-SourceSurfaceNVpr::CreateFromData(SurfaceFormat aFormat, const IntSize& aSize,
-                                  const GLvoid* aData, GLsizei aStride)
+TemporaryRef<TextureObjectNVpr>
+TextureObjectNVpr::Create(SurfaceFormat aFormat, const IntSize& aSize,
+                          const GLvoid* aData, GLsizei aStride)
 {
   bool success;
-  RefPtr<SourceSurfaceNVpr> surface
-   = new SourceSurfaceNVpr(aFormat, aSize, success);
+  RefPtr<TextureObjectNVpr> surface
+    = new TextureObjectNVpr(aFormat, aSize, success);
   if (!success) {
    return nullptr;
   }
 
-  surface->WritePixels(aData, aStride);
-
-  return surface.forget();
-}
-
-TemporaryRef<SourceSurfaceNVpr>
-SourceSurfaceNVpr::CreateFromFramebuffer(SurfaceFormat aFormat, const IntSize& aSize)
-{
-  bool success;
-  RefPtr<SourceSurfaceNVpr> surface = new SourceSurfaceNVpr(aFormat, aSize, success);
-  if (!success) {
-   return nullptr;
+  if (aData) {
+    surface->WritePixels(aData, aStride);
   }
 
-  MOZ_ASSERT(gl->IsCurrent());
-
-  gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
-  gl->DisableScissorTest();
-  gl->EnableColorWrites();
-
-  gl->BlitFramebuffer(0, 0, surface->mSize.width, surface->mSize.height,
-                      0, 0, surface->mSize.width, surface->mSize.height,
-                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
   return surface.forget();
 }
 
-SourceSurfaceNVpr::~SourceSurfaceNVpr()
+TextureObjectNVpr::~TextureObjectNVpr()
 {
   gl->MakeCurrent();
   gl->DeleteTexture(mTextureId);
 }
 
 void
-SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
+TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
                                          SamplingBounds aSamplingBounds)
 {
   MOZ_ASSERT(gl->IsCurrent());
@@ -216,7 +195,7 @@ SourceSurfaceNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
 }
 
 void
-SourceSurfaceNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
+TextureObjectNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
 {
   const GLsizei bytesPerRow = mSize.width * mBytesPerPixel;
   const GLubyte* pixelData = static_cast<const GLubyte*>(aData);
@@ -248,7 +227,7 @@ SourceSurfaceNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
 }
 
 void
-SourceSurfaceNVpr::ReadPixels(GLvoid* aBuffer)
+TextureObjectNVpr::ReadPixels(GLvoid* aBuffer)
 {
   gl->MakeCurrent();
   gl->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -258,10 +237,11 @@ SourceSurfaceNVpr::ReadPixels(GLvoid* aBuffer)
 TemporaryRef<DataSourceSurface>
 SourceSurfaceNVpr::GetDataSurface()
 {
-  if (mDataSurface)
+  if (mDataSurface) {
     return mDataSurface.get();
+  }
 
-  RefPtr<DataSourceSurfaceNVpr> dataSurface = new DataSourceSurfaceNVpr(this);
+  RefPtr<DataSourceSurfaceNVpr> dataSurface = new DataSourceSurfaceNVpr(mTexture);
   mDataSurface = dataSurface->asWeakPtr();
 
   return dataSurface.forget();
@@ -271,8 +251,8 @@ unsigned char*
 DataSourceSurfaceNVpr::GetData()
 {
   if (mShadowBuffer.empty()) {
-    mShadowBuffer.resize(mSourceSurface->GetSize().height * Stride());
-    mSourceSurface->ReadPixels(mShadowBuffer.data());
+    mShadowBuffer.resize(mTexture->Size().height * Stride());
+    mTexture->ReadPixels(mShadowBuffer.data());
   }
 
   return mShadowBuffer.data();
@@ -281,7 +261,7 @@ DataSourceSurfaceNVpr::GetData()
 int32_t
 DataSourceSurfaceNVpr::Stride()
 {
-  return mSourceSurface->GetSize().width * mSourceSurface->BytesPerPixel();
+  return mTexture->BytesPerPixel() * mTexture->Size().width;
 }
 
 void
@@ -291,7 +271,7 @@ DataSourceSurfaceNVpr::MarkDirty()
     return;
   }
 
-  mSourceSurface->WritePixels(mShadowBuffer.data());
+  mTexture->WritePixels(mShadowBuffer.data());
 }
 
 }

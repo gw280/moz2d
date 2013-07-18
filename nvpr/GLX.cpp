@@ -5,8 +5,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "GL.h"
+#include "Logging.h"
 #include <dlfcn.h>
 #include <GL/glx.h>
+#include <GL/glxext.h>
+#include <iterator>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+using namespace std;
 
 #define FOR_ALL_GLX_ENTRY_POINTS(MACRO) \
   MACRO(ChooseFBConfig) \
@@ -17,7 +25,8 @@
   MACRO(DestroyContext) \
   MACRO(GetProcAddress) \
   MACRO(GetCurrentContext) \
-  MACRO(MakeCurrent)
+  MACRO(MakeCurrent) \
+  MACRO(QueryExtensionsString)
 
 namespace mozilla {
 namespace gfx {
@@ -33,10 +42,23 @@ struct GL::PlatformContextData {
 
 #undef DECLARE_GLX_METHOD
 
+  PFNGLXCOPYIMAGESUBDATANVPROC CopyImageSubDataNV;
+
   Display* mDisplay;
   Pixmap mPixmap;
   GLXPixmap mGLXPixmap;
   GLXContext mContext;
+
+  template<typename T> void LoadProcAddress(T& aPtr, const char* aName)
+  {
+    void (*ptr)() = GetProcAddress(reinterpret_cast<const GLubyte*>(aName));
+    if (!ptr) {
+      gfxWarning() << "Failed to load GL function " << aName << ".";
+      aPtr = nullptr;
+      return;
+    }
+    aPtr = reinterpret_cast<T>(ptr);
+  }
 };
 
 bool
@@ -53,6 +75,7 @@ GL::InitGLContext()
 #define LOAD_GLX_METHOD(NAME) \
   ctx.NAME = reinterpret_cast<decltype(ctx.NAME)>(dlsym(ctx.mLibGL, "glX"#NAME)); \
   if (!ctx.NAME) { \
+    gfxWarning() << "Failed to find GLX function " #NAME "."; \
     return false; \
   }
 
@@ -63,8 +86,8 @@ GL::InitGLContext()
   ctx.mDisplay = XOpenDisplay(0);
 
   int nelements;
-  GLXFBConfig *fbc = ctx.ChooseFBConfig(ctx.mDisplay, DefaultScreen(ctx.mDisplay),
-                                        0, &nelements);
+  int screen = DefaultScreen(ctx.mDisplay);
+  GLXFBConfig *fbc = ctx.ChooseFBConfig(ctx.mDisplay, screen, 0, &nelements);
   XVisualInfo *vi = ctx.GetVisualFromFBConfig(ctx.mDisplay, fbc[0]);
 
   ctx.mPixmap = XCreatePixmap(ctx.mDisplay, RootWindow(ctx.mDisplay, vi->screen),
@@ -75,8 +98,23 @@ GL::InitGLContext()
 
   MakeCurrent();
 
+  stringstream extensions(ctx.QueryExtensionsString(ctx.mDisplay, screen));
+  istream_iterator<string> iter(extensions);
+  istream_iterator<string> end;
+
+  ctx.CopyImageSubDataNV = nullptr;
+
+  for (; iter != end; iter++) {
+    const string& extension = *iter;
+
+    if (*iter == "GLX_NV_copy_image") {
+      ctx.LoadProcAddress(ctx.CopyImageSubDataNV, "glXCopyImageSubDataNV");
+      break;
+    }
+  }
+
 #define LOAD_GL_METHOD(NAME) \
-  NAME = reinterpret_cast<decltype(NAME)>(ctx.GetProcAddress(reinterpret_cast<const GLubyte*>("gl"#NAME))); \
+  ctx.LoadProcAddress(NAME, "gl"#NAME); \
   if (!NAME) { \
     return false; \
   }
@@ -134,6 +172,26 @@ GL::MakeCurrent() const
   }
 
   ctx.MakeCurrent(ctx.mDisplay, ctx.mGLXPixmap, ctx.mContext);
+}
+
+bool
+GL::BlitTextureToForeignTexture(const IntSize& aSize, GLuint aSourceTextureId,
+                                PlatformGLContext aForeignContext,
+                                GLuint aForeignTextureId)
+{
+  PlatformContextData& ctx = *mContextData;
+
+  if (!ctx.CopyImageSubDataNV) {
+    return false;
+  }
+
+  ctx.CopyImageSubDataNV(ctx.mDisplay, ctx.mContext, aSourceTextureId,
+                         GL_TEXTURE_2D, 0, 0, 0, 0,
+                         static_cast<GLXContext>(aForeignContext),
+                         aForeignTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
+                         aSize.width, aSize.height, 1);
+
+  return true;
 }
 
 }
