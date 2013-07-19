@@ -818,7 +818,7 @@ public:
   }
 
   RecordedScaledFontCreation(ReferencePtr aRefPtr, ScaledFont *aScaledFont)
-    : RecordedEvent(SCALEDFONTCREATION), mRefPtr(aRefPtr), mData(NULL)
+    : RecordedEvent(SCALEDFONTCREATION), mRefPtr(aRefPtr), mData(nullptr)
   {
     aScaledFont->GetFontFileData(&FontDataProc, this);
   }

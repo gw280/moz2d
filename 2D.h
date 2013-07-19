@@ -695,7 +695,7 @@ public:
                           const GlyphBuffer &aBuffer,
                           const Pattern &aPattern,
                           const DrawOptions &aOptions = DrawOptions(),
-                          const GlyphRenderingOptions *aRenderingOptions = NULL) = 0;
+                          const GlyphRenderingOptions *aRenderingOptions = nullptr) = 0;
 
   /*
    * This takes a source pattern and a mask, and composites the source pattern
@@ -830,7 +830,7 @@ public:
   /* Tries to get a native surface for a DrawTarget, this may fail if the
    * draw target cannot convert to this surface type.
    */
-  virtual void *GetNativeSurface(NativeSurfaceType aType) { return NULL; }
+  virtual void *GetNativeSurface(NativeSurfaceType aType) { return nullptr; }
 
   void AddUserData(UserDataKey *key, void *userData, void (*destroy)(void*)) {
     mUserData.Add(key, userData, destroy);
