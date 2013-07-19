@@ -1,95 +1,179 @@
 #include "RawTranslator.h"
+#include <map>
+#include <vector>
 
 using namespace mozilla;
 using namespace mozilla::gfx;
 using namespace std;
 
-DrawTarget*
-RawTranslator::LookupDrawTarget(ReferencePtr aRefPtr)
-{
-  DTMap::iterator iter = mDrawTargets.find(aRefPtr);
+enum RetainBehavior { RETAIN, NO_RETAIN };
 
-  if (iter != mDrawTargets.end()) {
-    return iter->second;
+template<RetainBehavior RetainDrawTargets, RetainBehavior RetainPaths,
+         RetainBehavior RetainSourceSurfaces, RetainBehavior RetainGradientStops>
+class RawTranslatorImpl : public RawTranslator
+{
+public:
+  RawTranslatorImpl(DrawTarget *aBaseDT)
+    : RawTranslator(aBaseDT)
+  {}
+
+private:
+  template<typename T> inline T
+  *LookupObject(map<void*, RefPtr<T> > &aMap, ReferencePtr aRefPtr)
+  {
+    typedef typename std::map<void*, RefPtr<T> > MapType;
+    typename MapType::iterator iter = aMap.find(aRefPtr);
+    return (iter != aMap.end()) ? iter->second : NULL;
   }
 
-  return NULL;
-}
-
-Path*
-RawTranslator::LookupPath(ReferencePtr aRefPtr)
-{
-  PathMap::iterator iter = mPaths.find(aRefPtr);
-
-  if (iter != mPaths.end()) {
-    return iter->second;
+  template<typename T> inline void
+  AddObject(map<void*, RefPtr<T> > &aMap, ReferencePtr aRefPtr, T *aObject)
+  {
+    aMap[aRefPtr] = aObject;
   }
 
-  return NULL;
-}
-
-SourceSurface*
-RawTranslator::LookupSourceSurface(ReferencePtr aRefPtr)
-{
-  SourceSurfaceMap::iterator iter = mSourceSurfaces.find(aRefPtr);
-
-  if (iter != mSourceSurfaces.end()) {
-    return iter->second;
+  template<typename T> inline void
+  RemoveObject(map<void*, RefPtr<T> > &aMap, ReferencePtr aRefPtr)
+  {
+    aMap.erase(aRefPtr);
   }
 
-  return NULL;
-}
+  template<typename T> struct RetainedObject {
+    uint32_t startEvent;
+    RefPtr<T> object;
+  };
 
-GradientStops*
-RawTranslator::LookupGradientStops(ReferencePtr aRefPtr)
-{
-  GradientStopsMap::iterator iter = mGradientStops.find(aRefPtr);
+  template<typename T> inline T
+  *LookupObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr)
+  {
+    typedef typename std::map<void*, vector<RetainedObject<T> > > MapType;
+    typename MapType::iterator iter = aMap.find(aRefPtr);
+    if (iter == aMap.end()) {
+      return NULL;
+    }
 
-  if (iter != mGradientStops.end()) {
-    return iter->second;
-  }
+    const vector<RetainedObject<T> > &retainedObjects = iter->second;
+    if (retainedObjects.front().startEvent > mEventNumber) {
+      return NULL;
+    }
 
-  return NULL;
-}
-
-void
-RawTranslator::AddScaledFont(mozilla::gfx::ReferencePtr aRefPtr, ScaledFont *aFont)
-{
-  ScaledFontMap::iterator iter = mScaledFonts.find(aRefPtr);
-
-  StoredScaledFont newFont;
-  newFont.startEvent = mEventNumber;
-  newFont.scaledFont = aFont;
-
-  if (iter != mScaledFonts.end()) {
-    vector<StoredScaledFont> fonts;
-    fonts.push_back(newFont);
-    mScaledFonts[aRefPtr] = fonts;
-  } else {
-    mScaledFonts[aRefPtr].push_back(newFont);
-  }
-}
-
-void
-RawTranslator::RemoveScaledFont(mozilla::gfx::ReferencePtr aRefPtr)
-{
-  mScaledFonts[aRefPtr][mScaledFonts[aRefPtr].size() - 1].endEvent = mEventNumber;
-}
-
-ScaledFont*
-RawTranslator::LookupScaledFont(ReferencePtr aRefPtr)
-{
-  ScaledFontMap::iterator iter = mScaledFonts.find(aRefPtr);
-
-  if (iter != mScaledFonts.end()) {
-    for (int i = 0; i < iter->second.size(); i++) {
-      if (iter->second[i].startEvent < mEventNumber &&
-          iter->second[i].endEvent > mEventNumber) {
-        return iter->second[i].scaledFont;
+    size_t left = 0, right = retainedObjects.size();
+    while (left + 1 != right) {
+      size_t mid = (left + right) / 2;
+      if (retainedObjects[mid].startEvent <= mEventNumber) {
+        left = mid;
+      } else {
+        right = mid;
       }
     }
+
+    return retainedObjects[left].object;
   }
 
+  template<typename T> inline void
+  AddObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr, T *aObject)
+  {
+    RetainedObject<T> retainedObject = {mEventNumber, aObject};
+    vector<RetainedObject<T> > &retainedObjects = aMap[aRefPtr];
+    if (!retainedObjects.empty() &&
+        retainedObjects.back().startEvent >= retainedObject.startEvent)
+    {
+      printf("Attempted to insert a retained object out of order. Aborting.\n");
+      exit(-1);
+    }
+    retainedObjects.push_back(retainedObject);
+  }
+
+  template<typename T> inline void
+  RemoveObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr)
+  {
+    printf("Attempted to remove a retained object. Aborting.\n");
+    exit(-1);
+  }
+
+  // Translator
+  virtual DrawTarget *LookupDrawTarget(ReferencePtr aRefPtr) { return LookupObject(mDrawTargets, aRefPtr); }
+  virtual Path *LookupPath(ReferencePtr aRefPtr) { return LookupObject(mPaths, aRefPtr); }
+  virtual SourceSurface *LookupSourceSurface(ReferencePtr aRefPtr) { return LookupObject(mSourceSurfaces, aRefPtr); }
+  virtual GradientStops *LookupGradientStops(ReferencePtr aRefPtr) { return LookupObject(mGradientStops, aRefPtr); }
+  virtual ScaledFont *LookupScaledFont(ReferencePtr aRefPtr) { return LookupObject(mScaledFonts, aRefPtr); }
+  virtual void AddDrawTarget(ReferencePtr aRefPtr, DrawTarget *aDT) { AddObject(mDrawTargets, aRefPtr, aDT); }
+  virtual void AddPath(ReferencePtr aRefPtr, Path *aPath) { AddObject(mPaths, aRefPtr, aPath); }
+  virtual void AddSourceSurface(ReferencePtr aRefPtr, SourceSurface *aSurface) { AddObject(mSourceSurfaces, aRefPtr, aSurface); }
+  virtual void AddGradientStops(ReferencePtr aRefPtr, GradientStops *aStops) { AddObject(mGradientStops, aRefPtr, aStops); }
+  virtual void AddScaledFont(ReferencePtr aRefPtr, ScaledFont *aScaledFont) { AddObject(mScaledFonts, aRefPtr, aScaledFont); }
+  virtual void RemoveDrawTarget(ReferencePtr aRefPtr) { RemoveObject(mDrawTargets, aRefPtr); }
+  virtual void RemovePath(ReferencePtr aRefPtr) { RemoveObject(mPaths, aRefPtr); }
+  virtual void RemoveSourceSurface(ReferencePtr aRefPtr) { RemoveObject(mSourceSurfaces, aRefPtr); }
+  virtual void RemoveGradientStops(ReferencePtr aRefPtr) { RemoveObject(mGradientStops, aRefPtr); }
+  virtual void RemoveScaledFont(ReferencePtr aRefPtr) { RemoveObject(mScaledFonts, aRefPtr); }
+
+private:
+  template<typename T, RetainBehavior> struct MapType {
+    typedef map<void*, RefPtr<T> > Type;
+  };
+  template<typename T> struct MapType<T, RETAIN> {
+    typedef map<void*, vector<RetainedObject<T> > > Type;
+  };
+  typename MapType<DrawTarget, RetainDrawTargets>::Type mDrawTargets;
+  typename MapType<Path, RetainPaths>::Type mPaths;
+  typename MapType<SourceSurface, RetainSourceSurfaces>::Type mSourceSurfaces;
+  typename MapType<GradientStops, RetainGradientStops>::Type mGradientStops;
+  typename MapType<ScaledFont, RETAIN>::Type mScaledFonts;
+};
+
+RawTranslator
+*RawTranslator::Create(DrawTarget *aBaseDT, bool aRetainDrawTargets, bool aRetainPaths,
+                       bool aRetainSourceSurfaces, bool aRetainGradientStops)
+{
+  if (!aRetainDrawTargets && !aRetainPaths && !aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, NO_RETAIN, NO_RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && !aRetainPaths && !aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, NO_RETAIN, NO_RETAIN, RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && !aRetainPaths && aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, NO_RETAIN, RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && !aRetainPaths && aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, NO_RETAIN, RETAIN, RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && aRetainPaths && !aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, RETAIN, NO_RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && aRetainPaths && !aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, RETAIN, NO_RETAIN, RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && aRetainPaths && aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, RETAIN, RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (!aRetainDrawTargets && aRetainPaths && aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<NO_RETAIN, RETAIN, RETAIN, RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && !aRetainPaths && !aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, NO_RETAIN, NO_RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && !aRetainPaths && !aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, NO_RETAIN, NO_RETAIN, RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && !aRetainPaths && aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, NO_RETAIN, RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && !aRetainPaths && aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, NO_RETAIN, RETAIN, RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && aRetainPaths && !aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, RETAIN, NO_RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && aRetainPaths && !aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, RETAIN, NO_RETAIN, RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && aRetainPaths && aRetainSourceSurfaces && !aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, RETAIN, RETAIN, NO_RETAIN>(aBaseDT);
+  }
+  if (aRetainDrawTargets && aRetainPaths && aRetainSourceSurfaces && aRetainGradientStops) {
+    return new RawTranslatorImpl<RETAIN, RETAIN, RETAIN, RETAIN>(aBaseDT);
+  }
   return NULL;
 }
 

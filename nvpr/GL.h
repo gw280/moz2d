@@ -217,9 +217,6 @@ private:
   MACRO(GetUniformLocation) \
   MACRO(Uniform1f) \
   MACRO(Uniform2f) \
-  MACRO(Begin) \
-  MACRO(Vertex2f) \
-  MACRO(End) \
   MACRO(GenRenderbuffers) \
   MACRO(DeleteRenderbuffers) \
   MACRO(Clear) \
@@ -234,6 +231,9 @@ private:
   MACRO(DeleteFramebuffers) \
   MACRO(PixelStorei) \
   MACRO(ClipPlane) \
+  MACRO(GetString) \
+  MACRO(Flush) \
+  MACRO(Finish) \
   MACRO(TextureStorage1DEXT) \
   MACRO(TextureSubImage1DEXT) \
   MACRO(GenerateTextureMipmapEXT) \
@@ -262,8 +262,7 @@ private:
   MACRO(TransformPathNV) \
   MACRO(GetPathParameterivNV) \
   MACRO(GetPathCommandsNV) \
-  MACRO(GetPathCoordsNV) \
-  MACRO(GetString)
+  MACRO(GetPathCoordsNV)
 
 #define FOR_ALL_PRIVATE_GL_ENTRY_POINTS(MACRO) \
   MACRO(DeleteTextures) \

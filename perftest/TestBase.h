@@ -51,7 +51,7 @@ public:
 
     long seconds = end.tv_sec - mStart.tv_sec;
     long useconds = end.tv_usec - mStart.tv_usec;
-    long mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    double mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
     return mtime;
 #endif
   }

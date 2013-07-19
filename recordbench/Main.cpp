@@ -5,11 +5,15 @@
 #ifdef WIN32
 #include <d3d10_1.h>
 #endif
+#if USE_NVPR
+#include "nvpr/GL.h"
+#endif
 #include "2D.h"
 #include "RecordedEvent.h"
 #include "RawTranslator.h"
 #include "perftest/TestBase.h"
 
+#include <map>
 #include <string>
 
 using namespace mozilla;
@@ -18,12 +22,17 @@ using namespace std;
 
 BackendType sTestedBackends[] =
 {
-  BACKEND_DIRECT2D
-#ifdef USE_SKIA
-  , BACKEND_SKIA
+#ifdef WIN32
+  BACKEND_DIRECT2D,
 #endif
 #ifdef USE_NVPR
-  , BACKEND_NVPR
+  BACKEND_NVPR,
+#endif
+#ifdef USE_SKIA
+  BACKEND_SKIA,
+#endif
+#ifdef USE_CAIRO
+  BACKEND_CAIRO,
 #endif
 };
 
@@ -38,13 +47,76 @@ GetBackendName(BackendType aType)
   case BACKEND_CAIRO:
     return "Cairo";
   case BACKEND_NVPR:
-    return "NVidia Path Rendering";
+    return "NVpr";
   default:
     return "Unknown";
   }
 }
 
-const int sN = 10;
+void
+FinishDrawing(DrawTarget* aDT)
+{
+#ifdef WIN32
+  if (aDT->GetType() == BACKEND_DIRECT2D) {
+    aDT->Flush();
+
+    RefPtr<ID3D10Query> query;
+    D3D10_QUERY_DESC desc;
+    desc.Query = D3D10_QUERY_EVENT;
+    desc.MiscFlags = 0;
+    Factory::GetDirect3D10Device()->CreateQuery(&desc, byRef(query));
+    query->End();
+    while (query->GetData(nullptr, 0, 0) == S_FALSE) {}
+    return;
+  }
+#endif
+#if USE_NVPR
+  if (aDT->GetType() == BACKEND_NVPR) {
+    using nvpr::gl;
+    gl->MakeCurrent();
+    gl->Finish();
+    return;
+  }
+#endif
+}
+
+class SyntheticDrawTargetReset : public RecordedEvent {
+public:
+  SyntheticDrawTargetReset(ReferencePtr aDrawTargetId)
+    : RecordedEvent(-1)
+    , mDrawTargetId(aDrawTargetId)
+    , mEndClipDepth(0)
+  {}
+
+  virtual ReferencePtr GetObject() const { return mDrawTargetId; }
+  virtual string GetName() const { return "Synthetic DrawTarget Reset"; }
+
+  void AdjustEndClipDepth(int aDelta) { mEndClipDepth += aDelta; }
+
+  virtual void PlayEvent(Translator *aTranslator) const
+  {
+    DrawTarget* drawTarget = aTranslator->LookupDrawTarget(mDrawTargetId);
+    IntSize size = drawTarget->GetSize();
+    for (size_t i = 0; i < mEndClipDepth; i++) {
+      drawTarget->PopClip();
+    }
+    drawTarget->SetTransform(Matrix());
+    drawTarget->ClearRect(Rect(0, 0, size.width, size.height));
+  }
+
+private:
+  virtual void RecordToStream(std::ostream &aStream) const {}
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const {}
+
+  ReferencePtr mDrawTargetId;
+  size_t mEndClipDepth;
+};
+
+static int sN = 10;
+static bool sRetainDrawTargets;
+static bool sRetainPaths;
+static bool sRetainSourceSurfaces;
+static bool sRetainGradientStops;
 
 int
 main(int argc, char *argv[], char *envp[])
@@ -54,17 +126,40 @@ main(int argc, char *argv[], char *envp[])
     return 1;
   }
 
+  for (int i = 1; i < argc - 1; i++) {
+    if (sscanf(argv[i], "--n=%i", &sN)) {
+      continue;
+    }
+    if (!strcmp(argv[i], "--retain-draw-targets")) {
+      sRetainDrawTargets = true;
+      continue;
+    }
+    if (!strcmp(argv[i], "--retain-paths")) {
+      sRetainPaths = true;
+      continue;
+    }
+    if (!strcmp(argv[i], "--retain-source-surfaces")) {
+      sRetainSourceSurfaces = true;
+      continue;
+    }
+    if (!strcmp(argv[i], "--retain-gradient-stops")) {
+      sRetainGradientStops = true;
+      continue;
+    }
+  }
+
   struct EventWithID {
     RecordedEvent* recordedEvent;
     uint32_t eventID;
   };
 
   vector<EventWithID > drawingEvents;
-  vector<EventWithID > fontCreations;
+  vector<EventWithID > retainedObjectCreations;
+  map<ReferencePtr, SyntheticDrawTargetReset*> drawTargetResets;
 
   ifstream inputFile;
 
-  inputFile.open(argv[1], istream::in | istream::binary);
+  inputFile.open(argv[argc - 1], istream::in | istream::binary);
 
   inputFile.seekg(0, ios::end);
   int length = inputFile.tellg();
@@ -100,12 +195,49 @@ main(int argc, char *argv[], char *envp[])
     EventWithID newEvent;
     newEvent.recordedEvent = RecordedEvent::LoadEventFromStream(inputFile, (RecordedEvent::EventType)type);
     newEvent.eventID = eventIndex++;
-    if (newEvent.recordedEvent->GetType() == RecordedEvent::SCALEDFONTCREATION ||
-        newEvent.recordedEvent->GetType() == RecordedEvent::SCALEDFONTDESTRUCTION) {
-      fontCreations.push_back(newEvent);
-    } else {
-      drawingEvents.push_back(newEvent);
+
+    RecordedEvent::EventType eventType = newEvent.recordedEvent->GetType();
+
+    if ((sRetainDrawTargets && eventType == RecordedEvent::DRAWTARGETCREATION) ||
+        (sRetainPaths && eventType == RecordedEvent::PATHCREATION) ||
+        (sRetainSourceSurfaces && eventType == RecordedEvent::SOURCESURFACECREATION) ||
+        (sRetainGradientStops && eventType == RecordedEvent::GRADIENTSTOPSCREATION) ||
+        (eventType == RecordedEvent::SCALEDFONTCREATION)) {
+
+      retainedObjectCreations.push_back(newEvent);
+
+      if (eventType == RecordedEvent::DRAWTARGETCREATION) {
+        ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+        SyntheticDrawTargetReset* reset = new SyntheticDrawTargetReset(drawTargetId);
+        newEvent.recordedEvent = reset;
+        drawTargetResets[drawTargetId] = reset;
+        drawingEvents.push_back(newEvent);
+      }
+
+      continue;
     }
+
+    if ((sRetainDrawTargets && eventType == RecordedEvent::DRAWTARGETDESTRUCTION) ||
+        (sRetainPaths && eventType == RecordedEvent::PATHDESTRUCTION) ||
+        (sRetainSourceSurfaces && eventType == RecordedEvent::SOURCESURFACEDESTRUCTION) ||
+        (sRetainGradientStops && eventType == RecordedEvent::GRADIENTSTOPSDESTRUCTION) ||
+        (eventType == RecordedEvent::SCALEDFONTDESTRUCTION)) {
+      // Retained objects never get destroyed.
+      continue;
+    }
+
+    if (sRetainDrawTargets && (eventType == RecordedEvent::PUSHCLIP ||
+                               eventType == RecordedEvent::PUSHCLIPRECT)) {
+      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+      drawTargetResets[drawTargetId]->AdjustEndClipDepth(1);
+    }
+
+    if (sRetainDrawTargets && eventType == RecordedEvent::POPCLIP) {
+      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+      drawTargetResets[drawTargetId]->AdjustEndClipDepth(-1);
+    }
+
+    drawingEvents.push_back(newEvent);
   }
 
 #ifdef WIN32
@@ -125,14 +257,16 @@ main(int argc, char *argv[], char *envp[])
   for (int i = 0; i < sizeof(sTestedBackends) / sizeof(BackendType); i++) {
     RefPtr<DrawTarget> dt = Factory::CreateDrawTarget(sTestedBackends[i], IntSize(1, 1), FORMAT_B8G8R8A8);
 
-    RawTranslator* translator = new RawTranslator(dt);
+    RawTranslator* translator =
+      RawTranslator::Create(dt, sRetainDrawTargets, sRetainPaths,
+                                sRetainSourceSurfaces, sRetainGradientStops);
 
-    for (int c = 0; c < fontCreations.size(); c++) {
-      translator->SetEventNumber(fontCreations[c].eventID);
-      fontCreations[c].recordedEvent->PlayEvent(translator);
+    for (int c = 0; c < retainedObjectCreations.size(); c++) {
+      translator->SetEventNumber(retainedObjectCreations[c].eventID);
+      retainedObjectCreations[c].recordedEvent->PlayEvent(translator);
     }
 
-    double data[sN + 1];
+    vector<double> data(sN + 1);
     double average = 0;
 
     for (int k = 0; k < (sN + 1); k++) {
@@ -141,6 +275,10 @@ main(int argc, char *argv[], char *envp[])
       for (int c = 0; c < drawingEvents.size(); c++) {
         translator->SetEventNumber(drawingEvents[c].eventID);
         drawingEvents[c].recordedEvent->PlayEvent(translator);
+      }
+      if (k == 0 || k == sN) {
+        // TODO: This skews the sqDiffSum.
+        FinishDrawing(dt);
       }
       data[k] = measurement.Measure();
       if (k > 0) {

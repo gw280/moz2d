@@ -184,6 +184,13 @@ DrawTargetNVpr::BlitToForeignTexture(PlatformGLContext aForeignContext,
 }
 
 void
+DrawTargetNVpr::Flush()
+{
+  gl->MakeCurrent();
+  gl->Flush();
+}
+
+void
 DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
                             const Rect& aDest,
                             const Rect& aSource,

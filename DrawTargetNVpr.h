@@ -52,7 +52,7 @@ public:
   bool BlitToForeignTexture(PlatformGLContext aForeignContext,
                             GLuint aForeignTextureId);
 
-  virtual void Flush() {}
+  virtual void Flush();
 
   virtual void DrawSurface(SourceSurface* aSurface,
                            const Rect& aDest,
