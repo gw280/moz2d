@@ -43,18 +43,20 @@ private:
     RefPtr<T> object;
   };
 
-  template<typename T> inline T
-  *LookupObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr)
+  template<typename T> inline RefPtr<T>
+  &LookupObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr)
   {
     typedef typename std::map<void*, vector<RetainedObject<T> > > MapType;
     typename MapType::iterator iter = aMap.find(aRefPtr);
     if (iter == aMap.end()) {
-      return NULL;
+      printf("Attempted to look up a nonexistent object. Aborting.\n");
+      exit(-1);
     }
 
-    const vector<RetainedObject<T> > &retainedObjects = iter->second;
+    vector<RetainedObject<T> > &retainedObjects = iter->second;
     if (retainedObjects.front().startEvent > mEventNumber) {
-      return NULL;
+      printf("Attempted to look up a nonexistent object. Aborting.\n");
+      exit(-1);
     }
 
     size_t left = 0, right = retainedObjects.size();
@@ -76,10 +78,11 @@ private:
     RetainedObject<T> retainedObject = {mEventNumber, aObject};
     vector<RetainedObject<T> > &retainedObjects = aMap[aRefPtr];
     if (!retainedObjects.empty() &&
-        retainedObjects.back().startEvent >= retainedObject.startEvent)
-    {
-      printf("Attempted to insert a retained object out of order. Aborting.\n");
-      exit(-1);
+        retainedObjects.back().startEvent >= retainedObject.startEvent) {
+      // Snapshots still get added every frame.
+      RefPtr<T> &object = LookupObject(aMap, aRefPtr);
+      object = aObject;
+      return;
     }
     retainedObjects.push_back(retainedObject);
   }
@@ -87,8 +90,8 @@ private:
   template<typename T> inline void
   RemoveObject(map<void*, vector<RetainedObject<T> > > &aMap, ReferencePtr aRefPtr)
   {
-    printf("Attempted to remove a retained object. Aborting.\n");
-    exit(-1);
+    RefPtr<T> &object = LookupObject(aMap, aRefPtr);
+    object = nullptr;
   }
 
   // Translator

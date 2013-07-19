@@ -80,36 +80,13 @@ FinishDrawing(DrawTarget* aDT)
 #endif
 }
 
-class SyntheticDrawTargetReset : public RecordedEvent {
-public:
-  SyntheticDrawTargetReset(ReferencePtr aDrawTargetId)
-    : RecordedEvent(-1)
-    , mDrawTargetId(aDrawTargetId)
+struct RetainedDrawTargetData {
+  RetainedDrawTargetData(int aCreationEvent)
+    : mCreationEvent(aCreationEvent)
     , mEndClipDepth(0)
   {}
-
-  virtual ReferencePtr GetObject() const { return mDrawTargetId; }
-  virtual string GetName() const { return "Synthetic DrawTarget Reset"; }
-
-  void AdjustEndClipDepth(int aDelta) { mEndClipDepth += aDelta; }
-
-  virtual void PlayEvent(Translator *aTranslator) const
-  {
-    DrawTarget* drawTarget = aTranslator->LookupDrawTarget(mDrawTargetId);
-    IntSize size = drawTarget->GetSize();
-    for (size_t i = 0; i < mEndClipDepth; i++) {
-      drawTarget->PopClip();
-    }
-    drawTarget->SetTransform(Matrix());
-    drawTarget->ClearRect(Rect(0, 0, size.width, size.height));
-  }
-
-private:
-  virtual void RecordToStream(std::ostream &aStream) const {}
-  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const {}
-
-  ReferencePtr mDrawTargetId;
-  size_t mEndClipDepth;
+  int mCreationEvent;
+  int mEndClipDepth;
 };
 
 static int sN = 10;
@@ -155,7 +132,7 @@ main(int argc, char *argv[], char *envp[])
 
   vector<EventWithID > drawingEvents;
   vector<EventWithID > retainedObjectCreations;
-  map<ReferencePtr, SyntheticDrawTargetReset*> drawTargetResets;
+  map<ReferencePtr, vector<RetainedDrawTargetData> > retainedDrawTargets;
 
   ifstream inputFile;
 
@@ -208,10 +185,8 @@ main(int argc, char *argv[], char *envp[])
 
       if (eventType == RecordedEvent::DRAWTARGETCREATION) {
         ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
-        SyntheticDrawTargetReset* reset = new SyntheticDrawTargetReset(drawTargetId);
-        newEvent.recordedEvent = reset;
-        drawTargetResets[drawTargetId] = reset;
-        drawingEvents.push_back(newEvent);
+        RetainedDrawTargetData data(newEvent.eventID);
+        retainedDrawTargets[drawTargetId].push_back(data);
       }
 
       continue;
@@ -229,12 +204,16 @@ main(int argc, char *argv[], char *envp[])
     if (sRetainDrawTargets && (eventType == RecordedEvent::PUSHCLIP ||
                                eventType == RecordedEvent::PUSHCLIPRECT)) {
       ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
-      drawTargetResets[drawTargetId]->AdjustEndClipDepth(1);
+      retainedDrawTargets[drawTargetId].back().mEndClipDepth++;
     }
 
     if (sRetainDrawTargets && eventType == RecordedEvent::POPCLIP) {
       ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
-      drawTargetResets[drawTargetId]->AdjustEndClipDepth(-1);
+      retainedDrawTargets[drawTargetId].back().mEndClipDepth--;
+    }
+
+    if (sRetainSourceSurfaces && eventType == RecordedEvent::SNAPSHOT) {
+      retainedObjectCreations.push_back(newEvent);
     }
 
     drawingEvents.push_back(newEvent);
@@ -272,15 +251,32 @@ main(int argc, char *argv[], char *envp[])
     for (int k = 0; k < (sN + 1); k++) {
       HighPrecisionMeasurement measurement;
       measurement.Start();
+
       for (int c = 0; c < drawingEvents.size(); c++) {
         translator->SetEventNumber(drawingEvents[c].eventID);
         drawingEvents[c].recordedEvent->PlayEvent(translator);
       }
+
+      // Reset retained draw targets.
+      for (const auto& drawTargetList : retainedDrawTargets) {
+        for (const auto& drawTargetData : drawTargetList.second) {
+          translator->SetEventNumber(drawTargetData.mCreationEvent);
+          DrawTarget* drawTarget = translator->LookupDrawTarget(drawTargetList.first);
+          for (int i = 0; i < drawTargetData.mEndClipDepth; i++) {
+            drawTarget->PopClip();
+          }
+          drawTarget->SetTransform(Matrix());
+          drawTarget->ClearRect(Rect(Point(), Size(drawTarget->GetSize())));
+        }
+      }
+
       if (k == 0 || k == sN) {
         // TODO: This skews the sqDiffSum.
         FinishDrawing(dt);
       }
+
       data[k] = measurement.Measure();
+
       if (k > 0) {
         average += data[k];
       }
