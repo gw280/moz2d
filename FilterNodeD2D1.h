@@ -46,6 +46,24 @@ static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
     return CLSID_D2D1Composite;
   case FILTER_GAUSSIAN_BLUR:
     return CLSID_D2D1GaussianBlur;
+  case FILTER_POINT_DIFFUSE:
+    return CLSID_D2D1PointDiffuse;
+  case FILTER_POINT_SPECULAR:
+    return CLSID_D2D1PointSpecular;
+  case FILTER_SPOT_DIFFUSE:
+    return CLSID_D2D1SpotDiffuse;
+  case FILTER_SPOT_SPECULAR:
+    return CLSID_D2D1SpotSpecular;
+  case FILTER_DISTANT_DIFFUSE:
+    return CLSID_D2D1DistantDiffuse;
+  case FILTER_DISTANT_SPECULAR:
+    return CLSID_D2D1DistantSpecular;
+  case FILTER_CROP:
+    return CLSID_D2D1Crop;
+  case FILTER_PREMULTIPLY:
+    return CLSID_D2D1Premultiply;
+  case FILTER_UNPREMULTIPLY:
+    return CLSID_D2D1UnPremultiply;
   }
   return GUID_NULL;
 }

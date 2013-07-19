@@ -932,7 +932,7 @@ TestDrawTargetBase::Composite()
 
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
   dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 1.0f, 0, 0.5f)));
-  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.33f)));
+  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.335f)));
 
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);

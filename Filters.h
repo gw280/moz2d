@@ -326,7 +326,6 @@ enum SpotDiffuseAtts
 {
   ATT_SPOT_DIFFUSE_POSITION = 0,            // Point3D
   ATT_SPOT_DIFFUSE_POINTS_AT,               // Point3D
-  ATT_SPOT_DIFFUSE_SPECULAR_FOCUS,          // Float
   ATT_SPOT_DIFFUSE_LIMITING_CONE_ANGLE,     // Float
   ATT_SPOT_DIFFUSE_SURFACE_SCALE,           // Float
   ATT_SPOT_DIFFUSE_DIFFUSE_CONSTANT,        // Float
