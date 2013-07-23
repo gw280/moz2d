@@ -22,6 +22,10 @@ class PathNVpr;
 class SourceSurfaceNVpr;
 class TextureObjectNVpr;
 
+#ifdef WIN32
+class DXTextureInteropNVpr;
+#endif
+
 namespace nvpr {
 class ScissorClip;
 class PlanesClip;
@@ -49,8 +53,13 @@ public:
   virtual TemporaryRef<SourceSurface> Snapshot();
   void OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture);
 
-  bool BlitToForeignTexture(PlatformGLContext aForeignContext,
-                            GLuint aForeignTextureId);
+  bool BlitToForeignTexture(void* aForeignContext, GLuint aForeignTextureId);
+
+#ifdef WIN32
+  TemporaryRef<DXTextureInteropNVpr>
+    OpenDXTextureInterop(void* aDX, void* aDXTexture);
+  void BlitToDXTexture(DXTextureInteropNVpr* aDXTexture);
+#endif
 
   virtual void Flush();
 

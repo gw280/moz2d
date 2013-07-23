@@ -4,11 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GL.h"
+#include "GLX.h"
 #include "Logging.h"
 #include <dlfcn.h>
-#include <GL/glx.h>
-#include <GL/glxext.h>
 #include <iterator>
 #include <iostream>
 #include <sstream>
@@ -16,107 +14,90 @@
 
 using namespace std;
 
-#define FOR_ALL_GLX_ENTRY_POINTS(MACRO) \
-  MACRO(ChooseFBConfig) \
-  MACRO(GetVisualFromFBConfig) \
-  MACRO(CreateGLXPixmap) \
-  MACRO(DestroyGLXPixmap) \
-  MACRO(CreateContext) \
-  MACRO(DestroyContext) \
-  MACRO(GetProcAddress) \
-  MACRO(GetCurrentContext) \
-  MACRO(MakeCurrent) \
-  MACRO(QueryExtensionsString)
-
 namespace mozilla {
 namespace gfx {
 namespace nvpr {
 
-struct GL::PlatformContextData {
-  void* mLibGL;
-
-#define DECLARE_GLX_METHOD(NAME) \
-  decltype(&glX##NAME) NAME;
-
-  FOR_ALL_GLX_ENTRY_POINTS(DECLARE_GLX_METHOD);
-
-#undef DECLARE_GLX_METHOD
-
-  PFNGLXCOPYIMAGESUBDATANVPROC CopyImageSubDataNV;
-
-  Display* mDisplay;
-  Pixmap mPixmap;
-  GLXPixmap mGLXPixmap;
-  GLXContext mContext;
-
-  template<typename T> void LoadProcAddress(T& aPtr, const char* aName)
-  {
-    void (*ptr)() = GetProcAddress(reinterpret_cast<const GLubyte*>(aName));
-    if (!ptr) {
-      gfxWarning() << "Failed to load GL function " << aName << ".";
-      aPtr = nullptr;
-      return;
-    }
-    aPtr = reinterpret_cast<T>(ptr);
-  }
-};
-
-bool
-GL::InitGLContext()
+void
+InitializeGLIfNeeded()
 {
-  mContextData = new PlatformContextData();
-  PlatformContextData& ctx = *mContextData;
+  if (gl) {
+    return;
+  }
+  gl = new GLX();
+}
 
-  ctx.mLibGL = dlopen("libGL.so", RTLD_LAZY);
-  if (!ctx.mLibGL) {
+template<typename C, typename T> bool
+GLX::LoadProcAddress(T C::*aProc, const char* aName)
+{
+  void (*proc)() = GetProcAddress(reinterpret_cast<const GLubyte*>(aName));
+  if (!proc) {
+    gfxWarning() << "Failed to load GL function " << aName << ".";
+    proc = nullptr;
     return false;
+  }
+  this->*aProc = reinterpret_cast<T>(proc);
+  return true;
+}
+
+GLX::GLX()
+  : mLibGL(nullptr)
+  , mDisplay(nullptr)
+  , mPixmap(0)
+  , mGLXPixmap(0)
+  , mContext(nullptr)
+{
+  memset(mSupportedGLXExtensions, 0, sizeof(mSupportedGLXExtensions));
+
+  mLibGL = dlopen("libGL.so", RTLD_LAZY);
+  if (!mLibGL) {
+    return;
   }
 
 #define LOAD_GLX_METHOD(NAME) \
-  ctx.NAME = reinterpret_cast<decltype(ctx.NAME)>(dlsym(ctx.mLibGL, "glX"#NAME)); \
-  if (!ctx.NAME) { \
+  NAME = reinterpret_cast<decltype(NAME)>(dlsym(mLibGL, "glX"#NAME)); \
+  if (!NAME) { \
     gfxWarning() << "Failed to find GLX function " #NAME "."; \
-    return false; \
+    return; \
   }
 
   FOR_ALL_GLX_ENTRY_POINTS(LOAD_GLX_METHOD);
 
 #undef LOAD_GLX_METHOD
 
-  ctx.mDisplay = XOpenDisplay(0);
+  mDisplay = XOpenDisplay(0);
 
   int nelements;
-  int screen = DefaultScreen(ctx.mDisplay);
-  GLXFBConfig *fbc = ctx.ChooseFBConfig(ctx.mDisplay, screen, 0, &nelements);
-  XVisualInfo *vi = ctx.GetVisualFromFBConfig(ctx.mDisplay, fbc[0]);
+  int screen = DefaultScreen(mDisplay);
+  GLXFBConfig *fbc = ChooseFBConfig(mDisplay, screen, 0, &nelements);
+  XVisualInfo *vi = GetVisualFromFBConfig(mDisplay, fbc[0]);
 
-  ctx.mPixmap = XCreatePixmap(ctx.mDisplay, RootWindow(ctx.mDisplay, vi->screen),
+  mPixmap = XCreatePixmap(mDisplay, RootWindow(mDisplay, vi->screen),
                               10, 10, vi->depth);
-  ctx.mGLXPixmap = ctx.CreateGLXPixmap(ctx.mDisplay, vi, ctx.mPixmap);
+  mGLXPixmap = CreateGLXPixmap(mDisplay, vi, mPixmap);
 
-  ctx.mContext = ctx.CreateContext(ctx.mDisplay, vi, 0, true);
+  mContext = CreateContext(mDisplay, vi, 0, true);
 
-  MakeCurrent();
+  GL::MakeCurrent();
 
-  stringstream extensions(ctx.QueryExtensionsString(ctx.mDisplay, screen));
+  stringstream extensions(QueryExtensionsString(mDisplay, screen));
   istream_iterator<string> iter(extensions);
   istream_iterator<string> end;
-
-  ctx.CopyImageSubDataNV = nullptr;
 
   for (; iter != end; iter++) {
     const string& extension = *iter;
 
     if (*iter == "GLX_NV_copy_image") {
-      ctx.LoadProcAddress(ctx.CopyImageSubDataNV, "glXCopyImageSubDataNV");
+      if (LoadProcAddress(&GLX::CopyImageSubDataNV, "glXCopyImageSubDataNV")) {
+        mSupportedGLXExtensions[NV_copy_image] = true;
+      }
       break;
     }
   }
 
 #define LOAD_GL_METHOD(NAME) \
-  ctx.LoadProcAddress(NAME, "gl"#NAME); \
-  if (!NAME) { \
-    return false; \
+  if (!LoadProcAddress(&GLX::NAME, "gl"#NAME)) { \
+    return; \
   }
 
   FOR_ALL_PUBLIC_GL_ENTRY_POINTS(LOAD_GL_METHOD);
@@ -124,72 +105,71 @@ GL::InitGLContext()
 
 #undef LOAD_GL_METHOD
 
-  return true;
+  Initialize();
 }
 
-void
-GL::DestroyGLContext()
+GLX::~GLX()
 {
-  PlatformContextData& ctx = *mContextData;
-  if (!ctx.mLibGL) {
-    return;
+  if (mDisplay) {
+    MakeCurrent(mDisplay, 0, 0);
   }
 
-  ctx.MakeCurrent(ctx.mDisplay, 0, 0);
-
-  if (ctx.mContext) {
-    ctx.DestroyContext(ctx.mDisplay, ctx.mContext);
+  if (mContext) {
+    DestroyContext(mDisplay, mContext);
   }
 
-  if (ctx.mGLXPixmap) {
-    ctx.DestroyGLXPixmap(ctx.mDisplay, ctx.mGLXPixmap);
+  if (mGLXPixmap) {
+    DestroyGLXPixmap(mDisplay, mGLXPixmap);
   }
 
-  if (ctx.mPixmap) {
-    XFreePixmap(ctx.mDisplay, ctx.mPixmap);
+  if (mPixmap) {
+    XFreePixmap(mDisplay, mPixmap);
   }
 
-  XCloseDisplay(ctx.mDisplay);
+  if (mDisplay) {
+    XCloseDisplay(mDisplay);
+  }
 
-  dlclose(ctx.mLibGL);
+  if (mLibGL) {
+    dlclose(mLibGL);
+  }
 }
 
 bool
 GL::IsCurrent() const
 {
-  PlatformContextData& ctx = *mContextData;
+  const GLX* const glx = static_cast<const GLX*>(this);
 
-  return ctx.GetCurrentContext() == ctx.mContext;
+  return glx->GetCurrentContext() == glx->Context();
 }
 
 void
 GL::MakeCurrent() const
 {
-  PlatformContextData& ctx = *mContextData;
+  const GLX* const glx = static_cast<const GLX*>(this);
 
   if (IsCurrent()) {
     return;
   }
 
-  ctx.MakeCurrent(ctx.mDisplay, ctx.mGLXPixmap, ctx.mContext);
+  glx->MakeCurrent(glx->Display(), glx->Drawable(), glx->Context());
 }
 
 bool
 GL::BlitTextureToForeignTexture(const IntSize& aSize, GLuint aSourceTextureId,
-                                PlatformGLContext aForeignContext,
-                                GLuint aForeignTextureId)
+                                void* aForeignContext, GLuint aForeignTextureId)
 {
-  PlatformContextData& ctx = *mContextData;
+  GLX* const glx = static_cast<GLX*>(this);
 
-  if (!ctx.CopyImageSubDataNV) {
+  if (!glx->HasGLXExtension(GLX::NV_copy_image)) {
     return false;
   }
 
-  ctx.CopyImageSubDataNV(ctx.mDisplay, ctx.mContext, aSourceTextureId,
-                         GL_TEXTURE_2D, 0, 0, 0, 0,
-                         static_cast<GLXContext>(aForeignContext),
-                         aForeignTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
-                         aSize.width, aSize.height, 1);
+  glx->CopyImageSubDataNV(glx->Display(), glx->Context(), aSourceTextureId,
+                          GL_TEXTURE_2D, 0, 0, 0, 0,
+                          static_cast<GLXContext>(aForeignContext),
+                          aForeignTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
+                          aSize.width, aSize.height, 1);
 
   return true;
 }

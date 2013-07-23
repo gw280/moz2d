@@ -47,16 +47,9 @@ namespace nvpr {
 
 GL* gl = nullptr;
 
-void GL::InitializeIfNeeded()
-{
-  if (gl) {
-    return;
-  }
-  gl = new GL();
-}
-
 GL::GL()
-  : mNextUniqueId(1)
+  : mIsValid(false)
+  , mNextUniqueId(1)
   , mReadFramebuffer(0)
   , mDrawFramebuffer(0)
   , mColorWritesEnabled(true)
@@ -83,14 +76,11 @@ GL::GL()
 {
   mTransformIdStack.push(0);
   memset(mTexgenCoefficients, 0, sizeof(mTexgenCoefficients));
+}
 
-  mIsValid = false;
-
-  if (!InitGLContext()) {
-    return;
-  }
-
-  MakeCurrent();
+void GL::Initialize()
+{
+  MOZ_ASSERT(IsCurrent());
 
   memset(mSupportedExtensions, 0, sizeof(mSupportedExtensions));
   stringstream extensions(reinterpret_cast<const char*>(GetString(GL_EXTENSIONS)));
@@ -154,7 +144,6 @@ GL::GL()
 
 GL::~GL()
 {
-  DestroyGLContext();
   // No need to delete the GL objects. They automatically went away when the
   // context was destroyed.
 }
@@ -230,12 +219,12 @@ GL::SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer)
 
   if (clearTextureFramebuffer1D) {
     NamedFramebufferTexture1DEXT(mTextureFramebuffer1D, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_1D, 0, 0);  
+                                 GL_TEXTURE_1D, 0, 0);
   }
 
   if (clearTextureFramebuffer2D) {
     NamedFramebufferTexture2DEXT(mTextureFramebuffer2D, GL_COLOR_ATTACHMENT0,
-                                 GL_TEXTURE_2D, 0, 0);  
+                                 GL_TEXTURE_2D, 0, 0);
   }
 }
 

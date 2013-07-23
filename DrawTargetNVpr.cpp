@@ -15,6 +15,10 @@
 #include <sstream>
 #include <vector>
 
+#ifdef WIN32
+#include "DXTextureInteropNVpr.h"
+#endif
+
 static const size_t sMaxSnapshotTexturePoolSize = 2;
 
 using namespace mozilla::gfx::nvpr;
@@ -65,7 +69,7 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   MOZ_ASSERT(mSize.width >= 0 && mSize.height >= 0);
 
-  GL::InitializeIfNeeded();
+  InitializeGLIfNeeded();
   if (!gl->IsValid()) {
     return;
   }
@@ -175,13 +179,42 @@ DrawTargetNVpr::OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture)
 }
 
 bool
-DrawTargetNVpr::BlitToForeignTexture(PlatformGLContext aForeignContext,
+DrawTargetNVpr::BlitToForeignTexture(void* aForeignContext,
                                      GLuint aForeignTextureId)
 {
   Snapshot();
   return gl->BlitTextureToForeignTexture(mSize, *mSnapshot,
                                          aForeignContext, aForeignTextureId);
 }
+
+#ifdef WIN32
+
+TemporaryRef<DXTextureInteropNVpr>
+DrawTargetNVpr::OpenDXTextureInterop(void* aDX, void* aDXTexture)
+{
+  return DXTextureInteropNVpr::Create(aDX, aDXTexture);
+}
+
+void
+DrawTargetNVpr::BlitToDXTexture(DXTextureInteropNVpr* aDXTexture)
+{
+  gl->MakeCurrent();
+
+  GLuint dxTextureId = aDXTexture->Lock();
+
+  gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
+  gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, dxTextureId);
+  gl->DisableScissorTest();
+  gl->EnableColorWrites();
+
+  gl->BlitFramebuffer(0, 0, mSize.width, mSize.height,
+                      0, 0, mSize.width, mSize.height,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+  aDXTexture->Unlock();
+}
+
+#endif
 
 void
 DrawTargetNVpr::Flush()

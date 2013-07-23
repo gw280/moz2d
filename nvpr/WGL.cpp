@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include "GL.h"
+#include "WGL.h"
 
 #include "Logging.h"
 #include <Windows.h>
@@ -19,72 +19,58 @@ using namespace std;
 namespace mozilla {
 namespace gfx {
 namespace nvpr {
-  
-#define FOR_ALL_WGL_ENTRY_POINTS(MACRO) \
-  MACRO(CreateContext) \
-  MACRO(MakeCurrent) \
-  MACRO(GetProcAddress) \
-  MACRO(DeleteContext) \
-  MACRO(GetCurrentContext)
 
-struct GL::PlatformContextData {
-  void* mLibGL;
-
-#define DECLARE_WGL_METHOD(NAME) \
-  decltype(&wgl##NAME) NAME;
-
-  FOR_ALL_WGL_ENTRY_POINTS(DECLARE_WGL_METHOD);
-
-#undef DECLARE_GLX_METHOD
-
-  PFNWGLGETEXTENSIONSSTRINGARBPROC GetExtensionsStringARB;
-  PFNWGLCOPYIMAGESUBDATANVPROC CopyImageSubDataNV;
-
-  HDC mDC;
-  HGLRC mGLContext;
-  HMODULE mGLLibrary;
-
-  template<typename T> void LoadProcAddress(T& aPtr, const char* aName)
-  {
-    PROC ptr = GetProcAddress(aName);
-    if (!ptr) {
-      // The GL 1.1 functions have to be loaded directly from the dll.
-      ptr = ::GetProcAddress(mGLLibrary, aName);
-    }
-    if (!ptr) {
-      gfxWarning() << "Failed to load GL function " << aName << ".";
-      aPtr = nullptr;
-      return;
-    }
-    aPtr = reinterpret_cast<T>(ptr);
-  }
-};
-
-bool
-GL::InitGLContext()
+void
+InitializeGLIfNeeded()
 {
-  mContextData = new PlatformContextData();
-  PlatformContextData& ctx = *mContextData;
+  if (gl) {
+    return;
+  }
+  gl = new WGL();
+}
 
-  ctx.mGLLibrary = ::LoadLibrary("opengl32.dll");
-  if (!ctx.mGLLibrary) {
+template<typename C, typename T> bool
+WGL::LoadProcAddress(T C::*aProc, const char* aName)
+{
+  PROC proc = GetProcAddress(aName);
+  if (!proc) {
+    // The GL 1.1 functions have to be loaded directly from the dll.
+    proc = ::GetProcAddress(mGLLibrary, aName);
+  }
+  if (!proc) {
+    gfxWarning() << "Failed to load GL function " << aName << ".";
+    this->*aProc = nullptr;
     return false;
+  }
+  this->*aProc = reinterpret_cast<T>(proc);
+  return true;
+}
+
+WGL::WGL()
+  : mGLLibrary(0)
+  , mHWnd(0)
+  , mDC(0)
+  , mContext(0)
+{
+  memset(mSupportedWGLExtensions, 0, sizeof(mSupportedWGLExtensions));
+
+  mGLLibrary = ::LoadLibrary("opengl32.dll");
+  if (!mGLLibrary) {
+    return;
   }
 
 #define LOAD_WGL_METHOD(NAME) \
-  ctx.NAME = reinterpret_cast<decltype(ctx.NAME)>(::GetProcAddress(ctx.mGLLibrary, "wgl"#NAME)); \
-  if (!ctx.NAME) { \
+  NAME = reinterpret_cast<decltype(NAME)>(::GetProcAddress(mGLLibrary, "wgl"#NAME)); \
+  if (!NAME) { \
     gfxWarning() << "Failed to find WGL function " #NAME "."; \
-    return false; \
+    return; \
   }
+
   FOR_ALL_WGL_ENTRY_POINTS(LOAD_WGL_METHOD);
 
-#undef LOAD_GLX_METHOD
-  
-  HINSTANCE inst = (HINSTANCE)GetModuleHandle(NULL);
+#undef LOAD_WGL_METHOD
 
-  ATOM wclass = 0;
-  HWND hwnd = 0;
+  HINSTANCE inst = (HINSTANCE)GetModuleHandle(NULL);
 
   WNDCLASS wc;
   memset(&wc, 0, sizeof(wc));
@@ -95,24 +81,23 @@ GL::InitGLContext()
   wc.lpszClassName = TEXT("DummyWindow");
   wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
 
-  wclass = RegisterClass(&wc);
-  if (!wclass) {
-    return false;
+  if (!RegisterClass(&wc)) {
+    return;
   }
 
-  if (!(hwnd = CreateWindow(TEXT("DummyWindow"),
-                            TEXT("Dummy OGL Window"),
-                            WS_OVERLAPPEDWINDOW,
-                            0, 0, 1, 1,
-                            NULL, NULL,
-                            inst, NULL))) {
-    return false;
+  if (!(mHWnd = CreateWindow(TEXT("DummyWindow"),
+                             TEXT("Dummy OGL Window"),
+                             WS_OVERLAPPEDWINDOW,
+                             0, 0, 1, 1,
+                             NULL, NULL,
+                             inst, NULL))) {
+    return;
   }
 
-  ctx.mDC = ::GetDC(hwnd);
+  mDC = ::GetDC(mHWnd);
 
   PIXELFORMATDESCRIPTOR pfd;
-  
+
   memset(&pfd, 0, sizeof(pfd));
   pfd.nSize = sizeof(pfd);
   pfd.dwFlags = PFD_SUPPORT_OPENGL;
@@ -122,45 +107,52 @@ GL::InitGLContext()
   pfd.cStencilBits = 0;
   pfd.iLayerType = PFD_MAIN_PLANE;
 
-  // get the best available match of pixel format for the device context   
-  int iPixelFormat = ChoosePixelFormat(ctx.mDC, &pfd); 
- 
-  // make that the pixel format of the device context  
-  SetPixelFormat(ctx.mDC, iPixelFormat, &pfd);
+  // get the best available match of pixel format for the device context
+  int iPixelFormat = ChoosePixelFormat(mDC, &pfd);
 
-  ctx.mGLContext = ctx.CreateContext(ctx.mDC);
+  // make that the pixel format of the device context
+  SetPixelFormat(mDC, iPixelFormat, &pfd);
+
+  mContext = CreateContext(mDC);
 
   DWORD lastError = ::GetLastError();
 
-  ctx.MakeCurrent(ctx.mDC, ctx.mGLContext);
+  GL::MakeCurrent();
 
-  ctx.LoadProcAddress(ctx.GetExtensionsStringARB, "wglGetExtensionsStringARB");
-  if (!ctx.GetExtensionsStringARB) {
-    return false;
+  if (!LoadProcAddress(&WGL::GetExtensionsStringARB, "wglGetExtensionsStringARB")) {
+    return;
   }
 
-  stringstream extensions(ctx.GetExtensionsStringARB(ctx.mDC));
+  stringstream extensions(GetExtensionsStringARB(mDC));
   istream_iterator<string> iter(extensions);
   istream_iterator<string> end;
-
-  ctx.CopyImageSubDataNV = nullptr;
 
   for (; iter != end; iter++) {
     const string& extension = *iter;
 
     if (*iter == "WGL_NV_copy_image") {
-      ctx.LoadProcAddress(ctx.CopyImageSubDataNV, "wglCopyImageSubDataNV");
-      break;
+      if (LoadProcAddress(&WGL::CopyImageSubDataNV, "wglCopyImageSubDataNV")) {
+        mSupportedWGLExtensions[NV_copy_image] = true;
+      }
+      continue;
+    }
+
+    if (*iter == "WGL_NV_DX_interop2") {
+      if (LoadProcAddress(&WGL::DXOpenDeviceNV, "wglDXOpenDeviceNV")
+          && LoadProcAddress(&WGL::DXCloseDeviceNV, "wglDXCloseDeviceNV")
+          && LoadProcAddress(&WGL::DXRegisterObjectNV, "wglDXRegisterObjectNV")
+          && LoadProcAddress(&WGL::DXUnregisterObjectNV, "wglDXUnregisterObjectNV")
+          && LoadProcAddress(&WGL::DXLockObjectsNV, "wglDXLockObjectsNV")
+          && LoadProcAddress(&WGL::DXUnlockObjectsNV, "wglDXUnlockObjectsNV")) {
+        mSupportedWGLExtensions[NV_DX_interop2] = true;
+      }
+      continue;
     }
   }
 
 #define LOAD_GL_METHOD(NAME) \
-  NAME = reinterpret_cast<decltype(NAME)>(ctx.GetProcAddress("gl"#NAME)); \
-  if (!NAME) { \
-    ctx.LoadProcAddress(NAME, "gl"#NAME); \
-    if (!NAME) { \
-      return false; \
-    } \
+  if (!LoadProcAddress(&WGL::NAME, "gl"#NAME)) { \
+    return; \
   }
 
   FOR_ALL_PUBLIC_GL_ENTRY_POINTS(LOAD_GL_METHOD);
@@ -168,52 +160,63 @@ GL::InitGLContext()
 
 #undef LOAD_GL_METHOD
 
-  return true;
+  Initialize();
 }
 
-void GL::DestroyGLContext()
+WGL::~WGL()
 {
-  PlatformContextData& ctx = *mContextData;
+  if (mDC) {
+    MakeCurrent(mDC, nullptr);
+  }
 
-  ctx.MakeCurrent(ctx.mDC, ctx.mGLContext);
+  if (mContext) {
+    DeleteContext(mContext);
+  }
 
-  if (ctx.mGLContext) {
-    ctx.DeleteContext(ctx.mGLContext);
+  if (mDC) {
+    ::ReleaseDC(mHWnd, mDC);
+  }
+
+  if (mHWnd) {
+    DestroyWindow(mHWnd);
+  }
+
+  if (mGLLibrary) {
+    ::FreeLibrary(mGLLibrary);
   }
 }
 
 bool GL::IsCurrent() const
 {
-  PlatformContextData& ctx = *mContextData;
+  const WGL* const wgl = static_cast<const WGL*>(this);
 
-  return ctx.GetCurrentContext() == ctx.mGLContext;
+  return wgl->GetCurrentContext() == wgl->Context();
 }
 
 void GL::MakeCurrent() const
 {
-  PlatformContextData& ctx = *mContextData;
+  const WGL* const wgl = static_cast<const WGL*>(this);
 
-  if (IsCurrent()) {
+  if (wgl->IsCurrent()) {
     return;
   }
 
-  ctx.MakeCurrent(ctx.mDC, ctx.mGLContext);
+  wgl->MakeCurrent(wgl->DC(), wgl->Context());
 }
 
 bool
 GL::BlitTextureToForeignTexture(const IntSize& aSize, GLuint aSourceTextureId,
-                                PlatformGLContext aForeignContext,
-                                GLuint aForeignTextureId)
+                                void* aForeignContext, GLuint aForeignTextureId)
 {
-  PlatformContextData& ctx = *mContextData;
+  WGL* const wgl = static_cast<WGL*>(this);
 
-  if (!ctx.CopyImageSubDataNV) {
+  if (!wgl->HasWGLExtension(WGL::NV_copy_image)) {
     return false;
   }
 
-  ctx.CopyImageSubDataNV(ctx.mGLContext, aSourceTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
-                         static_cast<HGLRC>(aForeignContext), aForeignTextureId,
-                         GL_TEXTURE_2D, 0, 0, 0, 0, aSize.width, aSize.height, 1);
+  wgl->CopyImageSubDataNV(wgl->Context(), aSourceTextureId, GL_TEXTURE_2D, 0, 0, 0, 0,
+                          static_cast<HGLRC>(aForeignContext), aForeignTextureId,
+                          GL_TEXTURE_2D, 0, 0, 0, 0, aSize.width, aSize.height, 1);
 
   return true;
 }
