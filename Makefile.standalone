@@ -32,6 +32,7 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   DrawTargetDual.cpp \
   DrawTargetRecording.cpp \
   Factory.cpp \
+  FilterNodeSoftware.cpp \
   ImageScaling.cpp \
   ImageScalingSSE2.cpp \
   Matrix.cpp \

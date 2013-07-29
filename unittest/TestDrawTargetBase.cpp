@@ -710,7 +710,7 @@ TestDrawTargetBase::ConvolveMatrixNone()
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 9);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(3, 3));
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, true);
-  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 6.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 3.0f / 0.502f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, 1.0f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(0, 0));
@@ -825,7 +825,7 @@ TestDrawTargetBase::Turbulence()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
 
-  filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, 10.0f);
+  filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(10.0f, 10.0f));
   filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, uint32_t(1));
   filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
   filter->SetAttribute(ATT_TURBULENCE_TYPE, uint32_t(TURBULENCE_TYPE_FRACTAL_NOISE));
@@ -932,7 +932,7 @@ TestDrawTargetBase::Composite()
 
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
   dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 1.0f, 0, 0.5f)));
-  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.335f)));
+  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.332f)));
 
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);

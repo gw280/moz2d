@@ -17,7 +17,6 @@ namespace mozilla {
 namespace gfx {
 
 class SourceSurface;
-struct Point;
 
 enum FilterBackend {
   FILTER_BACKEND_SOFTWARE = 0,
@@ -40,6 +39,7 @@ enum FilterType {
   FILTER_TURBULENCE,
   FILTER_ARITHMETIC_COMBINE,
   FILTER_COMPOSITE,
+  FILTER_DIRECTIONAL_BLUR,
   FILTER_GAUSSIAN_BLUR,
   FILTER_POINT_DIFFUSE,
   FILTER_POINT_SPECULAR,
@@ -255,7 +255,7 @@ enum DisplacementMapInputs
 
 enum TurbulenceAtts
 {
-  ATT_TURBULENCE_BASE_FREQUENCY = 0,        // Float
+  ATT_TURBULENCE_BASE_FREQUENCY = 0,        // Size
   ATT_TURBULENCE_NUM_OCTAVES,               // uint32_t
   ATT_TURBULENCE_SEED,                      // uint32_t
   ATT_TURBULENCE_STITCHABLE,                // bool
@@ -309,12 +309,30 @@ enum GaussianBlurInputs
   IN_GAUSSIAN_BLUR_IN = 0
 };
 
+enum DirectionalBlurAtts
+{
+  ATT_DIRECTIONAL_BLUR_STD_DEVIATION = 0,   // Float
+  ATT_DIRECTIONAL_BLUR_DIRECTION            // BlurDirection
+};
+
+enum BlurDirection
+{
+  BLUR_DIRECTION_X = 0,
+  BLUR_DIRECTION_Y
+};
+
+enum DirectionalBlurInputs
+{
+  IN_DIRECTIONAL_BLUR_IN = 0
+};
+
 enum PointDiffuseAtts
 {
   ATT_POINT_DIFFUSE_POSITION = 0,           // Point3D
-  ATT_POINT_DIFFUSE_SURFACE_SCALE,          // Float
-  ATT_POINT_DIFFUSE_DIFFUSE_CONSTANT,       // Float
-  ATT_POINT_DIFFUSE_KERNEL_UNIT_LENGTH      // Float
+  ATT_POINT_DIFFUSE_SURFACE_SCALE = 10,     // Float
+  ATT_POINT_DIFFUSE_KERNEL_UNIT_LENGTH,     // Float
+  ATT_POINT_DIFFUSE_COLOR,                  // Color
+  ATT_POINT_DIFFUSE_DIFFUSE_CONSTANT        // Float
 };
 
 enum PointDiffuseInputs
@@ -326,10 +344,12 @@ enum SpotDiffuseAtts
 {
   ATT_SPOT_DIFFUSE_POSITION = 0,            // Point3D
   ATT_SPOT_DIFFUSE_POINTS_AT,               // Point3D
+  ATT_SPOT_DIFFUSE_FOCUS,                   // Float
   ATT_SPOT_DIFFUSE_LIMITING_CONE_ANGLE,     // Float
-  ATT_SPOT_DIFFUSE_SURFACE_SCALE,           // Float
-  ATT_SPOT_DIFFUSE_DIFFUSE_CONSTANT,        // Float
-  ATT_SPOT_DIFFUSE_KERNEL_UNIT_LENGTH       // Float
+  ATT_SPOT_DIFFUSE_SURFACE_SCALE = 10,      // Float
+  ATT_SPOT_DIFFUSE_KERNEL_UNIT_LENGTH,      // Float
+  ATT_SPOT_DIFFUSE_COLOR,                   // Color
+  ATT_SPOT_DIFFUSE_DIFFUSE_CONSTANT         // Float
 };
 
 enum SpotDiffuseInputs
@@ -341,9 +361,10 @@ enum DistantDiffuseAtts
 {
   ATT_DISTANT_DIFFUSE_AZIMUTH = 0,          // Float
   ATT_DISTANT_DIFFUSE_ELEVATION,            // Float
-  ATT_DISTANT_DIFFUSE_SURFACE_SCALE,        // Float
-  ATT_DISTANT_DIFFUSE_DIFFUSE_CONSTANT,     // Float
-  ATT_DISTANT_DIFFUSE_KERNEL_UNIT_LENGTH    // Float
+  ATT_DISTANT_DIFFUSE_SURFACE_SCALE = 10,   // Float
+  ATT_DISTANT_DIFFUSE_KERNEL_UNIT_LENGTH,   // Float
+  ATT_DISTANT_DIFFUSE_COLOR,                // Color
+  ATT_DISTANT_DIFFUSE_DIFFUSE_CONSTANT      // Float
 };
 
 enum DistantDiffuseInputs
@@ -354,10 +375,11 @@ enum DistantDiffuseInputs
 enum PointSpecularAtts
 {
   ATT_POINT_SPECULAR_POSITION = 0,          // Point3D
-  ATT_POINT_SPECULAR_SURFACE_SCALE,         // Float
+  ATT_POINT_SPECULAR_SURFACE_SCALE = 10,    // Float
+  ATT_POINT_SPECULAR_KERNEL_UNIT_LENGTH,    // Float
+  ATT_POINT_SPECULAR_COLOR,                 // Color
   ATT_POINT_SPECULAR_SPECULAR_CONSTANT,     // Float
-  ATT_POINT_SPECULAR_SPECULAR_EXPONENT,     // Float
-  ATT_POINT_SPECULAR_KERNEL_UNIT_LENGTH     // Float
+  ATT_POINT_SPECULAR_SPECULAR_EXPONENT      // Float
 };
 
 enum PointSpecularInputs
@@ -369,12 +391,13 @@ enum SpotSpecularAtts
 {
   ATT_SPOT_SPECULAR_POSITION = 0,           // Point3D
   ATT_SPOT_SPECULAR_POINTS_AT,              // Point3D
-  ATT_SPOT_SPECULAR_SPECULAR_FOCUS,         // Float
+  ATT_SPOT_SPECULAR_FOCUS,                  // Float
   ATT_SPOT_SPECULAR_LIMITING_CONE_ANGLE,    // Float
-  ATT_SPOT_SPECULAR_SURFACE_SCALE,          // Float
+  ATT_SPOT_SPECULAR_SURFACE_SCALE = 10,     // Float
+  ATT_SPOT_SPECULAR_KERNEL_UNIT_LENGTH,     // Float
+  ATT_SPOT_SPECULAR_COLOR,                  // Color
   ATT_SPOT_SPECULAR_SPECULAR_CONSTANT,      // Float
-  ATT_SPOT_SPECULAR_SPECULAR_EXPONENT,      // Float
-  ATT_SPOT_SPECULAR_KERNEL_UNIT_LENGTH      // Float
+  ATT_SPOT_SPECULAR_SPECULAR_EXPONENT       // Float
 };
 
 enum SpotSpecularInputs
@@ -386,10 +409,11 @@ enum DistantSpecularAtts
 {
   ATT_DISTANT_SPECULAR_AZIMUTH = 0,         // Float
   ATT_DISTANT_SPECULAR_ELEVATION,           // Float
-  ATT_DISTANT_SPECULAR_SURFACE_SCALE,       // Float
+  ATT_DISTANT_SPECULAR_SURFACE_SCALE = 10,  // Float
+  ATT_DISTANT_SPECULAR_KERNEL_UNIT_LENGTH,  // Float
+  ATT_DISTANT_SPECULAR_COLOR,               // Color
   ATT_DISTANT_SPECULAR_SPECULAR_CONSTANT,   // Float
-  ATT_DISTANT_SPECULAR_SPECULAR_EXPONENT,   // Float
-  ATT_DISTANT_SPECULAR_KERNEL_UNIT_LENGTH   // Float
+  ATT_DISTANT_SPECULAR_SPECULAR_EXPONENT    // Float
 };
 
 enum DistantSpecularInputs
@@ -399,7 +423,7 @@ enum DistantSpecularInputs
 
 enum CropAtts
 {
-  ATT_CROP_RECT = 0                         // IntRect
+  ATT_CROP_RECT = 0                         // Rect
 };
 
 enum CropInputs
@@ -430,6 +454,7 @@ public:
   virtual void SetAttribute(uint32_t aIndex, bool) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, uint32_t) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, Float) { MOZ_CRASH(); }
+  virtual void SetAttribute(uint32_t aIndex, const Size &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntSize &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &) { MOZ_CRASH(); }
   virtual void SetAttribute(uint32_t aIndex, const Rect &) { MOZ_CRASH(); }
