@@ -17,6 +17,8 @@ TestBase::RunTests()
 {
   int testsRun = 0;
 
+  Initialize();
+
   for(unsigned int i = 0; i < mTests.size(); i++) {
     stringstream stream;
     stream << "Test (" << mTests[i].name << "): ";
@@ -55,6 +57,8 @@ TestBase::RunTests()
 
     testsRun++;
   }
+
+  Finalize();
 
   return testsRun;
 }

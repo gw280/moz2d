@@ -9,10 +9,10 @@
 
 #include <d3d10_1.h>
 
-class TestDrawTargetD2D : public TestDrawTargetBase
+class TestDrawTargetD2DWarp : public TestDrawTargetBase
 {
 public:
-  TestDrawTargetD2D();
+  TestDrawTargetD2DWarp();
 
   void Initialize();
 

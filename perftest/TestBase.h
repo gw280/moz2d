@@ -73,7 +73,11 @@ public:
 
   typedef void (TestBase::*TestCall)();
 
+  virtual void Initialize() {}
+
   int RunTests();
+
+  virtual void Finalize() {}
 
 protected:
   static void LogMessage(std::string aMessage);

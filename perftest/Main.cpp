@@ -6,6 +6,7 @@
 #include "SanityChecks.h"
 #ifdef WIN32
 #include "TestDrawTargetD2D.h"
+#include "TestDrawTargetD2DWarp.h"
 #endif
 #ifdef USE_SKIA
 #include "TestDrawTargetSkiaSoftware.h"
@@ -33,6 +34,7 @@ main()
     { new SanityChecks(), "Sanity Checks" },
 #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
+    { new TestDrawTargetD2DWarp(), "DrawTarget (D2D WARP)" },
 #endif
 #ifdef USE_SKIA
     { new TestDrawTargetSkiaSoftware(), "DrawTarget (Skia Software)" },

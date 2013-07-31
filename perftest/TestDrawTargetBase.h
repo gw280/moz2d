@@ -20,8 +20,6 @@ typedef void(*FlushFunc)(void*);
 class TestDrawTargetBase : public TestBase
 {
 public:
-  void Initialized();
-
   void FillRect50x50x500();
   void FillRect50x50x2000();
   void FillRect200x200x500();

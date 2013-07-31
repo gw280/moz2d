@@ -36,6 +36,9 @@
     <ClCompile Include="TestDrawTargetCairoImage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TestDrawTargetD2DWarp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SanityChecks.h">
@@ -54,6 +57,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TestDrawTargetCairoImage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TestDrawTargetD2DWarp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
