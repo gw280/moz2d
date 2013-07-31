@@ -328,9 +328,7 @@ TestDrawTargetBase::MaskSurface100x100()
   RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(100, FORMAT_B8G8R8A8);
   RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(100, FORMAT_A8);
   for (int i = 0; i < 200; i++) {
-    mDT->PushClipRect(Rect(0, 0, 100, 100));
-    mDT->Mask(SurfacePattern(surf, EXTEND_CLAMP), SurfacePattern(mask, EXTEND_CLAMP));
-    mDT->PopClip();
+    mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
   }
   Flush();
 }
@@ -341,9 +339,7 @@ TestDrawTargetBase::MaskSurface500x500()
   RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(500, FORMAT_B8G8R8A8);
   RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(500, FORMAT_A8);
   for (int i = 0; i < 200; i++) {
-    mDT->PushClipRect(Rect(0, 0, 500, 500));
-    mDT->Mask(SurfacePattern(surf, EXTEND_CLAMP), SurfacePattern(mask, EXTEND_CLAMP));
-    mDT->PopClip();
+    mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
   }
   Flush();
 }
