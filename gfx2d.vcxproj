@@ -184,6 +184,9 @@
     <ClInclude Include="ImageScaling.h" />
     <ClInclude Include="Logging.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="nvpr\ConvexPolygon.h" />
+    <ClInclude Include="nvpr\PaintConfig.h" />
+    <ClInclude Include="nvpr\Shader.h" />
     <ClInclude Include="PathBuilderNVpr.h" />
     <ClInclude Include="PathCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -233,7 +236,6 @@
   <ItemGroup>
     <ClCompile Include="Blur.cpp" />
     <ClCompile Include="BlurSSE2.cpp" />
-    <ClCompile Include="ConvexPolygon.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -255,7 +257,10 @@
     <ClCompile Include="ImageScalingSSE2.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="nvpr\Clip.cpp" />
+    <ClCompile Include="nvpr\ConvexPolygon.cpp" />
     <ClCompile Include="nvpr\GL.cpp" />
+    <ClCompile Include="nvpr\PaintConfig.cpp" />
+    <ClCompile Include="nvpr\Shader.cpp" />
     <ClCompile Include="nvpr\WGL.cpp" />
     <ClCompile Include="PathBuilderNVpr.cpp" />
     <ClCompile Include="PathCairo.cpp">

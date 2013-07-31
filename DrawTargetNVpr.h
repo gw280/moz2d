@@ -64,8 +64,8 @@ public:
   virtual void Flush();
 
   virtual void DrawSurface(SourceSurface* aSurface,
-                           const Rect& aDest,
-                           const Rect& aSource,
+                           const Rect& aDestRect,
+                           const Rect& aSourceRect,
                            const DrawSurfaceOptions& aSurfOptions = DrawSurfaceOptions(),
                            const DrawOptions& aOptions = DrawOptions());
 
@@ -116,10 +116,10 @@ public:
                     const Pattern& aMask,
                     const DrawOptions& aOptions = DrawOptions());
 
-  virtual void MaskSurface(const Pattern &aSource,
-                           SourceSurface *aMask,
+  virtual void MaskSurface(const Pattern& aSource,
+                           SourceSurface* aMask,
                            Point aOffset,
-                           const DrawOptions &aOptions = DrawOptions());
+                           const DrawOptions& aOptions = DrawOptions());
 
   virtual void PushClip(const Path* aPath);
 
@@ -165,12 +165,6 @@ private:
   };
   typedef unsigned ValidationFlags;
   void Validate(ValidationFlags aFlags = ~0);
-
-  void ApplyPattern(const Pattern& aPattern, const DrawOptions& aOptions);
-  void ApplyPattern(const ColorPattern& aPattern, float aAlpha);
-  void ApplyPattern(const SurfacePattern& aPattern, float aAlpha);
-  void ApplyPattern(const LinearGradientPattern& aPattern, float aAlpha);
-  void ApplyPattern(const RadialGradientPattern& aPattern, float aAlpha);
 
   void ApplyDrawOptions(CompositionOp aCompositionOp,
                         AntialiasMode aAntialiasMode, Snapping aSnapping);

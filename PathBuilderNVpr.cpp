@@ -5,9 +5,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "PathBuilderNVpr.h"
-#include "ConvexPolygon.h"
 #include "PathNVpr.h"
 #include "Line.h"
+#include "nvpr/ConvexPolygon.h"
 #include <map>
 
 using namespace mozilla::gfx::nvpr;
@@ -16,14 +16,10 @@ using namespace std;
 namespace mozilla {
 namespace gfx {
 
-namespace nvpr {
-
 class PathCache
   : public map<PathDescriptionNVpr, RefPtr<PathObjectNVpr> >
-  , public UserData::Object
+  , public nvpr::UserData::Object
 {};
-
-}
 
 PathBuilderNVpr::PathBuilderNVpr(FillRule aFillRule)
   : mFillRule(aFillRule)
@@ -207,7 +203,8 @@ PathBuilderNVpr::Finish()
     return new PathNVpr(mFillRule, mPathObject.forget());
   }
 
-  RefPtr<PathObjectNVpr>& pathObject = PathCache()[mDescription];
+  PathCache& pathCache = gl->GetUserObject<PathCache>(&nvpr::UserData::mPathCache);
+  RefPtr<PathObjectNVpr>& pathObject = pathCache[mDescription];
 
   if (pathObject) {
     return new PathNVpr(mFillRule, pathObject);
@@ -254,17 +251,6 @@ PathBuilderNVpr::MakeWritable()
   mCurrentPoint = mPathObject->CurrentPoint();
 
   mPathObject = nullptr;
-}
-
-PathCache&
-PathBuilderNVpr::PathCache() const
-{
-  nvpr::UserData& userData = gl->GetUserData();
-  if (!userData.mPathCache) {
-    userData.mPathCache.reset(new nvpr::PathCache());
-  }
-
-  return static_cast<nvpr::PathCache&>(*userData.mPathCache);
 }
 
 

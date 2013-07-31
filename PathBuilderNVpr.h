@@ -14,10 +14,6 @@
 namespace mozilla {
 namespace gfx {
 
-namespace nvpr {
-class PathCache;
-}
-
 class PathObjectNVpr;
 
 /**
@@ -83,7 +79,6 @@ public:
 
 private:
   void MakeWritable();
-  nvpr::PathCache& PathCache() const;
 
   const FillRule mFillRule;
   RefPtr<PathObjectNVpr> mPathObject;

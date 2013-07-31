@@ -8,10 +8,13 @@
 #define MOZILLA_GFX_NVPR_GL_H_
 
 #ifdef WIN32
+#define NOMINMAX
 #include <Windows.h>
+#undef NOMINMAX
 #endif
 
 #include "2D.h"
+#include "PaintConfig.h"
 #include <GL/gl.h>
 #include "GL/glext.h"
 #include <memory>
@@ -19,19 +22,18 @@
 
 namespace mozilla {
 namespace gfx {
-
-class ConvexPolygon;
-
 namespace nvpr {
 
 typedef uint64_t UniqueId;
+
+class ConvexPolygon;
+class Shader;
 
 struct UserData {
   class Object { public: virtual ~Object() {} };
 
   std::unique_ptr<Object> mPathCache;
   std::unique_ptr<Object> mColorRampData;
-  std::unique_ptr<Object> mGradientShaders;
   std::unique_ptr<Object> mFonts;
 };
 
@@ -64,7 +66,15 @@ public:
   GLint MaxClipPlanes() const { return mMaxClipPlanes; }
   GLint MaxAnisotropy() const { return mMaxAnisotropy; }
 
-  UserData& GetUserData() { return mUserData; }
+  template<typename T> T&
+  GetUserObject(std::unique_ptr<UserData::Object> UserData::*aObject)
+  {
+    std::unique_ptr<UserData::Object>& object = mUserData.*aObject;
+    if (!object) {
+      object.reset(new T());
+    }
+    return static_cast<T&>(*object.get());
+  }
 
   UniqueId GetUniqueId() { return mNextUniqueId++; }
   UniqueId TransformId() const { return mTransformIdStack.top(); }
@@ -127,20 +137,6 @@ public:
 
   void ConfigurePathStencilTest(GLubyte aClipBits);
 
-  enum TexgenComponents { TEXGEN_NONE = 0, TEXGEN_S = 1, TEXGEN_ST = 2 };
-  void EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                       TexgenComponents aTexgenComponents,
-                       const GLfloat* aTexgenCoefficients = nullptr);
-  void EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                       TexgenComponents aTexgenComponents,
-                       const Matrix& aTransform);
-  void DisableTexturing();
-
-  void DeleteTexture(GLuint aTextureId);
-
-  void EnableShading(GLuint aShaderProgram);
-  void DisableShading() { EnableShading(0); }
-
   void EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
                       GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha);
   void EnableBlending(GLenum aSourceFactor, GLenum aDestFactor)
@@ -149,6 +145,28 @@ public:
   }
   void DisableBlending();
 
+  struct ShaderConfig {
+    ShaderConfig()
+      : mGlobalAlpha(1)
+    {}
+    GLfloat mGlobalAlpha;
+    PaintConfig mPaintConfig;
+    PaintConfig mMaskConfig;
+  };
+  void EnableShading(const ShaderConfig& aShaderConfig);
+  void DisableShading();
+  void DeleteShaderProgram(GLuint aShaderProgram);
+
+  enum TextureUnit { PAINT_UNIT, MASK_UNIT, TEXTURE_UNIT_COUNT };
+  void SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
+                  GLuint aTextureId);
+  void DeleteTexture(GLuint aTextureId);
+
+  void EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords);
+  void DisableTexCoordArray(TextureUnit aTextureUnit);
+
+  void SetVertexArray(const GLfloat* aVertices);
+
 protected:
   GL();
   virtual ~GL();
@@ -156,6 +174,9 @@ protected:
   void Initialize();
 
 private:
+  void ConfigureTexgen(TextureUnit aTextureUnit, unsigned aComponents,
+                       const GLfloat* aTexgenCoefficients);
+
   bool mIsValid;
   bool mSupportedExtensions[EXTENSION_COUNT];
   GLint mMaxRenderbufferSize;
@@ -166,6 +187,7 @@ private:
   UniqueId mNextUniqueId;
   GLuint mTextureFramebuffer1D;
   GLuint mTextureFramebuffer2D;
+  RefPtr<Shader> mShaders[2][PaintConfig::MODE_COUNT][PaintConfig::MODE_COUNT];
 
   // GL state.
   IntSize mTargetSize;
@@ -186,33 +208,38 @@ private:
   StencilOperation mStencilOp;
   GLuint mStencilWriteMask;
   GLubyte mPathStencilFuncBits;
-  GLenum mBoundTextureId;
-  TexgenComponents mTexgenComponents;
-  GLfloat mTexgenCoefficients[6];
-  GLuint mShaderProgram;
   bool mBlendingEnabled;
   GLenum mSourceBlendFactorRGB;
   GLenum mDestBlendFactorRGB;
   GLenum mSourceBlendFactorAlpha;
   GLenum mDestBlendFactorAlpha;
-  GLenum mActiveTextureTarget;
+  GLuint mShaderProgram;
+  unsigned mTexgenComponents[TEXTURE_UNIT_COUNT];
+  GLfloat mTexgenCoefficients[TEXTURE_UNIT_COUNT][6];
+  GLenum mActiveTextureTargets[TEXTURE_UNIT_COUNT];
+  GLenum mBoundTextures[TEXTURE_UNIT_COUNT];
+  bool mTexCoordArraysEnabled[TEXTURE_UNIT_COUNT];
 
 #define FOR_ALL_PUBLIC_GL_ENTRY_POINTS(MACRO) \
   MACRO(GenTextures) \
   MACRO(CreateShader) \
   MACRO(ShaderSource) \
   MACRO(CompileShader) \
+  MACRO(GetShaderiv) \
+  MACRO(GetShaderInfoLog) \
+  MACRO(GetProgramiv) \
   MACRO(CreateProgram) \
   MACRO(AttachShader) \
   MACRO(LinkProgram) \
+  MACRO(DeleteShader) \
   MACRO(GetUniformLocation) \
-  MACRO(Uniform1f) \
-  MACRO(Uniform2f) \
+  MACRO(ProgramUniform1iEXT) \
+  MACRO(ProgramUniform1fEXT) \
+  MACRO(ProgramUniform2fvEXT) \
+  MACRO(ProgramUniform4fvEXT) \
   MACRO(GenRenderbuffers) \
   MACRO(DeleteRenderbuffers) \
   MACRO(Clear) \
-  MACRO(TexCoordPointer) \
-  MACRO(VertexPointer) \
   MACRO(DrawArrays) \
   MACRO(BlitFramebuffer) \
   MACRO(Rectf) \
@@ -257,8 +284,8 @@ private:
 
 #define FOR_ALL_PRIVATE_GL_ENTRY_POINTS(MACRO) \
   MACRO(DeleteTextures) \
+  MACRO(DeleteProgram) \
   MACRO(GetIntegerv) \
-  MACRO(TexGeni) \
   MACRO(EnableClientState) \
   MACRO(DebugMessageCallback) \
   MACRO(DebugMessageControl) \
@@ -271,11 +298,12 @@ private:
   MACRO(StencilMask) \
   MACRO(ClearColor) \
   MACRO(Color4f) \
-  MACRO(TexGenfv) \
-  MACRO(BindTexture) \
   MACRO(UseProgram) \
   MACRO(BlendFunc) \
   MACRO(BlendFuncSeparate) \
+  MACRO(Enablei) \
+  MACRO(Disablei) \
+  MACRO(VertexPointer) \
   MACRO(MatrixOrthoEXT) \
   MACRO(MatrixLoadfEXT) \
   MACRO(MatrixPushEXT) \
@@ -283,6 +311,12 @@ private:
   MACRO(MatrixLoadIdentityEXT) \
   MACRO(NamedFramebufferTexture1DEXT) \
   MACRO(NamedFramebufferTexture2DEXT) \
+  MACRO(MultiTexGenivEXT) \
+  MACRO(MultiTexGenfvEXT) \
+  MACRO(BindMultiTextureEXT) \
+  MACRO(EnableClientStateIndexedEXT) \
+  MACRO(DisableClientStateIndexedEXT) \
+  MACRO(MultiTexCoordPointerEXT) \
   MACRO(PathStencilFuncNV) \
   MACRO(PathTexGenNV)
 
@@ -296,6 +330,12 @@ protected:
   FOR_ALL_PRIVATE_GL_ENTRY_POINTS(DECLARE_GL_METHOD);
 
 #undef DECLARE_GL_METHOD
+
+  void MultiTexGeniEXT(GLenum texunit, GLenum coord, GLenum pname, GLint param)
+  {
+    // WAR for driver bug with glMultiTexGeniEXT.
+    MultiTexGenivEXT(texunit, coord, pname, &param);
+  }
 
   GL(const GL&);
   GL& operator =(const GL&);

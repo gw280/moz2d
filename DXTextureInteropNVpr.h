@@ -19,8 +19,8 @@ public:
   static TemporaryRef<DXTextureInteropNVpr> Create(void* aDX, void* aDXTexture)
   {
     bool success;
-    RefPtr<DXTextureInteropNVpr> interop
-      = new DXTextureInteropNVpr(aDX, aDXTexture, success);
+    RefPtr<DXTextureInteropNVpr> interop =
+      new DXTextureInteropNVpr(aDX, aDXTexture, success);
     return success ? interop.forget() : nullptr;
   }
   ~DXTextureInteropNVpr();

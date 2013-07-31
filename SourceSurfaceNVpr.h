@@ -37,8 +37,7 @@ public:
   GLsizei BytesPerPixel() const { return mBytesPerPixel; }
   operator GLuint() const { return mTextureId; }
 
-  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
-                             SamplingBounds aSamplingBounds = SAMPLING_UNBOUNDED);
+  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode);
   void WritePixels(const GLvoid* aData, GLsizei aStride = 0);
   void ReadPixels(GLvoid* aBuffer);
 
@@ -66,10 +65,9 @@ public:
   TextureObjectNVpr* Texture() const { return mTexture; }
   operator GLuint() const { return *mTexture; }
 
-  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
-                             SamplingBounds aSamplingBounds = SAMPLING_UNBOUNDED)
+  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode)
   {
-    mTexture->ApplyTexturingOptions(aFilter, aExtendMode, aSamplingBounds);
+    mTexture->ApplyTexturingOptions(aFilter, aExtendMode);
   }
 
   virtual SurfaceType GetType() const { return SURFACE_NVPR_TEXTURE; }

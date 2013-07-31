@@ -8,6 +8,7 @@
 #include "ConvexPolygon.h"
 #include "Line.h"
 #include "Logging.h"
+#include "Shader.h"
 #include <iterator>
 #include <iostream>
 #include <sstream>
@@ -64,18 +65,19 @@ GL::GL()
   , mStencilOp(LEAVE_UNCHANGED)
   , mStencilWriteMask(~0)
   , mPathStencilFuncBits(0)
-  , mActiveTextureTarget(0)
-  , mBoundTextureId(0)
-  , mTexgenComponents(TEXGEN_NONE)
-  , mShaderProgram(0)
   , mBlendingEnabled(false)
   , mSourceBlendFactorRGB(GL_ONE)
   , mDestBlendFactorRGB(GL_ZERO)
   , mSourceBlendFactorAlpha(GL_ONE)
   , mDestBlendFactorAlpha(GL_ZERO)
+  , mShaderProgram(0)
 {
   mTransformIdStack.push(0);
+  memset(mTexgenComponents, 0, sizeof(mTexgenComponents));
   memset(mTexgenCoefficients, 0, sizeof(mTexgenCoefficients));
+  memset(mActiveTextureTargets, 0, sizeof(mActiveTextureTargets));
+  memset(mBoundTextures, 0, sizeof(mBoundTextures));
+  memset(mTexCoordArraysEnabled, 0, sizeof(mTexCoordArraysEnabled));
 }
 
 void GL::Initialize()
@@ -129,11 +131,12 @@ void GL::Initialize()
   GenFramebuffers(1, &mTextureFramebuffer1D);
   GenFramebuffers(1, &mTextureFramebuffer2D);
 
-  TexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-  TexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  for (size_t i = 0; i < TEXTURE_UNIT_COUNT; i++) {
+    MultiTexGeniEXT(GL_TEXTURE0 + i, GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+    MultiTexGeniEXT(GL_TEXTURE0 + i, GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+  }
 
   EnableClientState(GL_VERTEX_ARRAY);
-  EnableClientState(GL_TEXTURE_COORD_ARRAY);
 
   DebugMessageCallback(GLDebugCallback, nullptr);
   DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
@@ -579,141 +582,6 @@ GL::ConfigurePathStencilTest(GLubyte aClipBits)
 }
 
 void
-GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                    TexgenComponents aTexgenComponents,
-                    const GLfloat* aTexgenCoefficients)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (mActiveTextureTarget == aTextureTarget) {
-    if (mBoundTextureId != aTextureId) {
-      BindTexture(aTextureTarget, aTextureId);
-      mBoundTextureId = aTextureId;
-    }
-  } else {
-    if (mBoundTextureId) {
-      BindTexture(mActiveTextureTarget, 0);
-    }
-    if (mActiveTextureTarget) {
-      Disable(mActiveTextureTarget);
-    }
-
-    Enable(aTextureTarget);
-    mActiveTextureTarget = aTextureTarget;
-
-    BindTexture(aTextureTarget, aTextureId);
-    mBoundTextureId = aTextureId;
-  }
-
-  if (mTexgenComponents == aTexgenComponents
-      && !memcmp(mTexgenCoefficients, aTexgenCoefficients,
-                 aTexgenComponents * 3 * sizeof(GLfloat))) {
-    return;
-  }
-
-  if (mTexgenComponents > aTexgenComponents) {
-    if (aTexgenComponents < TEXGEN_ST && mTexgenComponents >= TEXGEN_ST) {
-      Disable(GL_TEXTURE_GEN_T);
-    }
-    if (aTexgenComponents < TEXGEN_S && mTexgenComponents >= TEXGEN_S) {
-      Disable(GL_TEXTURE_GEN_S);
-    }
-  } else if (mTexgenComponents < aTexgenComponents) {
-    if (aTexgenComponents >= TEXGEN_S && mTexgenComponents < TEXGEN_S) {
-      Enable(GL_TEXTURE_GEN_S);
-    }
-    if (aTexgenComponents >= TEXGEN_ST && mTexgenComponents < TEXGEN_ST) {
-      Enable(GL_TEXTURE_GEN_T);
-    }
-  }
-
-  if (aTexgenComponents >= TEXGEN_S) {
-    const GLfloat plane[] = {aTexgenCoefficients[0], aTexgenCoefficients[1],
-                             0, aTexgenCoefficients[2]};
-    TexGenfv(GL_S, GL_OBJECT_PLANE, plane);
-  }
-  if (aTexgenComponents >= TEXGEN_ST) {
-    const GLfloat plane[] = {aTexgenCoefficients[3], aTexgenCoefficients[4],
-                             0, aTexgenCoefficients[5]};
-    TexGenfv(GL_T, GL_OBJECT_PLANE, plane);
-  }
-
-  if (aTexgenComponents == TEXGEN_NONE) {
-    PathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
-  } else {
-    PathTexGenNV(GL_TEXTURE0, GL_OBJECT_LINEAR,
-                 aTexgenComponents, aTexgenCoefficients);
-  }
-
-  mTexgenComponents = aTexgenComponents;
-  memcpy(mTexgenCoefficients, aTexgenCoefficients,
-         aTexgenComponents * 3 * sizeof(GLfloat));
-}
-
-void
-GL::EnableTexturing(GLenum aTextureTarget, GLenum aTextureId,
-                    TexgenComponents aTexgenComponents, const Matrix& aTransform)
-{
-  GLfloat coefficients[] = {
-    aTransform._11, aTransform._21, aTransform._31,
-    aTransform._12, aTransform._22, aTransform._32
-  };
-  EnableTexturing(aTextureTarget, aTextureId, aTexgenComponents, coefficients);
-}
-
-void
-GL::DisableTexturing()
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (mBoundTextureId) {
-    BindTexture(mActiveTextureTarget, 0);
-    mBoundTextureId = 0;
-  }
-
-  if (mActiveTextureTarget) {
-    Disable(mActiveTextureTarget);
-    mActiveTextureTarget = 0;
-  }
-
-  if (mTexgenComponents >= TEXGEN_S) {
-    Disable(GL_TEXTURE_GEN_S);
-  }
-  if (mTexgenComponents >= TEXGEN_ST) {
-    Disable(GL_TEXTURE_GEN_T);
-  }
-  if (mTexgenComponents != TEXGEN_NONE) {
-    PathTexGenNV(GL_TEXTURE0, GL_NONE, 0, 0);
-    mTexgenComponents = TEXGEN_NONE;
-  }
-}
-
-void
-GL::DeleteTexture(GLuint aTextureId)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  DeleteTextures(1, &aTextureId);
-
-  if (mBoundTextureId == aTextureId) {
-    mBoundTextureId = 0;
-  }
-}
-
-void
-GL::EnableShading(GLuint aShaderProgram)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (mShaderProgram == aShaderProgram) {
-    return;
-  }
-
-  UseProgram(aShaderProgram);
-  mShaderProgram = aShaderProgram;
-}
-
-void
 GL::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
                    GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha)
 {
@@ -755,6 +623,175 @@ GL::DisableBlending()
 
   Disable(GL_BLEND);
   mBlendingEnabled = false;
+}
+
+void
+GL::EnableShading(const ShaderConfig& aShaderConfig)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  const bool hasAlpha = aShaderConfig.mGlobalAlpha != 1;
+  const PaintConfig::PaintMode paintMode = aShaderConfig.mPaintConfig.mPaintMode;
+  const PaintConfig::PaintMode maskMode = aShaderConfig.mMaskConfig.mPaintMode;
+
+  ConfigureTexgen(PAINT_UNIT, aShaderConfig.mPaintConfig.mTexgenComponents,
+                  aShaderConfig.mPaintConfig.mTexgenCoefficients);
+  ConfigureTexgen(MASK_UNIT, aShaderConfig.mMaskConfig.mTexgenComponents,
+                  aShaderConfig.mMaskConfig.mTexgenCoefficients);
+
+  RefPtr<Shader>& shader = mShaders[hasAlpha][paintMode][maskMode];
+  if (!shader) {
+    shader = Shader::Create(hasAlpha, paintMode, maskMode);
+  }
+
+  if (mShaderProgram != *shader) {
+    UseProgram(*shader);
+    mShaderProgram = *shader;
+  }
+
+  shader->ApplyFragmentUniforms(aShaderConfig);
+}
+
+void
+GL::DisableShading()
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (mShaderProgram == 0) {
+    return;
+  }
+
+  UseProgram(0);
+  mShaderProgram = 0;
+}
+
+void
+GL::DeleteShaderProgram(GLuint aShaderProgram)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (mShaderProgram == aShaderProgram) {
+    DisableShading();
+  }
+
+  DeleteProgram(aShaderProgram);
+}
+
+void
+GL::ConfigureTexgen(TextureUnit aTextureUnit, unsigned aComponents,
+                    const GLfloat* aTexgenCoefficients)
+{
+  MOZ_ASSERT(IsCurrent());
+  MOZ_ASSERT(aComponents <= 2);
+
+  if (mTexgenComponents[aTextureUnit] == aComponents
+      && !memcmp(mTexgenCoefficients[aTextureUnit], aTexgenCoefficients,
+          aComponents * 3 * sizeof(GLfloat))) {
+    return;
+  }
+
+  if (mTexgenComponents[aTextureUnit] > aComponents) {
+    if (aComponents < 2 && mTexgenComponents[aTextureUnit] >= 2) {
+      Disablei(GL_TEXTURE_GEN_T, aTextureUnit);
+    }
+    if (aComponents < 1 && mTexgenComponents[aTextureUnit] >= 1) {
+      Disablei(GL_TEXTURE_GEN_S, aTextureUnit);
+    }
+  } else if (mTexgenComponents[aTextureUnit] < aComponents) {
+    if (aComponents >= 1 && mTexgenComponents[aTextureUnit] < 1) {
+      Enablei(GL_TEXTURE_GEN_S, aTextureUnit);
+    }
+    if (aComponents >= 2 && mTexgenComponents[aTextureUnit] < 2) {
+      Enablei(GL_TEXTURE_GEN_T, aTextureUnit);
+    }
+  }
+
+  if (aComponents >= 1) {
+    const GLfloat plane[] = {aTexgenCoefficients[0], aTexgenCoefficients[1],
+                             0, aTexgenCoefficients[2]};
+    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_S, GL_OBJECT_PLANE, plane);
+  }
+  if (aComponents >= 2) {
+    const GLfloat plane[] = {aTexgenCoefficients[3], aTexgenCoefficients[4],
+                             0, aTexgenCoefficients[5]};
+    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_T, GL_OBJECT_PLANE, plane);
+  }
+
+  if (!aComponents) {
+    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_NONE, 0, 0);
+  } else {
+    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_OBJECT_LINEAR,
+                 aComponents, aTexgenCoefficients);
+  }
+
+  mTexgenComponents[aTextureUnit] = aComponents;
+  memcpy(mTexgenCoefficients[aTextureUnit], aTexgenCoefficients,
+         aComponents * 3 * sizeof(GLfloat));
+}
+
+void
+GL::SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
+               GLuint aTextureId)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (mActiveTextureTargets[aTextureUnit] == aTextureTarget
+      && mBoundTextures[aTextureUnit] == aTextureId) {
+    return;
+  }
+
+  if (mActiveTextureTargets[aTextureUnit]
+      && mActiveTextureTargets[aTextureUnit] != aTextureTarget) {
+    BindMultiTextureEXT(GL_TEXTURE0 + aTextureUnit,
+                        mActiveTextureTargets[aTextureUnit], 0);
+  }
+
+  BindMultiTextureEXT(GL_TEXTURE0 + aTextureUnit, aTextureTarget, aTextureId);
+}
+
+void
+GL::DeleteTexture(GLuint aTextureId)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  DeleteTextures(1, &aTextureId);
+
+  for (size_t i = 0; i < TEXTURE_UNIT_COUNT; i++) {
+    if (mBoundTextures[i] == aTextureId) {
+      mActiveTextureTargets[i] = 0;
+      mBoundTextures[i] = 0;
+    }
+  }
+}
+
+void
+GL::EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords)
+{
+  if (!mTexCoordArraysEnabled[aTextureUnit]) {
+    EnableClientStateIndexedEXT(GL_TEXTURE0 + aTextureUnit,
+                                GL_TEXTURE_COORD_ARRAY);
+    mTexCoordArraysEnabled[aTextureUnit] = true;
+  }
+
+  MultiTexCoordPointerEXT(GL_TEXTURE0 + aTextureUnit, 2, GL_FLOAT, 0, aTexCoords);
+}
+
+void
+GL::DisableTexCoordArray(TextureUnit aTextureUnit)
+{
+  if (!mTexCoordArraysEnabled[aTextureUnit]) {
+    return;
+  }
+
+  DisableClientStateIndexedEXT(GL_TEXTURE0 + aTextureUnit,
+                               GL_TEXTURE_COORD_ARRAY);
+  mTexCoordArraysEnabled[aTextureUnit] = false;
+}
+
+void
+GL::SetVertexArray(const GLfloat* aVertices)
+{
+  VertexPointer(2, GL_FLOAT, 0, aVertices);
 }
 
 }

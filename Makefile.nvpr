@@ -10,8 +10,11 @@ MOZ2D_CPPSRCS += \
   GradientStopsNVpr.cpp \
   ScaledFontNVpr.cpp \
   nvpr/Clip.cpp \
+  nvpr/ConvexPolygon.cpp \
   nvpr/GL.cpp \
   nvpr/GLX.cpp \
+  nvpr/Shader.cpp \
+  nvpr/PaintConfig.cpp \
   $(NULL)
 
 UNITTEST_CPPSRCS += \

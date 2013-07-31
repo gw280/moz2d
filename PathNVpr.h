@@ -8,7 +8,7 @@
 #define MOZILLA_GFX_PATHNVPR_H_
 
 #include "2D.h"
-#include "ConvexPolygon.h"
+#include "nvpr/ConvexPolygon.h"
 #include "nvpr/GL.h"
 #include <vector>
 
@@ -27,13 +27,13 @@ class PathObjectNVpr : public RefCounted<PathObjectNVpr> {
 public:
   PathObjectNVpr(const PathDescriptionNVpr& aDescription,
                  const Point& aStartPoint, const Point& aCurrentPoint,
-                 ConvexPolygon&& aPassPolygon = ConvexPolygon());
+                 nvpr::ConvexPolygon&& aPassPolygon = nvpr::ConvexPolygon());
   PathObjectNVpr(const PathObjectNVpr& aPath, const Matrix& aTransform);
   ~PathObjectNVpr();
 
   const Point& StartPoint() const { return mStartPoint; }
   const Point& CurrentPoint() const { return mCurrentPoint; }
-  const ConvexPolygon& Polygon() const { return mPolygon; }
+  const nvpr::ConvexPolygon& Polygon() const { return mPolygon; }
   operator GLuint() const { return mObject; }
 
   void ApplySencliClipBits(GLuint aClipBits);
@@ -42,7 +42,7 @@ public:
 private:
   const Point mStartPoint;
   const Point mCurrentPoint;
-  ConvexPolygon mPolygon;
+  nvpr::ConvexPolygon mPolygon;
   GLuint mObject;
 
   GLuint mStencilClipBits;
@@ -85,7 +85,7 @@ public:
 
   bool IsSamePath(const PathNVpr* aPath) const;
 
-  const ConvexPolygon& Polygon() const { return mPathObject->Polygon(); }
+  const nvpr::ConvexPolygon& Polygon() const { return mPathObject->Polygon(); }
 
   operator GLuint() const { return *mPathObject; }
 

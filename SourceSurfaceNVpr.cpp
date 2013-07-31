@@ -41,9 +41,10 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
       return;
     case FORMAT_A8:
       internalFormat = GL_ALPHA;
-      mGLFormat = GL_UNSIGNED_BYTE;
-      mGLType = GL_ALPHA;
+      mGLFormat = GL_ALPHA;
+      mGLType = GL_UNSIGNED_BYTE;
       mBytesPerPixel = 1;
+      break;
     case FORMAT_B8G8R8A8:
       internalFormat = GL_RGBA8;
       mGLFormat = GL_BGRA;
@@ -77,7 +78,7 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
   }
 
   gl->TextureImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, internalFormat, mSize.width,
-                      mSize.height, 0, mGLFormat, mGLType, nullptr);
+                        mSize.height, 0, mGLFormat, mGLType, nullptr);
 
   // The initial value for MIN_FILTER is NEAREST_MIPMAP_LINEAR. We initialize it
   // to what 'FILTER_LINEAR' expects.
@@ -104,8 +105,8 @@ TextureObjectNVpr::Create(SurfaceFormat aFormat, const IntSize& aSize,
                           const GLvoid* aData, GLsizei aStride)
 {
   bool success;
-  RefPtr<TextureObjectNVpr> surface
-    = new TextureObjectNVpr(aFormat, aSize, success);
+  RefPtr<TextureObjectNVpr> surface =
+    new TextureObjectNVpr(aFormat, aSize, success);
   if (!success) {
    return nullptr;
   }
@@ -124,8 +125,7 @@ TextureObjectNVpr::~TextureObjectNVpr()
 }
 
 void
-TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
-                                         SamplingBounds aSamplingBounds)
+TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode)
 {
   MOZ_ASSERT(gl->IsCurrent());
 
@@ -187,10 +187,6 @@ TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode,
                              GL_TEXTURE_WRAP_T, wrapMode);
 
     mExtendMode = aExtendMode;
-  }
-
-  if (aSamplingBounds == SAMPLING_BOUNDED) {
-    // TODO: Use a shader to clamp to the middle of the outer pixels.
   }
 }
 

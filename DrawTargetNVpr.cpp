@@ -225,8 +225,8 @@ DrawTargetNVpr::Flush()
 
 void
 DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
-                            const Rect& aDest,
-                            const Rect& aSource,
+                            const Rect& aDestRect,
+                            const Rect& aSourceRect,
                             const DrawSurfaceOptions& aSurfOptions,
                             const DrawOptions& aOptions)
 {
@@ -245,32 +245,33 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
     gl->DisableStencilTest();
   }
 
-  gl->SetColorToAlpha(aOptions.mAlpha);
-  gl->EnableTexturing(GL_TEXTURE_2D, *surface, GL::TEXGEN_NONE);
-  gl->DisableShading();
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  if (aSurfOptions.mSamplingBounds == SAMPLING_UNBOUNDED) {
+    shaderConfig.mPaintConfig.SetToSurface(surface, aSurfOptions.mFilter);
+  } else {
+    shaderConfig.mPaintConfig.SetToSurface(surface, aSourceRect,
+                                           aSurfOptions.mFilter);
+  }
+  gl->EnableShading(shaderConfig);
+
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
 
-  surface->ApplyTexturingOptions(aSurfOptions.mFilter, EXTEND_CLAMP,
-                                 aSurfOptions.mSamplingBounds);
-
-  Rect textureRect = aSource;
+  Rect textureRect = aSourceRect;
   textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
-  const GLfloat texCoords[] = {
-    textureRect.x, textureRect.y,
-    textureRect.x + textureRect.width, textureRect.y,
-    textureRect.x + textureRect.width, textureRect.y + textureRect.height,
-    textureRect.x, textureRect.y + textureRect.height
-  };
-  gl->TexCoordPointer(2, GL_FLOAT, 0, texCoords);
+  const GLfloat texCoords[] = {textureRect.x, textureRect.y,
+                               textureRect.XMost(), textureRect.y,
+                               textureRect.XMost(), textureRect.YMost(),
+                               textureRect.x, textureRect.YMost()};
+  gl->EnableTexCoordArray(GL::PAINT_UNIT, texCoords);
+  gl->DisableTexCoordArray(GL::MASK_UNIT);
 
-  const GLfloat vertices[] = {
-    aDest.x, aDest.y,
-    aDest.x + aDest.width, aDest.y,
-    aDest.x + aDest.width, aDest.y + aDest.height,
-    aDest.x, aDest.y + aDest.height
-  };
-  gl->VertexPointer(2, GL_FLOAT, 0, vertices);
+  const GLfloat vertices[] = {aDestRect.x, aDestRect.y,
+                              aDestRect.XMost(), aDestRect.y,
+                              aDestRect.XMost(), aDestRect.YMost(),
+                              aDestRect.x, aDestRect.YMost()};
+  gl->SetVertexArray(vertices);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
 
@@ -371,7 +372,14 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
     gl->DisableStencilTest();
   }
 
-  ApplyPattern(aPattern, aOptions);
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aPattern);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
   gl->Rectf(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height);
 
   MarkChanged();
@@ -428,7 +436,15 @@ DrawTargetNVpr::Stroke(const Path* aPath,
   gl->StencilStrokePathNV(*path, 0x1, 0x1);
 
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, 1, GL::CLEAR_PASSING_VALUES, 1);
-  ApplyPattern(aPattern, aOptions);
+
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aPattern);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
   gl->CoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
@@ -447,15 +463,23 @@ DrawTargetNVpr::Fill(const Path* aPath,
 
   Validate();
 
-  const GLubyte countingMask
-    = path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
+  const GLubyte countingMask =
+    path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
 
   gl->ConfigurePathStencilTest(mStencilClipBits);
   gl->StencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
 
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
                         GL::CLEAR_PASSING_VALUES, countingMask);
-  ApplyPattern(aPattern, aOptions);
+
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aPattern);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
   gl->CoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
@@ -517,7 +541,15 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
 
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
                         GL::CLEAR_PASSING_VALUES, countingMask);
-  ApplyPattern(aPattern, aOptions);
+
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aPattern);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
   gl->Rectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
             maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
 
@@ -532,21 +564,75 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
   gl->MakeCurrent();
 
   Validate();
-  gfxWarning() << *this << ": Mask not implemented";
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
+
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aSource);
+  shaderConfig.mMaskConfig.SetToPattern(aMask);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
+  Matrix inverse = GetTransform();
+  inverse.Invert();
+  Point topLeft = inverse * Point(0, 0);
+  Point bottomRight = inverse * Point(mSize.width, mSize.height);
+
+  gl->Rectf(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
 
   MarkChanged();
 }
 
 void
-DrawTargetNVpr::MaskSurface(const Pattern &aSource,
-                            SourceSurface *aMask,
+DrawTargetNVpr::MaskSurface(const Pattern& aSource,
+                            SourceSurface* aMask,
                             Point aOffset,
-                            const DrawOptions &aOptions)
+                            const DrawOptions& aOptions)
 {
+  MOZ_ASSERT(aMask->GetType() == SURFACE_NVPR_TEXTURE);
+
+  SourceSurfaceNVpr* const mask = static_cast<SourceSurfaceNVpr*>(aMask);
+  const Rect maskRect(aOffset, Size(mask->GetSize()));
+
   gl->MakeCurrent();
 
   Validate();
-  gfxWarning() << *this << ": MaskSurface not implemented";
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
+
+  GL::ShaderConfig shaderConfig;
+  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  shaderConfig.mPaintConfig.SetToPattern(aSource);
+  shaderConfig.mMaskConfig.SetToSurface(mask);
+  gl->EnableShading(shaderConfig);
+
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
+                   aOptions.mSnapping);
+
+  const GLfloat maskCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
+  gl->DisableTexCoordArray(GL::PAINT_UNIT);
+  gl->EnableTexCoordArray(GL::MASK_UNIT, maskCoords);
+
+  const GLfloat vertices[] = {maskRect.x, maskRect.y,
+                              maskRect.XMost(), maskRect.y,
+                              maskRect.XMost(), maskRect.YMost(),
+                              maskRect.x, maskRect.YMost()};
+  gl->SetVertexArray(vertices);
+
+  gl->DrawArrays(GL_QUADS, 0, 4);
 
   MarkChanged();
 }
@@ -559,9 +645,9 @@ DrawTargetNVpr::PushClip(const Path* aPath)
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
 
   if (!path->Polygon().IsEmpty()) {
-    if (RefPtr<PlanesClip> planesClip
-          = PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
-                               ConvexPolygon(path->Polygon()))) {
+    if (RefPtr<PlanesClip> planesClip =
+          PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                             ConvexPolygon(path->Polygon()))) {
       mTopPlanesClip = planesClip.forget();
       mClipTypeStack.push(PLANES_CLIP_TYPE);
       return;
@@ -582,16 +668,16 @@ DrawTargetNVpr::PushClip(const Path* aPath)
 void
 DrawTargetNVpr::PushClipRect(const Rect& aRect)
 {
-  if (RefPtr<ScissorClip> scissorClip
-        = ScissorClip::Create(this, mTopScissorClip, GetTransform(), aRect)) {
+  if (RefPtr<ScissorClip> scissorClip =
+        ScissorClip::Create(this, mTopScissorClip, GetTransform(), aRect)) {
     mTopScissorClip = scissorClip.forget();
     mClipTypeStack.push(SCISSOR_CLIP_TYPE);
     return;
   }
 
-  if (RefPtr<PlanesClip> planesClip
-        = PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
-                             ConvexPolygon(aRect))) {
+  if (RefPtr<PlanesClip> planesClip =
+        PlanesClip::Create(this, mTopPlanesClip, GetTransform(),
+                           ConvexPolygon(aRect))) {
     mTopPlanesClip = planesClip.forget();
     mClipTypeStack.push(PLANES_CLIP_TYPE);
     return;
@@ -650,8 +736,8 @@ DrawTargetNVpr::CreateSourceSurfaceFromData(unsigned char* aData,
                                             int32_t aStride,
                                             SurfaceFormat aFormat) const
 {
- RefPtr<TextureObjectNVpr> texture
-   = TextureObjectNVpr::Create(aFormat, aSize, aData, aStride);
+ RefPtr<TextureObjectNVpr> texture =
+   TextureObjectNVpr::Create(aFormat, aSize, aData, aStride);
 
   return texture ? new SourceSurfaceNVpr(texture.forget()) : nullptr;
 }
@@ -751,105 +837,6 @@ DrawTargetNVpr::Validate(ValidationFlags aFlags)
   if (aFlags & COLOR_WRITES_ENABLED) {
     gl->EnableColorWrites();
   }
-}
-
-void
-DrawTargetNVpr::ApplyPattern(const Pattern& aPattern,
-                             const DrawOptions& aOptions)
-{
-  MOZ_ASSERT(IsGLCurrent());
-
-  switch (aPattern.GetType()) {
-    default:
-      MOZ_ASSERT(!"Invalid pattern type");
-      break;
-    case PATTERN_COLOR:
-      ApplyPattern(static_cast<const ColorPattern&>(aPattern),
-                   aOptions.mAlpha);
-      break;
-    case PATTERN_SURFACE:
-      ApplyPattern(static_cast<const SurfacePattern&>(aPattern),
-                   aOptions.mAlpha);
-      break;
-    case PATTERN_LINEAR_GRADIENT:
-      ApplyPattern(static_cast<const LinearGradientPattern&>(aPattern),
-                   aOptions.mAlpha);
-      break;
-    case PATTERN_RADIAL_GRADIENT:
-      ApplyPattern(static_cast<const RadialGradientPattern&>(aPattern),
-                   aOptions.mAlpha);
-      break;
-  }
-
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
-}
-
-void
-DrawTargetNVpr::ApplyPattern(const ColorPattern& aPattern, float aAlpha)
-{
-  MOZ_ASSERT(gl->IsCurrent());
-
-  gl->SetColor(aPattern.mColor, aAlpha);
-  gl->DisableTexturing();
-  gl->DisableShading();
-}
-
-void
-DrawTargetNVpr::ApplyPattern(const SurfacePattern& aPattern, float aAlpha)
-{
-  MOZ_ASSERT(aSurface->GetType() == SURFACE_NVPR_TEXTURE);
-
-  SourceSurfaceNVpr* const surface
-    = static_cast<SourceSurfaceNVpr*>(aPattern.mSurface.get());
-
-  MOZ_ASSERT(gl->IsCurrent());
-
-  Matrix textureCoords = aPattern.mMatrix;
-  textureCoords.Invert();
-  textureCoords.PostScale(1.0f / surface->GetSize().width,
-                          1.0f / surface->GetSize().height);
-
-  gl->SetColorToAlpha(aAlpha);
-  gl->EnableTexturing(GL_TEXTURE_2D, *surface, GL::TEXGEN_ST, textureCoords);
-  gl->DisableShading();
-
-  surface->ApplyTexturingOptions(aPattern.mFilter, aPattern.mExtendMode);
-}
-
-void
-DrawTargetNVpr::ApplyPattern(const LinearGradientPattern& aPattern, float aAlpha)
-{
-  MOZ_ASSERT(IsGLCurrent());
-  MOZ_ASSERT(aPattern.mStops->GetBackendType() == BACKEND_NVPR);
-
-  const GradientStopsNVpr* const stops
-    = static_cast<const GradientStopsNVpr*>(aPattern.mStops.get());
-
-  // TODO: Are mBegin/mEnd not necessarily in user space?
-
-  stops->ApplyLinearGradient(aPattern.mBegin, aPattern.mEnd, aAlpha);
-}
-
-void
-DrawTargetNVpr::ApplyPattern(const RadialGradientPattern& aPattern, float aAlpha)
-{
-  MOZ_ASSERT(IsGLCurrent());
-  MOZ_ASSERT(aPattern.mStops->GetBackendType() == BACKEND_NVPR);
-
-  const GradientStopsNVpr* const stops
-    = static_cast<const GradientStopsNVpr*>(aPattern.mStops.get());
-
-  // TODO: Are mBegin/mEnd not necessarily in user space?
-
-  if (aPattern.mRadius1 == 0) {
-    stops->ApplyFocalGradient(aPattern.mCenter2, aPattern.mRadius2,
-                              aPattern.mCenter1, aAlpha);
-    return;
-  }
-
-  stops->ApplyRadialGradient(aPattern.mCenter1, aPattern.mRadius1,
-                             aPattern.mCenter2, aPattern.mRadius2, aAlpha);
 }
 
 void

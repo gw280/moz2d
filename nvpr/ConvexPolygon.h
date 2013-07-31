@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef MOZILLA_GFX_CONVEXPOLYGON_H_
-#define MOZILLA_GFX_CONVEXPOLYGON_H_
+#ifndef MOZILLA_GFX_NVPR_CONVEXPOLYGON_H_
+#define MOZILLA_GFX_NVPR_CONVEXPOLYGON_H_
 
 #include "Types.h"
 #include "Line.h"
@@ -15,6 +15,7 @@
 
 namespace mozilla {
 namespace gfx {
+namespace nvpr {
 
 class ConvexPolygon {
 public:
@@ -47,15 +48,16 @@ private:
 
 }
 }
+}
 
 namespace std
 {
   template<>
-  inline void swap(mozilla::gfx::ConvexPolygon& aPolygon1,
-                   mozilla::gfx::ConvexPolygon& aPolygon2)
+  inline void swap(mozilla::gfx::nvpr::ConvexPolygon& aPolygon1,
+                   mozilla::gfx::nvpr::ConvexPolygon& aPolygon2)
   {
     aPolygon1.Swap(aPolygon2);
   }
 }
 
-#endif /* MOZILLA_GFX_CONVEXPOLYGON_H_ */
+#endif /* MOZILLA_GFX_NVPR_CONVEXPOLYGON_H_ */

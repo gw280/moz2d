@@ -14,13 +14,7 @@
 namespace mozilla {
 namespace gfx {
 
-namespace nvpr {
-struct GradientShaders;
-}
-
 class GradientStopsNVpr : public GradientStops {
-  struct ColorRampData;
-
 public:
   static TemporaryRef<GradientStopsNVpr>
   create(GradientStop* aRawStops, uint32_t aNumStops, ExtendMode aExtendMode)
@@ -32,22 +26,12 @@ public:
 
   virtual BackendType GetBackendType() const { return BACKEND_NVPR; }
 
-  void ApplyLinearGradient(const Point& aBegin, const Point& aEnd,
-                           float aAlpha) const;
-
-  void ApplyFocalGradient(const Point& aCenter, float aRadius,
-                          const Point& aFocalPoint, float aAlpha) const;
-
-  void ApplyRadialGradient(const Point& aBeginCenter, float aBeginRadius,
-                           const Point& aEndCenter, float aEndRadius,
-                           float aAlpha) const;
+  const Color& FinalColor() const { return mFinalColor; }
+  operator GLuint() const { return mRampTextureId; }
 
 private:
   GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops,
                     ExtendMode aExtendMode);
-
-  ColorRampData& RampData() const;
-  nvpr::GradientShaders& Shaders() const;
 
   GLuint mRampTextureId;
   Color mInitialColor;
