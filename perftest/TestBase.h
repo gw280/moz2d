@@ -66,21 +66,27 @@ private:
 #define REGISTER_TEST(className, testName) \
   mTests.push_back(Test(static_cast<TestCall>(&className::testName), #testName, this))
 
+enum TestGroup
+{
+  GROUP_NONE,
+  GROUP_DRAWTARGETS,
+  GROUP_COUNT
+};
+
 class TestBase
 {
 public:
-  TestBase() {}
+  TestBase() : mGroup(GROUP_NONE) {}
 
   typedef void (TestBase::*TestCall)();
 
   virtual void Initialize() {}
 
-  int RunTests();
+  int RunTests(std::ostream *aCSVOutput);
 
   virtual void Finalize() {}
 
-protected:
-  static void LogMessage(std::string aMessage);
+  TestGroup GetGroup() { return mGroup; }
 
   struct Test {
     Test(TestCall aCall, std::string aName, void *aImplPointer)
@@ -95,6 +101,10 @@ protected:
   };
   std::vector<Test> mTests;
 
+protected:
+  static void LogMessage(std::string aMessage);
+
+  TestGroup mGroup;
 private:
   // This doesn't really work with our generic member pointer trick.
   TestBase(const TestBase &aOther);

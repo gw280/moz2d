@@ -48,6 +48,8 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200SmallRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
+
+  mGroup = GROUP_DRAWTARGETS;
 }
 
 void

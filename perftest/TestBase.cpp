@@ -6,6 +6,7 @@
 #include "TestBase.h"
 
 #include <sstream>
+#include <fstream>
 #include <math.h>
 
 using namespace std;
@@ -13,7 +14,7 @@ using namespace std;
 const int sN = 10;
 
 int
-TestBase::RunTests()
+TestBase::RunTests(std::ostream *aCSVOutput)
 {
   int testsRun = 0;
 
@@ -50,6 +51,13 @@ TestBase::RunTests()
     }
 
     sqDiffSum /= sN;
+
+    if (aCSVOutput) {
+      stringstream newData;
+      newData << average << ",";
+      string str = newData.str();
+      aCSVOutput->write(str.c_str(), str.size());
+    }
 
     stream << " " << average << "ms +/- " << (2 * sqrt(sqDiffSum)) << "\n";
 

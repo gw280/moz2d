@@ -17,12 +17,14 @@
 
 #include <string>
 #include <sstream>
+#include <fstream>
 
 struct TestObject {
   TestBase *test;
   std::string name;
 };
 
+std::string sGroupNames[] = { "None", "DrawTargets", "Unknown" };
 
 using namespace std;
 
@@ -44,17 +46,52 @@ main()
 #endif
   };
 
+  bool sGroupInitialized[GROUP_COUNT];
+  for (int i = 0; i < GROUP_COUNT; i++) {
+    sGroupInitialized[i] = false;
+  }
+
   int totalFailures = 0;
   int totalTests = 0;
   stringstream message;
   printf("------ STARTING RUNNING TESTS ------\n");
   for (int i = 0; i < sizeof(tests) / sizeof(TestObject); i++) {
+    ofstream fileStream;
+    TestGroup group = tests[i].test->GetGroup();
+    if (group != GROUP_NONE) {
+      ios_base::openmode mode = ios_base::binary;
+      if (sGroupInitialized[group]) {
+        mode |= ios_base::app;
+      }
+      std::string fileName = "PerfData";
+      fileName.append(sGroupNames[group]);
+      fileName.append(".csv");
+      fileStream.open(fileName.c_str(), mode);
+
+      if (!sGroupInitialized[group]) {
+        fileStream.write(",", 1);
+        for(unsigned int c = 0; c < tests[i].test->mTests.size(); c++) {
+          fileStream.write(tests[i].test->mTests[c].name.c_str(), tests[i].test->mTests[c].name.size());
+          fileStream.write(",", 1);
+        }
+        fileStream.write("\n", 1);
+      }
+      fileStream.write(tests[i].name.c_str(), tests[i].name.size());
+      fileStream.write(",", 1);
+      sGroupInitialized[group] = true;
+    }
+
     message << "--- RUNNING TESTS: " << tests[i].name << " ---\n";
     printf(message.str().c_str());
     message.str("");
     int failures = 0;
-    totalTests += tests[i].test->RunTests();
+    totalTests += tests[i].test->RunTests(group != GROUP_NONE ? &fileStream : nullptr);
     totalFailures += failures;
+
+    if (group != GROUP_NONE) {
+      fileStream.write("\n", 1);
+    }
+
     // Done with this test!
     delete tests[i].test;
   }
