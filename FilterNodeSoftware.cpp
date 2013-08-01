@@ -919,13 +919,27 @@ FilterNodeFloodSoftware::SetAttribute(uint32_t aIndex, const Color &aColor)
   mColor = aColor;
 }
 
+static uint32_t
+ColorToBGRA(const Color& aColor)
+{
+  union {
+    uint32_t color;
+    uint8_t components[4];
+  };
+  components[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(aColor.r * 255.0f);
+  components[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(aColor.g * 255.0f);
+  components[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(aColor.b * 255.0f);
+  components[ARGB32_COMPONENT_BYTEOFFSET_A] = uint8_t(aColor.a * 255.0f);
+  return color;
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeFloodSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
 
-  uint32_t color = mColor.ToABGR();
+  uint32_t color = ColorToBGRA(mColor);
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
