@@ -506,8 +506,8 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  for (int32_t x = 0; x < size.width; x++) {
-    for (int32_t y = 0; y < size.height; y++) {
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
       uint32_t targIndex = y * stride + 4 * x;
       uint32_t qa = sourceData1[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
       uint32_t qb = sourceData2[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
@@ -870,8 +870,8 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  for (int32_t x = 0; x < size.width; x++) {
-    for (int32_t y = 0; y < size.height; y++) {
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
       uint32_t targIndex = y * stride + 4 * x;
 
       Float col[4];
@@ -2177,8 +2177,8 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
 
   float k1Scaled = mK1 / 255.0f;
   float k4Scaled = mK4*255.0f;
-  for (int32_t x = 0; x < aRect.width; x++) {
-    for (int32_t y = 0; y < aRect.height; y++) {
+  for (int32_t y = 0; y < aRect.height; y++) {
+    for (int32_t x = 0; x < aRect.width; x++) {
       uint32_t targIndex = y * stride + 4 * x;
       for (int32_t i = 0; i < 4; i++) {
         uint8_t i1 = sourceData1[targIndex + i];
@@ -2226,8 +2226,8 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
   uint8_t* destData = aDest->GetData();
   uint32_t stride = aDest->Stride();
 
-  for (int32_t x = 0; x < size.width; x++) {
-    for (int32_t y = 0; y < size.height; y++) {
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
       uint32_t targIndex = y * stride + 4 * x;
       uint32_t qa = destData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
       uint32_t qb = sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
