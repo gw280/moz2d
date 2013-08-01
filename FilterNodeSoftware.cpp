@@ -1792,8 +1792,8 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
   double scaleOver255 = mScale / 255.0;
   double scaleAdjustment = 0.5 - 0.5 * mScale;
 
-  for (int32_t y = 0; y < aRect.width; y++) {
-    for (int32_t x = 0; x < aRect.height; x++) {
+  for (int32_t y = 0; y < aRect.height; y++) {
+    for (int32_t x = 0; x < aRect.width; x++) {
       uint32_t mapIndex = y * mapStride + 4 * x;
       uint32_t targIndex = y * targetStride + 4 * x;
       // At some point we might want to replace this with a bilinear sample.
