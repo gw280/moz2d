@@ -535,7 +535,7 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
             MOZ_CRASH();
         }
         val = umin(FastDivideBy255<unsigned>(val), 255U);
-        targetData[targIndex + i] =  static_cast<uint8_t>(val);
+        targetData[targIndex + i] = static_cast<uint8_t>(val);
       }
       uint32_t alpha = 255 * 255 - (255 - qa) * (255 - qb);
       targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
