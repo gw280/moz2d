@@ -2250,12 +2250,15 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
 TemporaryRef<DataSourceSurface>
 FilterNodeCompositeSoftware::Render(const IntRect& aRect)
 {
-  RefPtr<DataSourceSurface> dest =
+  RefPtr<DataSourceSurface> start =
     GetInputDataSourceSurface(IN_COMPOSITE_IN_START, aRect);
+  RefPtr<DataSourceSurface> dest =
+    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  CopyRect(start, dest, aRect - aRect.TopLeft(), IntPoint());
   for (size_t inputIndex = 1; inputIndex < NumberOfSetInputs(); inputIndex++) {
     RefPtr<DataSourceSurface> input =
       GetInputDataSourceSurface(IN_COMPOSITE_IN_START + inputIndex, aRect);
-    ApplyComposition(dest, input, mOperator);
+    ApplyComposition(input, dest, mOperator);
   }
   return dest;
 }
