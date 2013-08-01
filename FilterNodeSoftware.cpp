@@ -2226,16 +2226,16 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
             val = ca * (255 - qb) + cb * 255;
             break;
           case COMPOSITE_OPERATOR_IN:
-            val = ca * qb * 255;
+            val = cb * qa;
             break;
           case COMPOSITE_OPERATOR_OUT:
-            val = ca * (255 - qb);
+            val = cb * (255 - qa);
             break;
           case COMPOSITE_OPERATOR_ATOP:
-            val = ca * qb + cb * (255 - qa);
+            val = cb * qa + ca * (255 - qb);
             break;
           case COMPOSITE_OPERATOR_XOR:
-            val = ca * (255 - qb) + cb * (255 - qa);
+            val = cb * (255 - qa) + ca * (255 - qb);
             break;
           default:
             MOZ_CRASH();
