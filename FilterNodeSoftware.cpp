@@ -1803,7 +1803,7 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
       int32_t sourceY = y +
         floor(scaleOver255 * mapData[mapIndex + yChannel] +
                 scaleAdjustment);
-      uint32_t sourceIndex = sourceY * sourceStride + 4 * sourceX;
+      int32_t sourceIndex = sourceY * sourceStride + 4 * sourceX;
 
       *(uint32_t*)(targetData + targIndex) =
         *(uint32_t*)(sourceData + sourceIndex);
