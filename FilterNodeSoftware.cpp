@@ -1736,7 +1736,7 @@ FilterNodeOffsetSoftware::InputIndex(uint32_t aInputEnumIndex)
 
 void
 FilterNodeOffsetSoftware::SetAttribute(uint32_t aIndex,
-                                            const IntPoint &aOffset)
+                                       const IntPoint &aOffset)
 {
   MOZ_ASSERT(aIndex == ATT_OFFSET_OFFSET);
   mOffset = aOffset;
