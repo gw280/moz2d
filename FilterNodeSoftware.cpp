@@ -3204,7 +3204,8 @@ FilterNodeDiffuseSoftware::SetAttribute(uint32_t aIndex, Float aValue)
       mDiffuseConstant = aValue;
       break;
     default:
-      MOZ_CRASH();
+      FilterNodeLightingSoftware::SetAttribute(aIndex, aValue);
+      break;
   }
 }
 
@@ -3243,7 +3244,8 @@ FilterNodeSpecularSoftware::SetAttribute(uint32_t aIndex, Float aValue)
       mSpecularExponent = aValue;
       break;
     default:
-      MOZ_CRASH();
+      FilterNodeLightingSoftware::SetAttribute(aIndex, aValue);
+      break;
   }
 }
 
