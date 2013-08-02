@@ -3204,7 +3204,7 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
 
   //FinishScalingFilter(&info);
 
-  return nullptr;
+  return target;
 }
 
 FilterNodeDiffuseSoftware::FilterNodeDiffuseSoftware(LightSoftware *aLight)
