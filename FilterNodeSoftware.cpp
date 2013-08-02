@@ -8,6 +8,23 @@
 #include "Tools.h"
 #include <set>
 
+#ifdef DUMP_SOURCE_SURFACE
+#include "gfxImageSurface.h"
+namespace mozilla {
+namespace gfx {
+static void
+DumpAsPNG(SourceSurface* aSurface)
+{
+  RefPtr<DataSourceSurface> dataSource = aSurface->GetDataSurface();
+  nsRefPtr<gfxImageSurface> imageSurface =
+    new gfxImageSurface(dataSource->GetData(), gfxIntSize(dataSource->GetSize().width, dataSource->GetSize().height),
+                        dataSource->Stride(), gfxASurface::ImageFormatARGB32);
+  imageSurface->PrintAsDataURL();
+}
+}
+}
+#endif
+
 const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_B = 0;
 const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_G = 1;
 const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_R = 2;
