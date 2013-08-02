@@ -1682,7 +1682,7 @@ FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
       ConvolvePixel(sourceData, targetData,
                     aRect.width, aRect.height, sourceStride, targetStride,
                     x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
-                    mKernelSize.width, mKernelSize.width, mTarget.x, mTarget.y);
+                    mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y);
     }
   }
 
