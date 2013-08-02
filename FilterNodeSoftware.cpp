@@ -87,6 +87,15 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
   }
 }
 
+TemporaryRef<DataSourceSurface>
+CloneForStride(DataSourceSurface* aSource)
+{
+  RefPtr<DataSourceSurface> copy =
+    Factory::CreateDataSourceSurface(aSource->GetSize(), FORMAT_B8G8R8A8);
+  CopyRect(aSource, copy, IntRect(IntPoint(), aSource->GetSize()), IntPoint());
+  return copy;
+}
+
 static uint32_t
 ColorAtPoint(DataSourceSurface* aSurface, const IntPoint &aPoint)
 {
@@ -501,20 +510,24 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
 
-  uint8_t* sourceData1 = aInput1->GetData();
-  uint8_t* sourceData2 = aInput2->GetData();
+  uint8_t* source1Data = aInput1->GetData();
+  uint8_t* source2Data = aInput2->GetData();
   uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
+  uint32_t targetStride = target->Stride();
+  uint32_t source1Stride = aInput1->Stride();
+  uint32_t source2Stride = aInput2->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
-      uint32_t targIndex = y * stride + 4 * x;
-      uint32_t qa = sourceData1[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = sourceData2[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint32_t targetIndex = y * targetStride + 4 * x;
+      uint32_t source1Index = y * source1Stride + 4 * x;
+      uint32_t source2Index = y * source2Stride + 4 * x;
+      uint32_t qa = source1Data[source1Index + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint32_t qb = source2Data[source2Index + ARGB32_COMPONENT_BYTEOFFSET_A];
       for (int32_t i = std::min(ARGB32_COMPONENT_BYTEOFFSET_B, ARGB32_COMPONENT_BYTEOFFSET_R);
            i <= std::max(ARGB32_COMPONENT_BYTEOFFSET_B, ARGB32_COMPONENT_BYTEOFFSET_R); i++) {
-        uint32_t ca = sourceData1[targIndex + i];
-        uint32_t cb = sourceData2[targIndex + i];
+        uint32_t ca = source1Data[source1Index + i];
+        uint32_t cb = source2Data[source2Index + i];
         uint32_t val;
         switch (aBlendMode) {
           case BLEND_MODE_MULTIPLY:
@@ -535,10 +548,10 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
             MOZ_CRASH();
         }
         val = umin(FastDivideBy255<unsigned>(val), 255U);
-        targetData[targIndex + i] = static_cast<uint8_t>(val);
+        targetData[targetIndex + i] = static_cast<uint8_t>(val);
       }
       uint32_t alpha = 255 * 255 - (255 - qa) * (255 - qb);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
+      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
         FastDivideBy255<uint8_t>(alpha);
     }
   }
@@ -868,29 +881,31 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
 
   uint8_t* sourceData = aInput->GetData();
   uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
+  uint32_t sourceStride = aInput->Stride();
+  uint32_t targetStride = target->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
-      uint32_t targIndex = y * stride + 4 * x;
+      uint32_t sourceIndex = y * sourceStride + 4 * x;
+      uint32_t targetIndex = y * targetStride + 4 * x;
 
       Float col[4];
       for (int i = 0; i < 4; i++) {
         col[i] =
-          sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * row1[i] +
-          sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * row2[i] +
-          sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * row3[i] +
-          sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * row4[i] +
-          255 *                                                   row5[i];
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * row1[i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * row2[i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * row3[i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * row4[i] +
+          255 *                                                     row5[i];
         col[i] = clamped(col[i], 0.f, 255.f);
       }
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
+      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
         static_cast<uint8_t>(col[0]);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
+      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
         static_cast<uint8_t>(col[1]);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
+      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
         static_cast<uint8_t>(col[2]);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
+      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
         static_cast<uint8_t>(col[3]);
     }
   }
@@ -1005,12 +1020,14 @@ static void CopyComponent(DataSourceSurface* aInput, DataSourceSurface* aTarget)
 
   uint8_t* sourceData = aInput->GetData();
   uint8_t* targetData = aTarget->GetData();
-  uint32_t stride = aTarget->Stride();
+  uint32_t sourceStride = aInput->Stride();
+  uint32_t targetStride = aTarget->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
-      uint32_t index = y * stride + x * 4 + ComponentOffset;
-      targetData[index] = sourceData[index];
+      uint32_t sourceIndex = y * sourceStride + x * 4 + ComponentOffset;
+      uint32_t targetIndex = y * targetStride + x * 4 + ComponentOffset;
+      targetData[targetIndex] = sourceData[sourceIndex];
     }
   }
 }
@@ -1024,12 +1041,14 @@ static void TransferComponent(DataSourceSurface* aInput,
 
   uint8_t* sourceData = aInput->GetData();
   uint8_t* targetData = aTarget->GetData();
-  uint32_t stride = aTarget->Stride();
+  uint32_t sourceStride = aInput->Stride();
+  uint32_t targetStride = aTarget->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
-      uint32_t index = y * stride + x * 4 + ComponentOffset;
-      targetData[index] = aLookupTable[sourceData[index]];
+      uint32_t sourceIndex = y * sourceStride + x * 4 + ComponentOffset;
+      uint32_t targetIndex = y * targetStride + x * 4 + ComponentOffset;
+      targetData[targetIndex] = aLookupTable[sourceData[sourceIndex]];
     }
   }
 }
@@ -2170,21 +2189,25 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
 
-  uint8_t* sourceData1 = input1->GetData();
-  uint8_t* sourceData2 = input2->GetData();
+  uint8_t* source1Data = input1->GetData();
+  uint8_t* source2Data = input2->GetData();
   uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
+  uint32_t source1Stride = input1->Stride();
+  uint32_t source2Stride = input2->Stride();
+  uint32_t targetStride = target->Stride();
 
   float k1Scaled = mK1 / 255.0f;
   float k4Scaled = mK4*255.0f;
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
-      uint32_t targIndex = y * stride + 4 * x;
+      uint32_t source1Index = y * source1Stride + 4 * x;
+      uint32_t source2Index = y * source2Stride + 4 * x;
+      uint32_t targetIndex = y * targetStride + 4 * x;
       for (int32_t i = 0; i < 4; i++) {
-        uint8_t i1 = sourceData1[targIndex + i];
-        uint8_t i2 = sourceData2[targIndex + i];
+        uint8_t i1 = source1Data[source1Index + i];
+        uint8_t i2 = source2Data[source2Index + i];
         float result = k1Scaled*i1*i2 + mK2*i1 + mK3*i2 + k4Scaled;
-        targetData[targIndex + i] =
+        targetData[targetIndex + i] =
                      static_cast<uint8_t>(clamped(result, 0.f, 255.f));
       }
     }
@@ -2224,16 +2247,18 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
 
   uint8_t* sourceData = aSource->GetData();
   uint8_t* destData = aDest->GetData();
-  uint32_t stride = aDest->Stride();
+  uint32_t sourceStride = aSource->Stride();
+  uint32_t destStride = aDest->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
-      uint32_t targIndex = y * stride + 4 * x;
-      uint32_t qa = destData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = sourceData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint32_t sourceIndex = y * sourceStride + 4 * x;
+      uint32_t destIndex = y * destStride + 4 * x;
+      uint32_t qa = destData[destIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint32_t qb = sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
       for (int32_t i = 0; i < 4; i++) {
-        uint32_t ca = destData[targIndex + i];
-        uint32_t cb = sourceData[targIndex + i];
+        uint32_t ca = destData[destIndex + i];
+        uint32_t cb = sourceData[sourceIndex + i];
         uint32_t val;
         switch (aCompositeOperator) {
           case COMPOSITE_OPERATOR_OVER:
@@ -2254,7 +2279,7 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
           default:
             MOZ_CRASH();
         }
-        destData[targIndex + i] =
+        destData[destIndex + i] =
           static_cast<uint8_t>(umin(FastDivideBy255<unsigned>(val), 255U));
       }
     }
@@ -2480,6 +2505,7 @@ FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
   IntRect srcRect = InflatedSourceOrDestRect(aRect);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, srcRect);
+  input = CloneForStride(input);
   RefPtr<DataSourceSurface> intermediateBuffer =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
   ClearDataSourceSurface(intermediateBuffer);
@@ -2494,6 +2520,10 @@ FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
   uint8_t* tmp = intermediateBuffer->GetData();
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
+  uint32_t sourceStride = input->Stride();
+  uint32_t tmpStride = intermediateBuffer->Stride();
+  MOZ_ASSERT(sourceStride == stride, "different strides");
+  MOZ_ASSERT(tmpStride == stride, "different strides");
 
   IntRect dataRect = aRect - srcRect.TopLeft();
 
@@ -2577,6 +2607,7 @@ FilterNodeDirectionalBlurSoftware::Render(const IntRect& aRect)
   IntRect srcRect = InflatedSourceOrDestRect(aRect);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_DIRECTIONAL_BLUR_IN, srcRect);
+  input = CloneForStride(input);
   RefPtr<DataSourceSurface> intermediateBuffer =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
   ClearDataSourceSurface(intermediateBuffer);
@@ -3093,7 +3124,7 @@ GenerateNormal(float *N, const uint8_t *data, int32_t stride,
 #ifdef DEBUG
   // For sanity-checking, to be sure we're not reading outside source buffer:
   const uint8_t* minData = data;
-  const uint8_t* maxData = minData + (surfaceHeight * surfaceWidth * stride);
+  const uint8_t* maxData = minData + surfaceHeight * stride;
 
   // We'll sanity-check each value we read inside of Convolve3x3, but we
   // might as well ensure we're passing it a valid pointer to start with, too:
