@@ -3009,10 +3009,10 @@ PointLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float
   L[2] = mPosition.z - pt.z;
   NORMALIZE(L);
 
-  color[0] = lightColor[0];
-  color[1] = lightColor[1];
-  color[2] = lightColor[2];
-  color[3] = lightColor[3];
+  color[ARGB32_COMPONENT_BYTEOFFSET_R] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_R];
+  color[ARGB32_COMPONENT_BYTEOFFSET_G] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_G];
+  color[ARGB32_COMPONENT_BYTEOFFSET_B] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_B];
+  color[ARGB32_COMPONENT_BYTEOFFSET_A] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_A];
 }
 
 void
@@ -3033,10 +3033,10 @@ SpotLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float 
   const float radPerDeg = static_cast<float>(M_PI/180.0);
   float cosConeAngle = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
   float tmp = dot < cosConeAngle ? 0 : pow(dot, mSpecularFocus);
-  color[0] = uint8_t(lightColor[0] * tmp);
-  color[1] = uint8_t(lightColor[1] * tmp);
-  color[2] = uint8_t(lightColor[2] * tmp);
-  color[3] = 255;
+  color[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
+  color[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
+  color[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
+  color[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
 }
 
 void
@@ -3046,10 +3046,10 @@ DistantLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Flo
   L[0] = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
   L[1] = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
   L[2] = sin(mElevation * radPerDeg);
-  color[0] = lightColor[0];
-  color[1] = lightColor[1];
-  color[2] = lightColor[2];
-  color[3] = lightColor[3];
+  color[ARGB32_COMPONENT_BYTEOFFSET_R] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_R];
+  color[ARGB32_COMPONENT_BYTEOFFSET_G] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_G];
+  color[ARGB32_COMPONENT_BYTEOFFSET_B] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_B];
+  color[ARGB32_COMPONENT_BYTEOFFSET_A] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_A];
 }
 
 static int32_t
