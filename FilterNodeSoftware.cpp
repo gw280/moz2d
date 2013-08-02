@@ -3166,7 +3166,7 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
   uint8_t* targetData = target->GetData();
   int32_t targetStride = target->Stride();
 
-  uint32_t lightColor = mColor.ToABGR();
+  uint32_t lightColor = ColorToBGRA(mColor);
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
