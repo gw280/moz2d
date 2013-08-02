@@ -2828,9 +2828,7 @@ FilterNodeUnpremultiplySoftware::GetOutputRectInRect(const IntRect& aRect)
 void
 PointLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
-  MOZ_STATIC_ASSERT((uint32_t)ATT_POINT_DIFFUSE_POSITION == (uint32_t)ATT_POINT_SPECULAR_POSITION,
-                    "mismatching enums");
-  MOZ_ASSERT(aIndex == ATT_POINT_DIFFUSE_POSITION);
+  MOZ_ASSERT(aIndex == ATT_POINT_LIGHT_POSITION);
   mPosition = aPoint;
 }
 
@@ -2843,15 +2841,11 @@ SpotLightSoftware::SpotLightSoftware()
 void
 SpotLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
-  MOZ_STATIC_ASSERT((uint32_t)ATT_SPOT_DIFFUSE_POSITION == (uint32_t)ATT_SPOT_SPECULAR_POSITION,
-                    "mismatching enums");
-  MOZ_STATIC_ASSERT((uint32_t)ATT_SPOT_DIFFUSE_POINTS_AT == (uint32_t)ATT_SPOT_SPECULAR_POINTS_AT,
-                    "mismatching enums");
   switch (aIndex) {
-    case ATT_SPOT_DIFFUSE_POSITION:
+    case ATT_SPOT_LIGHT_POSITION:
       mPosition = aPoint;
       break;
-    case ATT_SPOT_DIFFUSE_POINTS_AT:
+    case ATT_SPOT_LIGHT_POINTS_AT:
       mPointsAt = aPoint;
       break;
     default:
@@ -2862,15 +2856,11 @@ SpotLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 void
 SpotLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
-  MOZ_STATIC_ASSERT((uint32_t)ATT_SPOT_DIFFUSE_LIMITING_CONE_ANGLE == (uint32_t)ATT_SPOT_SPECULAR_LIMITING_CONE_ANGLE,
-                    "mismatching enums");
-  MOZ_STATIC_ASSERT((uint32_t)ATT_SPOT_DIFFUSE_FOCUS == (uint32_t)ATT_SPOT_SPECULAR_FOCUS,
-                    "mismatching enums");
   switch (aIndex) {
-    case ATT_SPOT_DIFFUSE_LIMITING_CONE_ANGLE:
+    case ATT_SPOT_LIGHT_LIMITING_CONE_ANGLE:
       mLimitingConeAngle = aValue;
       break;
-    case ATT_SPOT_DIFFUSE_FOCUS:
+    case ATT_SPOT_LIGHT_FOCUS:
       mSpecularFocus = aValue;
       break;
     default:
@@ -2887,15 +2877,11 @@ DistantLightSoftware::DistantLightSoftware()
 void
 DistantLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
-  MOZ_STATIC_ASSERT((uint32_t)ATT_DISTANT_DIFFUSE_AZIMUTH == (uint32_t)ATT_DISTANT_SPECULAR_AZIMUTH,
-                    "mismatching enums");
-  MOZ_STATIC_ASSERT((uint32_t)ATT_DISTANT_DIFFUSE_ELEVATION == (uint32_t)ATT_DISTANT_SPECULAR_ELEVATION,
-                    "mismatching enums");
   switch (aIndex) {
-    case ATT_DISTANT_DIFFUSE_AZIMUTH:
+    case ATT_DISTANT_LIGHT_AZIMUTH:
       mAzimuth = aValue;
       break;
-    case ATT_SPOT_DIFFUSE_POINTS_AT:
+    case ATT_DISTANT_LIGHT_ELEVATION:
       mElevation = aValue;
       break;
     default:
@@ -2927,7 +2913,7 @@ int32_t
 FilterNodeLightingSoftware::InputIndex(uint32_t aInputEnumIndex)
 {
   switch (aInputEnumIndex) {
-    case IN_POINT_DIFFUSE_IN: return 0;
+    case IN_LIGHTING_IN: return 0;
     default: return -1;
   }
 }
@@ -2942,10 +2928,10 @@ void
 FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
-    case ATT_POINT_DIFFUSE_SURFACE_SCALE:
+    case ATT_LIGHTING_SURFACE_SCALE:
       mSurfaceScale = aValue;
       break;
-    case ATT_POINT_DIFFUSE_KERNEL_UNIT_LENGTH:
+    case ATT_LIGHTING_KERNEL_UNIT_LENGTH:
       mKernelUnitLength = aValue;
       break;
     default:
@@ -2957,16 +2943,14 @@ FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 void
 FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Color &aColor)
 {
-  //MOZ_STATIC_ASSERT(...)
-  MOZ_ASSERT(aIndex == ATT_POINT_DIFFUSE_COLOR);
+  MOZ_ASSERT(aIndex == ATT_LIGHTING_COLOR);
   mColor = aColor;
 }
 
 IntRect
 FilterNodeLightingSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
-  //MOZ_STATIC_ASSERT(IN_POINT_DIFFUSE_IN == ...)
-  return GetInputRectInRect(IN_POINT_DIFFUSE_IN, aRect);
+  return GetInputRectInRect(IN_LIGHTING_IN, aRect);
 }
 
 void
@@ -3138,7 +3122,7 @@ TemporaryRef<DataSourceSurface>
 FilterNodeLightingSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_POINT_DIFFUSE_IN, aRect);
+    GetInputDataSourceSurface(IN_LIGHTING_IN, aRect);
 
   //info = SetupScalingFilter(...);
 
@@ -3185,7 +3169,7 @@ void
 FilterNodeDiffuseSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
-    case ATT_SPOT_DIFFUSE_DIFFUSE_CONSTANT:
+    case ATT_DIFFUSE_LIGHTING_DIFFUSE_CONSTANT:
       mDiffuseConstant = aValue;
       break;
     default:
@@ -3221,10 +3205,10 @@ void
 FilterNodeSpecularSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
-    case ATT_POINT_SPECULAR_SPECULAR_CONSTANT:
+    case ATT_SPECULAR_LIGHTING_SPECULAR_CONSTANT:
       mSpecularConstant = aValue;
       break;
-    case ATT_POINT_SPECULAR_SPECULAR_EXPONENT:
+    case ATT_SPECULAR_LIGHTING_SPECULAR_EXPONENT:
       mSpecularExponent = aValue;
       break;
     default:
