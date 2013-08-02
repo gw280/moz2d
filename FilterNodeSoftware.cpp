@@ -2937,11 +2937,11 @@ DistantLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
   }
 }
 
-inline float DOT(const float* a, const float* b) {
+static inline float DOT(const float* a, const float* b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
-inline void NORMALIZE(float* vec) {
+static inline void NORMALIZE(float* vec) {
   float norm = sqrt(DOT(vec, vec));
   vec[0] /= norm;
   vec[1] /= norm;
