@@ -1630,6 +1630,27 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
   mPreserveAlpha = aPreserveAlpha;
 }
 
+// Accepts fractional x & y and does bilinear interpolation.
+static uint8_t
+ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, ptrdiff_t c)
+{
+  const uint32_t f = 256;
+  const int32_t lx = floor(x);
+  const int32_t ly = floor(y);
+  const int32_t tlx = uint32_t((x - lx) * f);
+  const int32_t tux = f - tlx;
+  const int32_t tly = uint32_t((y - ly) * f);
+  const int32_t tuy = f - tly;
+  const uint8_t &cll = aData[ly       * aStride + 4 * lx       + c];
+  const uint8_t &cul = aData[ly       * aStride + 4 * (lx + 1) + c];
+  const uint8_t &clu = aData[(ly + 1) * aStride + 4 * lx       + c];
+  const uint8_t &cuu = aData[(ly + 1) * aStride + 4 * (lx + 1) + c];
+  return (cll * tlx * tly +
+          cul * tux * tly +
+          clu * tlx * tuy +
+          cuu * tux * tuy) / (f * f);
+}
+
 static void
 ConvolvePixel(const uint8_t *aSourceData,
               uint8_t *aTargetData,
@@ -1640,7 +1661,8 @@ ConvolvePixel(const uint8_t *aSourceData,
               Float aDivisor, Float aBias,
               bool aPreserveAlpha,
               int32_t aOrderX, int32_t aOrderY,
-              int32_t aTargetX, int32_t aTargetY)
+              int32_t aTargetX, int32_t aTargetY,
+              const Size &aKernelUnitLength)
 {
   Float sum[4] = {0, 0, 0, 0};
   aBias *= 255;
@@ -1651,13 +1673,13 @@ ConvolvePixel(const uint8_t *aSourceData,
   int32_t channels = aPreserveAlpha ? 3 : 4;
 
   for (int32_t y = 0; y < aOrderY; y++) {
-    int32_t sampleY = aY + y - aTargetY;
+    Float sampleY = aY + (y - aTargetY) * aKernelUnitLength.height;
     for (int32_t x = 0; x < aOrderX; x++) {
-      int32_t sampleX = aX + x - aTargetX;
+      Float sampleX = aX + (x - aTargetX) * aKernelUnitLength.width;
       for (int32_t i = 0; i < channels; i++) {
-        sum[i] +=
-          aSourceData[sampleY * aSourceStride + 4 * sampleX + offsets[i]] *
-          aKernel[aOrderX * y + x];
+        sum[i] += aKernel[aOrderX * y + x] *
+          ColorComponentAtPoint(aSourceData, aSourceStride,
+                                sampleX, sampleY, offsets[i]);
       }
     }
   }
@@ -1707,7 +1729,8 @@ FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
       ConvolvePixel(sourceData, targetData,
                     aRect.width, aRect.height, sourceStride, targetStride,
                     x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
-                    mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y);
+                    mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
+                    mKernelUnitLength);
     }
   }
 
@@ -1718,10 +1741,10 @@ IntRect
 FilterNodeConvolveMatrixSoftware::InflatedSourceRect(const IntRect &aDestRect)
 {
   Margin margin;
-  margin.left = mTarget.x;
-  margin.top = mTarget.y;
-  margin.right = mKernelSize.width - mTarget.x - 1;
-  margin.bottom = mKernelSize.height - mTarget.y - 1;
+  margin.left = ceil(mTarget.x * mKernelUnitLength.width);
+  margin.top = ceil(mTarget.y * mKernelUnitLength.height);
+  margin.right = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width);
+  margin.bottom = ceil((mKernelSize.height - mTarget.y - 1) * mKernelUnitLength.height);
 
   IntRect srcRect = aDestRect;
   srcRect.Inflate(margin);
@@ -1732,10 +1755,10 @@ IntRect
 FilterNodeConvolveMatrixSoftware::InflatedDestRect(const IntRect &aSourceRect)
 {
   Margin margin;
-  margin.left = mKernelSize.width - mTarget.x - 1;
-  margin.top = mKernelSize.height - mTarget.y - 1;
-  margin.right = mTarget.x;
-  margin.bottom = mTarget.y;
+  margin.left = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width);
+  margin.top = ceil((mKernelSize.height - mTarget.y - 1) * mKernelUnitLength.height);
+  margin.right = ceil(mTarget.x * mKernelUnitLength.width);
+  margin.bottom = ceil(mTarget.y * mKernelUnitLength.height);
 
   IntRect destRect = aSourceRect;
   destRect.Inflate(margin);
@@ -3070,22 +3093,15 @@ DistantLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Flo
 
 static int32_t
 Convolve3x3(const uint8_t *index, int32_t stride,
-            const int8_t kernel[3][3]
-#ifdef DEBUG
-            , const uint8_t *minData, const uint8_t *maxData
-#endif // DEBUG
-)
+            const int8_t kernel[3][3], Size kernelUnitLength)
 {
   int32_t sum = 0;
   for (int32_t y = 0; y < 3; y++) {
     for (int32_t x = 0; x < 3; x++) {
-      int8_t k = kernel[y][x];
-      if (k) {
-        const uint8_t *valPtr = index + (4 * (x - 1) + stride * (y - 1));
-        MOZ_ASSERT(valPtr >= minData, "out of bounds read (before buffer)");
-        MOZ_ASSERT(valPtr < maxData,  "out of bounds read (after buffer)");
-        sum += k * (*valPtr);
-      }
+      sum += kernel[y][x] *
+        ColorComponentAtPoint(index, stride,
+                              (x - 1) * kernelUnitLength.width,
+                              (y - 1) * kernelUnitLength.height, 0);
     }
   }
   return sum;
@@ -3094,7 +3110,8 @@ Convolve3x3(const uint8_t *index, int32_t stride,
 static void
 GenerateNormal(float *N, const uint8_t *data, int32_t stride,
                int32_t surfaceWidth, int32_t surfaceHeight,
-               int32_t x, int32_t y, float surfaceScale)
+               int32_t x, int32_t y, float surfaceScale,
+               Size kernelUnitLength)
 {
   // See this for source of constants:
   //   http://www.w3.org/TR/SVG11/filters.html#feDiffuseLightingElement
@@ -3154,30 +3171,10 @@ GenerateNormal(float *N, const uint8_t *data, int32_t stride,
 
   const uint8_t *index = data + y * stride + 4 * x + ARGB32_COMPONENT_BYTEOFFSET_A;
 
-#ifdef DEBUG
-  // For sanity-checking, to be sure we're not reading outside source buffer:
-  const uint8_t* minData = data;
-  const uint8_t* maxData = minData + surfaceHeight * stride;
-
-  // We'll sanity-check each value we read inside of Convolve3x3, but we
-  // might as well ensure we're passing it a valid pointer to start with, too:
-  MOZ_ASSERT(index >= minData, "index points before buffer start");
-  MOZ_ASSERT(index < maxData, "index points after buffer end");
-#endif // DEBUG
-
   N[0] = -surfaceScale * FACTORx[yflag][xflag] *
-    Convolve3x3(index, stride, Kx[yflag][xflag]
-#ifdef DEBUG
-                , minData, maxData
-#endif // DEBUG
-                );
-
+    Convolve3x3(index, stride, Kx[yflag][xflag], kernelUnitLength);
   N[1] = -surfaceScale * FACTORy[yflag][xflag] *
-    Convolve3x3(index, stride, Ky[yflag][xflag]
-#ifdef DEBUG
-                , minData, maxData
-#endif // DEBUG
-                );
+    Convolve3x3(index, stride, Ky[yflag][xflag], kernelUnitLength);
   N[2] = 255;
   NORMALIZE(N);
 }
@@ -3185,10 +3182,11 @@ GenerateNormal(float *N, const uint8_t *data, int32_t stride,
 TemporaryRef<DataSourceSurface>
 FilterNodeLightingSoftware::Render(const IntRect& aRect)
 {
+  IntRect srcRect = aRect;
+  srcRect.Inflate(ceil(mKernelUnitLength.width - 1),
+                  ceil(mKernelUnitLength.height - 1));
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_LIGHTING_IN, aRect);
-
-  //info = SetupScalingFilter(...);
+    GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
 
   IntSize size = aRect.Size();
   RefPtr<DataSourceSurface> target =
@@ -3198,6 +3196,9 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
   int32_t sourceStride = input->Stride();
   uint8_t* targetData = target->GetData();
   int32_t targetStride = target->Stride();
+
+  IntPoint offset = aRect.TopLeft() - srcRect.TopLeft();
+  sourceData += DataOffset(input, offset);
 
   uint32_t lightColor = ColorToBGRA(mColor);
 
@@ -3214,13 +3215,12 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
       mLight->GetLAndColor((uint8_t*)&lightColor, pt, L, color);
 
       float N[3];
-      GenerateNormal(N, sourceData, sourceStride, size.width, size.height, x, y, mSurfaceScale);
+      GenerateNormal(N, sourceData, sourceStride, size.width, size.height,
+                     x, y, mSurfaceScale, mKernelUnitLength);
 
       LightPixel(N, L, color, targetData + targetIndex);
     }
   }
-
-  //FinishScalingFilter(&info);
 
   return target;
 }
