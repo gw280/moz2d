@@ -3024,9 +3024,9 @@ SpotLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float 
   NORMALIZE(L);
 
   float S[3];
-  S[0] = mPointsAt.x - pt.x;
-  S[1] = mPointsAt.y - pt.y;
-  S[2] = mPointsAt.z - pt.z;
+  S[0] = mPointsAt.x - mPosition.x;
+  S[1] = mPointsAt.y - mPosition.y;
+  S[2] = mPointsAt.z - mPosition.z;
   NORMALIZE(S);
 
   float dot = -DOT(L, S);
