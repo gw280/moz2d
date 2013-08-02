@@ -234,6 +234,7 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aKernelSize) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Float* aMatrix, uint32_t aSize) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aTarget) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aEdgeMode) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aPreserveAlpha) MOZ_OVERRIDE;
@@ -253,7 +254,7 @@ private:
   Float mBias;
   IntPoint mTarget;
   ConvolveMatrixEdgeMode mEdgeMode;
-  Float mKernelUnitLength;
+  Size mKernelUnitLength;
   bool mPreserveAlpha;
 };
 
@@ -524,6 +525,7 @@ class FilterNodeLightingSoftware : public FilterNodeSoftware
 public:
   FilterNodeLightingSoftware(LightSoftware *aLight);
   virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const Size &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Color &) MOZ_OVERRIDE;
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
@@ -536,7 +538,7 @@ protected:
 
   RefPtr<LightSoftware> mLight;
   Float mSurfaceScale;
-  Float mKernelUnitLength;
+  Size mKernelUnitLength;
   Color mColor;
 };
 

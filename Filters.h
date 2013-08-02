@@ -206,7 +206,7 @@ enum ConvolveMatrixAtts
   ATT_CONVOLVE_MATRIX_BIAS,                 // Float
   ATT_CONVOLVE_MATRIX_TARGET,               // IntPoint
   ATT_CONVOLVE_MATRIX_EDGE_MODE,            // ConvolveMatrixEdgeMode
-  ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH,   // Float
+  ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH,   // Size
   ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA,       // bool
 };
 
@@ -340,7 +340,7 @@ enum LightingAtts
 
   ATT_LIGHTING_COLOR,                       // Color
   ATT_LIGHTING_SURFACE_SCALE,               // Float
-  ATT_LIGHTING_KERNEL_UNIT_LENGTH,          // Float
+  ATT_LIGHTING_KERNEL_UNIT_LENGTH,          // Size
 
   ATT_DIFFUSE_LIGHTING_DIFFUSE_CONSTANT,    // Float
 

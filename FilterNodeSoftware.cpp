@@ -1550,7 +1550,6 @@ FilterNodeConvolveMatrixSoftware::FilterNodeConvolveMatrixSoftware()
  : mDivisor(0)
  , mBias(0)
  , mEdgeMode(EDGE_MODE_DUPLICATE)
- , mKernelUnitLength(0)
  , mPreserveAlpha(false)
 {}
 
@@ -1590,8 +1589,17 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex, Float aValue)
     case ATT_CONVOLVE_MATRIX_BIAS:
       mBias = aValue;
       break;
+    default:
+      MOZ_CRASH();
+  }
+}
+
+void
+FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength)
+{
+  switch (aIndex) {
     case ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH:
-      mKernelUnitLength = aValue;
+      mKernelUnitLength = aKernelUnitLength;
       break;
     default:
       MOZ_CRASH();
@@ -2952,7 +2960,6 @@ static inline void NORMALIZE(float* vec) {
 FilterNodeLightingSoftware::FilterNodeLightingSoftware(LightSoftware *aLight)
  : mLight(aLight)
  , mSurfaceScale(0)
- , mKernelUnitLength(0)
 {
   MOZ_ASSERT(aLight);
 }
@@ -2979,12 +2986,21 @@ FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
     case ATT_LIGHTING_SURFACE_SCALE:
       mSurfaceScale = aValue;
       break;
-    case ATT_LIGHTING_KERNEL_UNIT_LENGTH:
-      mKernelUnitLength = aValue;
-      break;
     default:
       mLight->SetAttribute(aIndex, aValue);
       break;
+  }
+}
+
+void
+FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength)
+{
+  switch (aIndex) {
+    case ATT_LIGHTING_KERNEL_UNIT_LENGTH:
+      mKernelUnitLength = aKernelUnitLength;
+      break;
+    default:
+      MOZ_CRASH();
   }
 }
 
