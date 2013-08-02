@@ -3189,14 +3189,16 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
     for (int32_t x = 0; x < size.width; x++) {
       int32_t sourceIndex = y * sourceStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
+      IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
+
+      Float Z = mSurfaceScale * sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] / 255.0f;
+      Point3D pt(pointInFilterSpace.x, pointInFilterSpace.y, Z);
+      Float L[3];
+      uint8_t color[4];
+      mLight->GetLAndColor((uint8_t*)&lightColor, pt, L, color);
 
       float N[3];
       GenerateNormal(N, sourceData, sourceStride, size.width, size.height, x, y, mSurfaceScale);
-
-      Float Z = mSurfaceScale * sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] / 255;
-      Float L[3];
-      uint8_t color[4];
-      mLight->GetLAndColor((uint8_t*)&lightColor, Point3D(x, y, Z), L, color);
 
       LightPixel(N, L, color, targetData + targetIndex);
     }
