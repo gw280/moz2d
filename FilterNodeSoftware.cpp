@@ -41,6 +41,7 @@ class PointLightSoftware
 public:
   bool SetAttribute(uint32_t aIndex, Float) { return false; }
   bool SetAttribute(uint32_t aIndex, const Point3D &);
+  void Prepare() {}
   Point3D GetRayDirection(const Point3D &aTargetPoint);
   uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
@@ -54,14 +55,17 @@ public:
   SpotLightSoftware();
   bool SetAttribute(uint32_t aIndex, Float);
   bool SetAttribute(uint32_t aIndex, const Point3D &);
+  void Prepare();
   Point3D GetRayDirection(const Point3D &aTargetPoint);
   uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
 private:
   Point3D mPosition;
   Point3D mPointsAt;
+  Point3D mCoreRayDirection;
   Float mSpecularFocus;
   Float mLimitingConeAngle;
+  Float mLimitingConeCos;
 };
 
 class DistantLightSoftware
@@ -70,12 +74,14 @@ public:
   DistantLightSoftware();
   bool SetAttribute(uint32_t aIndex, Float);
   bool SetAttribute(uint32_t aIndex, const Point3D &) { return false; }
+  void Prepare();
   Point3D GetRayDirection(const Point3D &aTargetPoint);
   uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
 private:
   Float mAzimuth;
   Float mElevation;
+  Point3D mRayDirection;
 };
 
 class DiffuseLightingSoftware
@@ -3013,6 +3019,7 @@ PointLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 SpotLightSoftware::SpotLightSoftware()
  : mSpecularFocus(0)
  , mLimitingConeAngle(0)
+ , mLimitingConeCos(1)
 {
 }
 
@@ -3158,6 +3165,14 @@ PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
   return aLightColor;
 }
 
+void
+SpotLightSoftware::Prepare()
+{
+  mCoreRayDirection = mPointsAt - mPosition;
+  const float radPerDeg = static_cast<float>(M_PI/180.0);
+  mLimitingConeCos = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
+}
+
 Point3D
 SpotLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
 {
@@ -3172,10 +3187,8 @@ SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
     uint8_t colorC[4];
   };
   color = aLightColor;
-  float dot = -aRayDirection.DotProduct(mPointsAt - mPosition);
-  const float radPerDeg = static_cast<float>(M_PI/180.0);
-  float cosConeAngle = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
-  float tmp = dot < cosConeAngle ? 0 : pow(dot, mSpecularFocus);
+  float dot = -aRayDirection.DotProduct(mCoreRayDirection);
+  float tmp = dot < mLimitingConeCos ? 0 : pow(dot, mSpecularFocus);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
@@ -3183,15 +3196,19 @@ SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
   return color;
 }
 
+void
+DistantLightSoftware::Prepare()
+{
+  const float radPerDeg = static_cast<float>(M_PI/180.0);
+  mRayDirection.x = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  mRayDirection.y = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  mRayDirection.z = sin(mElevation * radPerDeg);
+}
+
 Point3D
 DistantLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
 {
-  const float radPerDeg = static_cast<float>(M_PI/180.0);
-  Point3D dir;
-  dir.x = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  dir.y = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  dir.z = sin(mElevation * radPerDeg);
-  return dir;
+  return mRayDirection;
 }
 
 uint32_t
@@ -3325,6 +3342,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
   sourceData += DataOffset(input, offset);
 
   uint32_t lightColor = ColorToBGRA(mColor);
+  mLight.Prepare();
 
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
