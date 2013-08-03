@@ -1755,16 +1755,15 @@ ConvolvePixel(const uint8_t *aSourceData,
               int32_t aWidth, int32_t aHeight,
               int32_t aSourceStride, int32_t aTargetStride,
               int32_t aX, int32_t aY,
-              const Float *aKernel,
-              Float aDivisor, Float aBias,
+              const int32_t *aKernel,
+              int32_t aBias, int32_t shiftL, int32_t shiftR,
               bool aPreserveAlpha,
               int32_t aOrderX, int32_t aOrderY,
               int32_t aTargetX, int32_t aTargetY,
               CoordType aKernelUnitLengthX,
               CoordType aKernelUnitLengthY)
 {
-  Float sum[4] = {0, 0, 0, 0};
-  aBias *= 255;
+  int32_t sum[4] = {0, 0, 0, 0};
   int32_t offsets[4] = { ARGB32_COMPONENT_BYTEOFFSET_R,
                          ARGB32_COMPONENT_BYTEOFFSET_G,
                          ARGB32_COMPONENT_BYTEOFFSET_B,
@@ -1784,7 +1783,7 @@ ConvolvePixel(const uint8_t *aSourceData,
   }
   for (int32_t i = 0; i < channels; i++) {
     aTargetData[aY * aTargetStride + 4 * aX + offsets[i]] =
-      clamped(static_cast<int32_t>(sum[i] / aDivisor + aBias), 0, 255);
+      umin(ClampToNonZero(sum[i] + aBias), 255 << shiftL >> shiftR) << shiftR >> shiftL;
   }
   if (aPreserveAlpha) {
     aTargetData[aY * aTargetStride + 4 * aX + ARGB32_COMPONENT_BYTEOFFSET_A] =
@@ -1800,6 +1799,62 @@ FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
     return DoRender(aRect, (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
   }
   return DoRender(aRect, mKernelUnitLength.width, mKernelUnitLength.height);
+}
+
+static std::vector<Float>
+ReversedVector(const std::vector<Float> &aVector)
+{
+  size_t length = aVector.size();
+  std::vector<Float> result(length, 0);
+  for (size_t i = 0; i < length; i++) {
+    result[length - 1 - i] = aVector[i];
+  }
+  return result;
+}
+
+static std::vector<Float>
+ScaledVector(const std::vector<Float> &aVector, Float aDivisor)
+{
+  size_t length = aVector.size();
+  std::vector<Float> result(length, 0);
+  for (size_t i = 0; i < length; i++) {
+    result[i] = aVector[i] / aDivisor;
+  }
+  return result;
+}
+
+static Float
+MaxVectorSum(const std::vector<Float> &aVector)
+{
+  Float sum = 0;
+  size_t length = aVector.size();
+  for (size_t i = 0; i < length; i++) {
+    if (aVector[i] > 0) {
+      sum += aVector[i];
+    }
+  }
+  return sum;
+}
+
+// Returns shiftL and shiftR in such a way that
+// a << shiftL >> shiftR is roughly a * aFloat.
+static void
+TranslateFloatToShifts(Float aFloat, int32_t &aShiftL, int32_t &aShiftR)
+{
+  aShiftL = 0;
+  aShiftR = 0;
+  if (aFloat <= 0) {
+    MOZ_CRASH();
+  }
+  if (aFloat < 1) {
+    while (1 << (aShiftR + 1) < 1 / aFloat) {
+      aShiftR++;
+    }
+  } else {
+    while (1 << (aShiftL + 1) < aFloat) {
+      aShiftL++;
+    }
+  }
 }
 
 template<typename CoordType>
@@ -1820,6 +1875,7 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
     GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, mEdgeMode);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  ClearDataSourceSurface(target);
 
   uint8_t* sourceData = input->GetData();
   int32_t sourceStride = input->Stride();
@@ -1829,18 +1885,31 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
   IntPoint offset = aRect.TopLeft() - srcRect.TopLeft();
   sourceData += DataOffset(input, offset);
 
-  uint32_t kmLength = mKernelMatrix.size();
+  // Why exactly are we reversing the kernel?
+  std::vector<Float> kernel = ReversedVector(mKernelMatrix);
+  kernel = ScaledVector(kernel, mDivisor);
+  Float maxResultAbs = std::max(MaxVectorSum(kernel) + mBias,
+                                MaxVectorSum(ScaledVector(kernel, -1)) - mBias);
+  maxResultAbs = std::min(maxResultAbs, 1.0f);
 
-  std::vector<Float> kernel(kmLength, 0);
-  for (uint32_t i = 0; i < kmLength; i++) {
-    kernel[kmLength - 1 - i] = mKernelMatrix[i];
+  Float idealFactor = INT32_MAX / 2.0f / maxResultAbs / 255.0f;
+  MOZ_ASSERT(255 * (maxResultSize * idealFactor) < INT32_MAX / 2.0f, "badly chosen float-to-int scale");
+  int32_t shiftL, shiftR;
+  TranslateFloatToShifts(idealFactor, shiftL, shiftR);
+  Float factorFromShifts = Float(1 << shiftL) / Float(1 << shiftR);
+  MOZ_ASSERT(255 * (maxResultSize * factorFromShifts) < INT32_MAX / 2.0f, "badly chosen float-to-int scale");
+
+  std::vector<int32_t> intKernel(kernel.size(), 0);
+  for (size_t i = 0; i < kernel.size(); i++) {
+    intKernel[i] = int32_t(kernel[i] * factorFromShifts);
   }
+  int32_t bias = int32_t(mBias * factorFromShifts);
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
       ConvolvePixel(sourceData, targetData,
                     aRect.width, aRect.height, sourceStride, targetStride,
-                    x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
+                    x, y, intKernel.data(), bias, shiftL, shiftR, mPreserveAlpha,
                     mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
                     aKernelUnitLengthX, aKernelUnitLengthY);
     }
