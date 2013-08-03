@@ -1702,6 +1702,12 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
   mPreserveAlpha = aPreserveAlpha;
 }
 
+static uint8_t
+ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, int32_t x, int32_t y, ptrdiff_t c)
+{
+  return aData[y * aStride + 4 * x + c];
+}
+
 // Accepts fractional x & y and does bilinear interpolation.
 static uint8_t
 ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, ptrdiff_t c)
@@ -1713,16 +1719,17 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, p
   const int32_t tux = f - tlx;
   const int32_t tly = uint32_t((y - ly) * f);
   const int32_t tuy = f - tly;
-  const uint8_t &cll = aData[ly       * aStride + 4 * lx       + c];
-  const uint8_t &cul = aData[ly       * aStride + 4 * (lx + 1) + c];
-  const uint8_t &clu = aData[(ly + 1) * aStride + 4 * lx       + c];
-  const uint8_t &cuu = aData[(ly + 1) * aStride + 4 * (lx + 1) + c];
+  const uint8_t &cll = ColorComponentAtPoint(aData, aStride, lx,     ly,     c);
+  const uint8_t &cul = ColorComponentAtPoint(aData, aStride, lx + 1, ly,     c);
+  const uint8_t &clu = ColorComponentAtPoint(aData, aStride, lx,     ly + 1, c);
+  const uint8_t &cuu = ColorComponentAtPoint(aData, aStride, lx + 1, ly + 1, c);
   return (cll * tlx * tly +
           cul * tux * tly +
           clu * tlx * tuy +
           cuu * tux * tuy) / (f * f);
 }
 
+template<typename CoordType>
 static void
 ConvolvePixel(const uint8_t *aSourceData,
               uint8_t *aTargetData,
@@ -1734,7 +1741,8 @@ ConvolvePixel(const uint8_t *aSourceData,
               bool aPreserveAlpha,
               int32_t aOrderX, int32_t aOrderY,
               int32_t aTargetX, int32_t aTargetY,
-              const Size &aKernelUnitLength)
+              CoordType aKernelUnitLengthX,
+              CoordType aKernelUnitLengthY)
 {
   Float sum[4] = {0, 0, 0, 0};
   aBias *= 255;
@@ -1745,9 +1753,9 @@ ConvolvePixel(const uint8_t *aSourceData,
   int32_t channels = aPreserveAlpha ? 3 : 4;
 
   for (int32_t y = 0; y < aOrderY; y++) {
-    Float sampleY = aY + (y - aTargetY) * aKernelUnitLength.height;
+    CoordType sampleY = aY + (y - aTargetY) * aKernelUnitLengthY;
     for (int32_t x = 0; x < aOrderX; x++) {
-      Float sampleX = aX + (x - aTargetX) * aKernelUnitLength.width;
+      CoordType sampleX = aX + (x - aTargetX) * aKernelUnitLengthX;
       for (int32_t i = 0; i < channels; i++) {
         sum[i] += aKernel[aOrderX * y + x] *
           ColorComponentAtPoint(aSourceData, aSourceStride,
@@ -1764,6 +1772,29 @@ ConvolvePixel(const uint8_t *aSourceData,
       aSourceData[aY * aSourceStride + 4 * aX + ARGB32_COMPONENT_BYTEOFFSET_A];
   }
 }
+
+template<typename CoordType>
+static void
+ApplyConvolution(const uint8_t *aSourceData, uint8_t *aTargetData,
+                 int32_t aWidth, int32_t aHeight,
+                 int32_t aSourceStride, int32_t aTargetStride,
+                 Float *aKernel, Float aDivisor, Float aBias,
+                 bool aPreserveAlpha,
+                 int32_t aOrderX, int32_t aOrderY,
+                 int32_t aTargetX, int32_t aTargetY,
+                 CoordType aKernelUnitLengthX, CoordType aKernelUnitLengthY)
+{
+  for (int32_t y = 0; y < aHeight; y++) {
+    for (int32_t x = 0; x < aWidth; x++) {
+      ConvolvePixel(aSourceData, aTargetData,
+                    aWidth, aHeight, aSourceStride, aTargetStride,
+                    x, y, aKernel, aDivisor, aBias, aPreserveAlpha,
+                    aOrderX, aOrderY, aTargetX, aTargetY,
+                    aKernelUnitLengthX, aKernelUnitLengthY);
+    }
+  }
+}
+
 
 TemporaryRef<DataSourceSurface>
 FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
@@ -1796,14 +1827,19 @@ FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
     kernel[kmLength - 1 - i] = mKernelMatrix[i];
   }
 
-  for (int32_t y = 0; y < aRect.height; y++) {
-    for (int32_t x = 0; x < aRect.width; x++) {
-      ConvolvePixel(sourceData, targetData,
-                    aRect.width, aRect.height, sourceStride, targetStride,
-                    x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
-                    mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
-                    mKernelUnitLength);
-    }
+  if (mKernelUnitLength.width == floor(mKernelUnitLength.width) &&
+      mKernelUnitLength.height == floor(mKernelUnitLength.height)) {
+    ApplyConvolution(sourceData, targetData,
+                     aRect.width, aRect.height, sourceStride, targetStride,
+                     kernel.data(), mDivisor, mBias, mPreserveAlpha,
+                     mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
+                     (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
+  } else {
+    ApplyConvolution(sourceData, targetData,
+                     aRect.width, aRect.height, sourceStride, targetStride,
+                     kernel.data(), mDivisor, mBias, mPreserveAlpha,
+                     mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
+                     mKernelUnitLength.width, mKernelUnitLength.height);
   }
 
   return target;
