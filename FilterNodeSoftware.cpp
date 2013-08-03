@@ -3187,8 +3187,8 @@ SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
     uint8_t colorC[4];
   };
   color = aLightColor;
-  float dot = -aRayDirection.DotProduct(mCoreRayDirection);
-  float tmp = dot < mLimitingConeCos ? 0 : pow(dot, mSpecularFocus);
+  Float dot = -aRayDirection.DotProduct(mCoreRayDirection);
+  Float tmp = dot < mLimitingConeCos ? 0 : pow(dot, mSpecularFocus);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
   colorC[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
