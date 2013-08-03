@@ -3215,27 +3215,30 @@ DistantLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirectio
   return aLightColor;
 }
 
+template<typename CoordType>
 static int32_t
 Convolve3x3(const uint8_t *index, int32_t stride,
-            const int8_t kernel[3][3], Size kernelUnitLength)
+            const int8_t kernel[3][3],
+            CoordType kernelUnitLengthX, CoordType kernelUnitLengthY)
 {
   int32_t sum = 0;
   for (int32_t y = 0; y < 3; y++) {
     for (int32_t x = 0; x < 3; x++) {
       sum += kernel[y][x] *
         ColorComponentAtPoint(index, stride,
-                              (x - 1) * kernelUnitLength.width,
-                              (y - 1) * kernelUnitLength.height, 0);
+                              (x - 1) * kernelUnitLengthX,
+                              (y - 1) * kernelUnitLengthY, 0);
     }
   }
   return sum;
 }
 
+template<typename CoordType>
 static Point3D
 GenerateNormal(const uint8_t *data, int32_t stride,
                int32_t surfaceWidth, int32_t surfaceHeight,
                int32_t x, int32_t y, float surfaceScale,
-               Size kernelUnitLength)
+               CoordType kernelUnitLengthX, CoordType kernelUnitLengthY)
 {
   // See this for source of constants:
   //   http://www.w3.org/TR/SVG11/filters.html#feDiffuseLightingElement
@@ -3294,9 +3297,9 @@ GenerateNormal(const uint8_t *data, int32_t stride,
 
   Point3D normal;
   normal.x = -surfaceScale * FACTORx[yflag][xflag] *
-    Convolve3x3(index, stride, Kx[yflag][xflag], kernelUnitLength);
+    Convolve3x3(index, stride, Kx[yflag][xflag], kernelUnitLengthX, kernelUnitLengthY);
   normal.y = -surfaceScale * FACTORy[yflag][xflag] *
-    Convolve3x3(index, stride, Ky[yflag][xflag], kernelUnitLength);
+    Convolve3x3(index, stride, Ky[yflag][xflag], kernelUnitLengthX, kernelUnitLengthY);
   normal.z = 255;
   return NORMALIZE(normal);
 }
@@ -3305,9 +3308,22 @@ template<typename LightType, typename LightingType>
 TemporaryRef<DataSourceSurface>
 FilterNodeLightingSoftware<LightType, LightingType>::Render(const IntRect& aRect)
 {
+  if (mKernelUnitLength.width == floor(mKernelUnitLength.width) &&
+      mKernelUnitLength.height == floor(mKernelUnitLength.height)) {
+    return DoRender(aRect, (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
+  }
+  return DoRender(aRect, mKernelUnitLength.width, mKernelUnitLength.height);
+}
+
+template<typename LightType, typename LightingType> template<typename CoordType>
+TemporaryRef<DataSourceSurface>
+FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRect,
+                                                              CoordType aKernelUnitLengthX,
+                                                              CoordType aKernelUnitLengthY)
+{
   IntRect srcRect = aRect;
-  srcRect.Inflate(ceil(mKernelUnitLength.width - 1),
-                  ceil(mKernelUnitLength.height - 1));
+  srcRect.Inflate(ceil(aKernelUnitLengthX - 1),
+                  ceil(aKernelUnitLengthY - 1));
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
 
@@ -3331,7 +3347,8 @@ FilterNodeLightingSoftware<LightType, LightingType>::Render(const IntRect& aRect
       int32_t targetIndex = y * targetStride + 4 * x;
 
       Point3D normal = GenerateNormal(sourceData, sourceStride, size.width, size.height,
-                                      x, y, mSurfaceScale, mKernelUnitLength);
+                                      x, y, mSurfaceScale,
+                                      aKernelUnitLengthX, aKernelUnitLengthY);
 
       IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
       Float Z = mSurfaceScale * sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] / 255.0f;
