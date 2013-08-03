@@ -3,6 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <cmath>
 #include "FilterNodeSoftware.h"
 #include "2D.h"
 #include "Tools.h"
@@ -374,22 +375,22 @@ FilterNodeSoftware::Create(FilterType aType)
       filter = new FilterNodeUnpremultiplySoftware();
       break;
     case FILTER_POINT_DIFFUSE:
-      filter = new FilterNodeDiffuseSoftware(new PointLightSoftware());
+      filter = new FilterNodeLightingSoftware<PointLightSoftware, DiffuseLightingSoftware>();
       break;
     case FILTER_POINT_SPECULAR:
-      filter = new FilterNodeSpecularSoftware(new PointLightSoftware());
+      filter = new FilterNodeLightingSoftware<PointLightSoftware, SpecularLightingSoftware>();
       break;
     case FILTER_SPOT_DIFFUSE:
-      filter = new FilterNodeDiffuseSoftware(new SpotLightSoftware());
+      filter = new FilterNodeLightingSoftware<SpotLightSoftware, DiffuseLightingSoftware>();
       break;
     case FILTER_SPOT_SPECULAR:
-      filter = new FilterNodeSpecularSoftware(new SpotLightSoftware());
+      filter = new FilterNodeLightingSoftware<SpotLightSoftware, SpecularLightingSoftware>();
       break;
     case FILTER_DISTANT_DIFFUSE:
-      filter = new FilterNodeDiffuseSoftware(new DistantLightSoftware());
+      filter = new FilterNodeLightingSoftware<DistantLightSoftware, DiffuseLightingSoftware>();
       break;
     case FILTER_DISTANT_SPECULAR:
-      filter = new FilterNodeSpecularSoftware(new DistantLightSoftware());
+      filter = new FilterNodeLightingSoftware<DistantLightSoftware, SpecularLightingSoftware>();
       break;
   }
   return filter;
@@ -2904,11 +2905,17 @@ FilterNodeUnpremultiplySoftware::GetOutputRectInRect(const IntRect& aRect)
   return GetInputRectInRect(IN_UNPREMULTIPLY_IN, aRect);
 }
 
-void
+bool
 PointLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
-  MOZ_ASSERT(aIndex == ATT_POINT_LIGHT_POSITION);
-  mPosition = aPoint;
+  switch (aIndex) {
+    case ATT_POINT_LIGHT_POSITION:
+      mPosition = aPoint;
+      break;
+    default:
+      return false;
+  }
+  return true;
 }
 
 SpotLightSoftware::SpotLightSoftware()
@@ -2917,7 +2924,7 @@ SpotLightSoftware::SpotLightSoftware()
 {
 }
 
-void
+bool
 SpotLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
   switch (aIndex) {
@@ -2928,11 +2935,12 @@ SpotLightSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
       mPointsAt = aPoint;
       break;
     default:
-      MOZ_CRASH();
+      return false;
   }
+  return true;
 }
 
-void
+bool
 SpotLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
@@ -2943,8 +2951,9 @@ SpotLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
       mSpecularFocus = aValue;
       break;
     default:
-      MOZ_CRASH();
+      return false;
   }
+  return true;
 }
 
 DistantLightSoftware::DistantLightSoftware()
@@ -2953,7 +2962,7 @@ DistantLightSoftware::DistantLightSoftware()
 {
 }
 
-void
+bool
 DistantLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
@@ -2964,31 +2973,25 @@ DistantLightSoftware::SetAttribute(uint32_t aIndex, Float aValue)
       mElevation = aValue;
       break;
     default:
-      MOZ_CRASH();
+      return false;
   }
+  return true;
 }
 
-static inline float DOT(const float* a, const float* b) {
-  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+static inline Point3D NORMALIZE(const Point3D &vec) {
+  Point3D copy(vec);
+  copy.Normalize();
+  return copy;
 }
 
-static inline void NORMALIZE(float* vec) {
-  float norm = sqrt(DOT(vec, vec));
-  vec[0] /= norm;
-  vec[1] /= norm;
-  vec[2] /= norm;
-}
+template<typename LightType, typename LightingType>
+FilterNodeLightingSoftware<LightType, LightingType>::FilterNodeLightingSoftware()
+ : mSurfaceScale(0)
+{}
 
-
-FilterNodeLightingSoftware::FilterNodeLightingSoftware(LightSoftware *aLight)
- : mLight(aLight)
- , mSurfaceScale(0)
-{
-  MOZ_ASSERT(aLight);
-}
-
+template<typename LightType, typename LightingType>
 int32_t
-FilterNodeLightingSoftware::InputIndex(uint32_t aInputEnumIndex)
+FilterNodeLightingSoftware<LightType, LightingType>::InputIndex(uint32_t aInputEnumIndex)
 {
   switch (aInputEnumIndex) {
     case IN_LIGHTING_IN: return 0;
@@ -2996,27 +2999,36 @@ FilterNodeLightingSoftware::InputIndex(uint32_t aInputEnumIndex)
   }
 }
 
+template<typename LightType, typename LightingType>
 void
-FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
+FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
-  mLight->SetAttribute(aIndex, aPoint);
+  if (mLight.SetAttribute(aIndex, aPoint)) {
+    return;
+  }
+  MOZ_CRASH();
 }
 
+template<typename LightType, typename LightingType>
 void
-FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
+FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aIndex, Float aValue)
 {
+  if (mLight.SetAttribute(aIndex, aValue) ||
+      mLighting.SetAttribute(aIndex, aValue)) {
+    return;
+  }
   switch (aIndex) {
     case ATT_LIGHTING_SURFACE_SCALE:
       mSurfaceScale = aValue;
       break;
     default:
-      mLight->SetAttribute(aIndex, aValue);
-      break;
+      MOZ_CRASH();
   }
 }
 
+template<typename LightType, typename LightingType>
 void
-FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength)
+FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength)
 {
   switch (aIndex) {
     case ATT_LIGHTING_KERNEL_UNIT_LENGTH:
@@ -3027,68 +3039,73 @@ FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Size &aKernelUni
   }
 }
 
+template<typename LightType, typename LightingType>
 void
-FilterNodeLightingSoftware::SetAttribute(uint32_t aIndex, const Color &aColor)
+FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aIndex, const Color &aColor)
 {
   MOZ_ASSERT(aIndex == ATT_LIGHTING_COLOR);
   mColor = aColor;
 }
 
+template<typename LightType, typename LightingType>
 IntRect
-FilterNodeLightingSoftware::GetOutputRectInRect(const IntRect& aRect)
+FilterNodeLightingSoftware<LightType, LightingType>::GetOutputRectInRect(const IntRect& aRect)
 {
   return GetInputRectInRect(IN_LIGHTING_IN, aRect);
 }
 
-void
-PointLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4])
+Point3D
+PointLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
 {
-  L[0] = mPosition.x - pt.x;
-  L[1] = mPosition.y - pt.y;
-  L[2] = mPosition.z - pt.z;
-  NORMALIZE(L);
-
-  color[ARGB32_COMPONENT_BYTEOFFSET_R] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_R];
-  color[ARGB32_COMPONENT_BYTEOFFSET_G] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_G];
-  color[ARGB32_COMPONENT_BYTEOFFSET_B] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_B];
-  color[ARGB32_COMPONENT_BYTEOFFSET_A] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_A];
+  return NORMALIZE(mPosition - aTargetPoint);
 }
 
-void
-SpotLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4])
+uint32_t
+PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
 {
-  L[0] = mPosition.x - pt.x;
-  L[1] = mPosition.y - pt.y;
-  L[2] = mPosition.z - pt.z;
-  NORMALIZE(L);
+  return aLightColor;
+}
 
-  float S[3];
-  S[0] = mPointsAt.x - mPosition.x;
-  S[1] = mPointsAt.y - mPosition.y;
-  S[2] = mPointsAt.z - mPosition.z;
-  NORMALIZE(S);
+Point3D
+SpotLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
+{
+  return NORMALIZE(mPosition - aTargetPoint);
+}
 
-  float dot = -DOT(L, S);
+uint32_t
+SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
+{
+  union {
+    uint32_t color;
+    uint8_t colorC[4];
+  };
+  color = aLightColor;
+  float dot = -aRayDirection.DotProduct(mPointsAt - mPosition);
   const float radPerDeg = static_cast<float>(M_PI/180.0);
   float cosConeAngle = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
   float tmp = dot < cosConeAngle ? 0 : pow(dot, mSpecularFocus);
-  color[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
-  color[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
-  color[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(lightColor[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
-  color[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  return color;
 }
 
-void
-DistantLightSoftware::GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4])
+Point3D
+DistantLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
 {
   const float radPerDeg = static_cast<float>(M_PI/180.0);
-  L[0] = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  L[1] = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  L[2] = sin(mElevation * radPerDeg);
-  color[ARGB32_COMPONENT_BYTEOFFSET_R] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_R];
-  color[ARGB32_COMPONENT_BYTEOFFSET_G] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_G];
-  color[ARGB32_COMPONENT_BYTEOFFSET_B] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_B];
-  color[ARGB32_COMPONENT_BYTEOFFSET_A] = lightColor[ARGB32_COMPONENT_BYTEOFFSET_A];
+  Point3D dir;
+  dir.x = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  dir.y = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  dir.z = sin(mElevation * radPerDeg);
+  return dir;
+}
+
+uint32_t
+DistantLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
+{
+  return aLightColor;
 }
 
 static int32_t
@@ -3107,8 +3124,8 @@ Convolve3x3(const uint8_t *index, int32_t stride,
   return sum;
 }
 
-static void
-GenerateNormal(float *N, const uint8_t *data, int32_t stride,
+static Point3D
+GenerateNormal(const uint8_t *data, int32_t stride,
                int32_t surfaceWidth, int32_t surfaceHeight,
                int32_t x, int32_t y, float surfaceScale,
                Size kernelUnitLength)
@@ -3147,10 +3164,7 @@ GenerateNormal(float *N, const uint8_t *data, int32_t stride,
   // degenerate cases
   if (surfaceWidth == 1 || surfaceHeight == 1) {
     // just return a unit vector pointing towards the viewer
-    N[0] = 0;
-    N[1] = 0;
-    N[2] = 255;
-    return;
+    return Point3D(0, 0, 1);
   }
 
   int8_t xflag, yflag;
@@ -3171,16 +3185,18 @@ GenerateNormal(float *N, const uint8_t *data, int32_t stride,
 
   const uint8_t *index = data + y * stride + 4 * x + ARGB32_COMPONENT_BYTEOFFSET_A;
 
-  N[0] = -surfaceScale * FACTORx[yflag][xflag] *
+  Point3D normal;
+  normal.x = -surfaceScale * FACTORx[yflag][xflag] *
     Convolve3x3(index, stride, Kx[yflag][xflag], kernelUnitLength);
-  N[1] = -surfaceScale * FACTORy[yflag][xflag] *
+  normal.y = -surfaceScale * FACTORy[yflag][xflag] *
     Convolve3x3(index, stride, Ky[yflag][xflag], kernelUnitLength);
-  N[2] = 255;
-  NORMALIZE(N);
+  normal.z = 255;
+  return NORMALIZE(normal);
 }
 
+template<typename LightType, typename LightingType>
 TemporaryRef<DataSourceSurface>
-FilterNodeLightingSoftware::Render(const IntRect& aRect)
+FilterNodeLightingSoftware<LightType, LightingType>::Render(const IntRect& aRect)
 {
   IntRect srcRect = aRect;
   srcRect.Inflate(ceil(mKernelUnitLength.width - 1),
@@ -3206,70 +3222,73 @@ FilterNodeLightingSoftware::Render(const IntRect& aRect)
     for (int32_t x = 0; x < size.width; x++) {
       int32_t sourceIndex = y * sourceStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
-      IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
 
+      Point3D normal = GenerateNormal(sourceData, sourceStride, size.width, size.height,
+                                      x, y, mSurfaceScale, mKernelUnitLength);
+
+      IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
       Float Z = mSurfaceScale * sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] / 255.0f;
       Point3D pt(pointInFilterSpace.x, pointInFilterSpace.y, Z);
-      Float L[3];
-      uint8_t color[4];
-      mLight->GetLAndColor((uint8_t*)&lightColor, pt, L, color);
+      Point3D rayDir = mLight.GetRayDirection(pt);
+      uint32_t color = mLight.GetColor(lightColor, rayDir);
 
-      float N[3];
-      GenerateNormal(N, sourceData, sourceStride, size.width, size.height,
-                     x, y, mSurfaceScale, mKernelUnitLength);
-
-      LightPixel(N, L, color, targetData + targetIndex);
+      *(uint32_t*)(targetData + targetIndex) = mLighting.LightPixel(normal, rayDir, color);
     }
   }
 
   return target;
 }
 
-FilterNodeDiffuseSoftware::FilterNodeDiffuseSoftware(LightSoftware *aLight)
- : FilterNodeLightingSoftware(aLight)
- , mDiffuseConstant(0)
+DiffuseLightingSoftware::DiffuseLightingSoftware()
+ : mDiffuseConstant(0)
 {
 }
 
-void
-FilterNodeDiffuseSoftware::SetAttribute(uint32_t aIndex, Float aValue)
+bool
+DiffuseLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
     case ATT_DIFFUSE_LIGHTING_DIFFUSE_CONSTANT:
       mDiffuseConstant = aValue;
       break;
     default:
-      FilterNodeLightingSoftware::SetAttribute(aIndex, aValue);
-      break;
+      return false;
   }
+  return true;
 }
 
-void
-FilterNodeDiffuseSoftware::LightPixel(const Float *N, const Float *L,
-                                      uint8_t *color, uint8_t *targetData)
+uint32_t
+DiffuseLightingSoftware::LightPixel(const Point3D &aNormal,
+                                    const Point3D &aRayDirection,
+                                    uint32_t aColor)
 {
-  float diffuseNL = mDiffuseConstant * DOT(N, L);
+  float diffuseNL = mDiffuseConstant * aNormal.DotProduct(aRayDirection);
 
   if (diffuseNL < 0) diffuseNL = 0;
 
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_B] =
-    std::min(uint32_t(diffuseNL * color[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_G] =
-    std::min(uint32_t(diffuseNL * color[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_R] =
-    std::min(uint32_t(diffuseNL * color[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  union {
+    uint32_t color;
+    uint8_t colorC[4];
+  };
+  color = aColor;
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] =
+    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] =
+    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] =
+    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  return color;
 }
 
-FilterNodeSpecularSoftware::FilterNodeSpecularSoftware(LightSoftware *aLight)
- : FilterNodeLightingSoftware(aLight)
- , mSpecularConstant(0)
+SpecularLightingSoftware::SpecularLightingSoftware()
+ : mSpecularConstant(0)
  , mSpecularExponent(0)
 {
 }
 
-void
-FilterNodeSpecularSoftware::SetAttribute(uint32_t aIndex, Float aValue)
+bool
+SpecularLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
     case ATT_SPECULAR_LIGHTING_SPECULAR_CONSTANT:
@@ -3279,23 +3298,22 @@ FilterNodeSpecularSoftware::SetAttribute(uint32_t aIndex, Float aValue)
       mSpecularExponent = aValue;
       break;
     default:
-      FilterNodeLightingSoftware::SetAttribute(aIndex, aValue);
-      break;
+      return false;
   }
+  return true;
 }
 
-void
-FilterNodeSpecularSoftware::LightPixel(const Float *N, const Float *L,
-                                       uint8_t *color, uint8_t *targetData)
+uint32_t
+SpecularLightingSoftware::LightPixel(const Point3D &aNormal,
+                                     const Point3D &aRayDirection,
+                                     uint32_t aColor)
 {
-  float H[3];
-  H[0] = L[0];
-  H[1] = L[1];
-  H[2] = L[2] + 1;
-  NORMALIZE(H);
+  Point3D H = aRayDirection;
+  H.z += 1;
+  H.Normalize();
 
   Float kS = mSpecularConstant;
-  Float dotNH = DOT(N, H);
+  Float dotNH = aNormal.DotProduct(H);
 
   bool invalid = dotNH <= 0 || kS <= 0;
   kS *= invalid ? 0 : 1;
@@ -3303,17 +3321,23 @@ FilterNodeSpecularSoftware::LightPixel(const Float *N, const Float *L,
 
   Float specularNH = kS * pow(dotNH, mSpecularExponent);
 
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_B] =
-    std::min(uint32_t(specularNH * color[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_G] =
-    std::min(uint32_t(specularNH * color[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_R] =
-    std::min(uint32_t(specularNH * color[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
+  union {
+    uint32_t color;
+    uint8_t colorC[4];
+  };
+  color = aColor;
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] =
+    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] =
+    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] =
+    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
 
-  targetData[ARGB32_COMPONENT_BYTEOFFSET_A] =
-    std::max(minAlpha, std::max(targetData[ARGB32_COMPONENT_BYTEOFFSET_B],
-                            std::max(targetData[ARGB32_COMPONENT_BYTEOFFSET_G],
-                                   targetData[ARGB32_COMPONENT_BYTEOFFSET_R])));
+  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] =
+    std::max(minAlpha, std::max(colorC[ARGB32_COMPONENT_BYTEOFFSET_B],
+                            std::max(colorC[ARGB32_COMPONENT_BYTEOFFSET_G],
+                                   colorC[ARGB32_COMPONENT_BYTEOFFSET_R])));
+  return color;
 }
 
 } // namespace gfx

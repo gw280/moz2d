@@ -474,32 +474,26 @@ protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
 };
 
-class LightSoftware : public RefCounted<LightSoftware>
+class PointLightSoftware
 {
 public:
-  virtual ~LightSoftware() {}
-  virtual void SetAttribute(uint32_t aIndex, Float) { MOZ_CRASH(); }
-  virtual void SetAttribute(uint32_t aIndex, const Point3D &) { MOZ_CRASH(); }
-  virtual void GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4])=0;
-};
-
-class PointLightSoftware : public LightSoftware
-{
-public:
-  virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;
-  virtual void GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4]) MOZ_OVERRIDE;
+  bool SetAttribute(uint32_t aIndex, Float) { return false; }
+  bool SetAttribute(uint32_t aIndex, const Point3D &);
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
 private:
   Point3D mPosition;
 };
 
-class SpotLightSoftware : public LightSoftware
+class SpotLightSoftware
 {
 public:
   SpotLightSoftware();
-  virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
-  virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;
-  virtual void GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4]) MOZ_OVERRIDE;
+  bool SetAttribute(uint32_t aIndex, Float);
+  bool SetAttribute(uint32_t aIndex, const Point3D &);
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
 private:
   Point3D mPosition;
@@ -508,22 +502,25 @@ private:
   Float mLimitingConeAngle;
 };
 
-class DistantLightSoftware : public LightSoftware
+class DistantLightSoftware
 {
 public:
   DistantLightSoftware();
-  virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
-  virtual void GetLAndColor(uint8_t lightColor[4], const Point3D &pt, Float L[3], uint8_t color[4]) MOZ_OVERRIDE;
+  bool SetAttribute(uint32_t aIndex, Float);
+  bool SetAttribute(uint32_t aIndex, const Point3D &) { return false; }
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
 
 private:
   Float mAzimuth;
   Float mElevation;
 };
 
+template<typename LightType, typename LightingType>
 class FilterNodeLightingSoftware : public FilterNodeSoftware
 {
 public:
-  FilterNodeLightingSoftware(LightSoftware *aLight);
+  FilterNodeLightingSoftware();
   virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Size &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;
@@ -533,38 +530,34 @@ public:
 
 protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
-  virtual void LightPixel(const Float *N, const Float *L,
-                          uint8_t *color, uint8_t *targetData)=0;
 
-  RefPtr<LightSoftware> mLight;
+private:
+  LightType mLight;
+  LightingType mLighting;
   Float mSurfaceScale;
   Size mKernelUnitLength;
   Color mColor;
 };
 
-class FilterNodeDiffuseSoftware : public FilterNodeLightingSoftware
+class DiffuseLightingSoftware
 {
 public:
-  FilterNodeDiffuseSoftware(LightSoftware *aLight);
-  virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
-
-protected:
-  virtual void LightPixel(const Float *N, const Float *L,
-                          uint8_t *color, uint8_t *targetData) MOZ_OVERRIDE;
+  DiffuseLightingSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+                      uint32_t aColor);
 
 private:
   Float mDiffuseConstant;
 };
 
-class FilterNodeSpecularSoftware : public FilterNodeLightingSoftware
+class SpecularLightingSoftware
 {
 public:
-  FilterNodeSpecularSoftware(LightSoftware *aLight);
-  virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
-
-protected:
-  virtual void LightPixel(const Float *N, const Float *L,
-                          uint8_t *color, uint8_t *targetData) MOZ_OVERRIDE;
+  SpecularLightingSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+                      uint32_t aColor);
 
 private:
   Float mSpecularConstant;
