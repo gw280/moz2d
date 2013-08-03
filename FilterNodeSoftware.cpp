@@ -961,15 +961,15 @@ FilterNodeColorMatrixSoftware::SetAttribute(uint32_t aIndex,
   mMatrix = aMatrix;
 }
 
+static int32_t
+ClampToNonZero(int32_t a)
+{
+  return a * (a >= 0);
+}
+
 static TemporaryRef<DataSourceSurface>
 ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
 {
-  const Float *row1 = &aMatrix._11;
-  const Float *row2 = &aMatrix._21;
-  const Float *row3 = &aMatrix._31;
-  const Float *row4 = &aMatrix._41;
-  const Float *row5 = &aMatrix._51;
-
   IntSize size = aInput->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
@@ -979,20 +979,35 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   uint32_t sourceStride = aInput->Stride();
   uint32_t targetStride = target->Stride();
 
+  const int32_t factor = 1024;
+  const int32_t floatElementMax = INT32_MAX / (255 * factor * 5);
+  static_assert(255LL * (floatElementMax * factor) * 5 <= INT32_MAX, "badly chosen float-to-int scale");
+
+  const Float *floats = &aMatrix._11;
+  int32_t rows[5][4];
+  for (size_t rowIndex = 0; rowIndex < 5; rowIndex++) {
+    for (size_t colIndex = 0; colIndex < 4; colIndex++) {
+      const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
+      Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -floatElementMax, floatElementMax);
+      int32_t scaledIntMatrixElement = int32_t(clampedFloatMatrixElement * factor);
+      rows[rowIndex][colIndex] = scaledIntMatrixElement;
+    }
+  }
+
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
       uint32_t sourceIndex = y * sourceStride + 4 * x;
       uint32_t targetIndex = y * targetStride + 4 * x;
 
-      Float col[4];
+      int32_t col[4];
       for (int i = 0; i < 4; i++) {
         col[i] =
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * row1[i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * row2[i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * row3[i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * row4[i] +
-          255 *                                                     row5[i];
-        col[i] = clamped(col[i], 0.f, 255.f);
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * rows[0][i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * rows[1][i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
+          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
+          255 *                                                     rows[4][i];
+        col[i] = umin(ClampToNonZero(col[i]), 255 * factor) / factor;
       }
       targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
         static_cast<uint8_t>(col[0]);
@@ -2322,12 +2337,6 @@ FilterNodeArithmeticCombineSoftware::SetAttribute(uint32_t aIndex,
   mK2 = aFloat[1];
   mK3 = aFloat[2];
   mK4 = aFloat[3];
-}
-
-static int32_t
-ClampToNonZero(int32_t a)
-{
-  return a * (a >= 0);
 }
 
 TemporaryRef<DataSourceSurface>
