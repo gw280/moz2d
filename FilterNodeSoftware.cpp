@@ -3168,7 +3168,7 @@ PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
 void
 SpotLightSoftware::Prepare()
 {
-  mCoreRayDirection = mPointsAt - mPosition;
+  mCoreRayDirection = NORMALIZE(mPointsAt - mPosition);
   const float radPerDeg = static_cast<float>(M_PI/180.0);
   mLimitingConeCos = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
 }
