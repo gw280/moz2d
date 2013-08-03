@@ -3324,8 +3324,8 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
                                                               CoordType aKernelUnitLengthY)
 {
   IntRect srcRect = aRect;
-  srcRect.Inflate(ceil(aKernelUnitLengthX - 1),
-                  ceil(aKernelUnitLengthY - 1));
+  srcRect.Inflate(ceil(aKernelUnitLengthX),
+                  ceil(aKernelUnitLengthY));
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
 
