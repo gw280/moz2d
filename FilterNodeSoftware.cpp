@@ -709,9 +709,9 @@ DoMorphologyWithRepeatedKernelTraversal(const IntRect& aSourceRect,
                                         int32_t rx,
                                         int32_t ry)
 {
-  MOZ_STATIC_ASSERT(Operator == MORPHOLOGY_OPERATOR_ERODE ||
-                    Operator == MORPHOLOGY_OPERATOR_DILATE,
-                    "unexpected morphology operator");
+  static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
+                Operator == MORPHOLOGY_OPERATOR_DILATE,
+                "unexpected morphology operator");
 
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
@@ -804,9 +804,9 @@ DoMorphologyWithCachedKernel(const IntRect& aSourceRect,
                              int32_t rx,
                              int32_t ry)
 {
-  MOZ_STATIC_ASSERT(Operator == MORPHOLOGY_OPERATOR_ERODE ||
-                    Operator == MORPHOLOGY_OPERATOR_DILATE,
-                    "unexpected morphology operator");
+  static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
+                Operator == MORPHOLOGY_OPERATOR_DILATE,
+                "unexpected morphology operator");
 
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
