@@ -474,48 +474,6 @@ protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
 };
 
-class PointLightSoftware
-{
-public:
-  bool SetAttribute(uint32_t aIndex, Float) { return false; }
-  bool SetAttribute(uint32_t aIndex, const Point3D &);
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
-
-private:
-  Point3D mPosition;
-};
-
-class SpotLightSoftware
-{
-public:
-  SpotLightSoftware();
-  bool SetAttribute(uint32_t aIndex, Float);
-  bool SetAttribute(uint32_t aIndex, const Point3D &);
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
-
-private:
-  Point3D mPosition;
-  Point3D mPointsAt;
-  Float mSpecularFocus;
-  Float mLimitingConeAngle;
-};
-
-class DistantLightSoftware
-{
-public:
-  DistantLightSoftware();
-  bool SetAttribute(uint32_t aIndex, Float);
-  bool SetAttribute(uint32_t aIndex, const Point3D &) { return false; }
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
-
-private:
-  Float mAzimuth;
-  Float mElevation;
-};
-
 template<typename LightType, typename LightingType>
 class FilterNodeLightingSoftware : public FilterNodeSoftware
 {
@@ -537,31 +495,6 @@ private:
   Float mSurfaceScale;
   Size mKernelUnitLength;
   Color mColor;
-};
-
-class DiffuseLightingSoftware
-{
-public:
-  DiffuseLightingSoftware();
-  bool SetAttribute(uint32_t aIndex, Float);
-  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
-                      uint32_t aColor);
-
-private:
-  Float mDiffuseConstant;
-};
-
-class SpecularLightingSoftware
-{
-public:
-  SpecularLightingSoftware();
-  bool SetAttribute(uint32_t aIndex, Float);
-  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
-                      uint32_t aColor);
-
-private:
-  Float mSpecularConstant;
-  Float mSpecularExponent;
 };
 
 }

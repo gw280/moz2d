@@ -34,6 +34,77 @@ const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_A = 3;
 namespace mozilla {
 namespace gfx {
 
+namespace {
+
+class PointLightSoftware
+{
+public:
+  bool SetAttribute(uint32_t aIndex, Float) { return false; }
+  bool SetAttribute(uint32_t aIndex, const Point3D &);
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+
+private:
+  Point3D mPosition;
+};
+
+class SpotLightSoftware
+{
+public:
+  SpotLightSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  bool SetAttribute(uint32_t aIndex, const Point3D &);
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+
+private:
+  Point3D mPosition;
+  Point3D mPointsAt;
+  Float mSpecularFocus;
+  Float mLimitingConeAngle;
+};
+
+class DistantLightSoftware
+{
+public:
+  DistantLightSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  bool SetAttribute(uint32_t aIndex, const Point3D &) { return false; }
+  Point3D GetRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+
+private:
+  Float mAzimuth;
+  Float mElevation;
+};
+
+class DiffuseLightingSoftware
+{
+public:
+  DiffuseLightingSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+                      uint32_t aColor);
+
+private:
+  Float mDiffuseConstant;
+};
+
+class SpecularLightingSoftware
+{
+public:
+  SpecularLightingSoftware();
+  bool SetAttribute(uint32_t aIndex, Float);
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+                      uint32_t aColor);
+
+private:
+  Float mSpecularConstant;
+  Float mSpecularExponent;
+};
+
+} // unnamed namespace
+
 // Fast approximate division by 255. It has the property that
 // for all 0 <= n <= 255*255, FAST_DIVIDE_BY_255(n) == n/255.
 // But it only uses two adds and two shifts instead of an
