@@ -2667,10 +2667,13 @@ FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
   uint8_t* tmp = intermediateBuffer->GetData();
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
+
+#ifdef DEBUG
   uint32_t sourceStride = input->Stride();
   uint32_t tmpStride = intermediateBuffer->Stride();
   MOZ_ASSERT(sourceStride == stride, "different strides");
   MOZ_ASSERT(tmpStride == stride, "different strides");
+#endif
 
   IntRect dataRect = aRect - srcRect.TopLeft();
 
