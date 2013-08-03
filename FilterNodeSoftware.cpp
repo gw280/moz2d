@@ -1836,8 +1836,8 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
     kernel[kmLength - 1 - i] = mKernelMatrix[i];
   }
 
-  for (int32_t y = 0; y < aRect.width; y++) {
-    for (int32_t x = 0; x < aRect.height; x++) {
+  for (int32_t y = 0; y < aRect.height; y++) {
+    for (int32_t x = 0; x < aRect.width; x++) {
       ConvolvePixel(sourceData, targetData,
                     aRect.width, aRect.height, sourceStride, targetStride,
                     x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
