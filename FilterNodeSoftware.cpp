@@ -1773,31 +1773,21 @@ ConvolvePixel(const uint8_t *aSourceData,
   }
 }
 
-template<typename CoordType>
-static void
-ApplyConvolution(const uint8_t *aSourceData, uint8_t *aTargetData,
-                 int32_t aWidth, int32_t aHeight,
-                 int32_t aSourceStride, int32_t aTargetStride,
-                 Float *aKernel, Float aDivisor, Float aBias,
-                 bool aPreserveAlpha,
-                 int32_t aOrderX, int32_t aOrderY,
-                 int32_t aTargetX, int32_t aTargetY,
-                 CoordType aKernelUnitLengthX, CoordType aKernelUnitLengthY)
-{
-  for (int32_t y = 0; y < aHeight; y++) {
-    for (int32_t x = 0; x < aWidth; x++) {
-      ConvolvePixel(aSourceData, aTargetData,
-                    aWidth, aHeight, aSourceStride, aTargetStride,
-                    x, y, aKernel, aDivisor, aBias, aPreserveAlpha,
-                    aOrderX, aOrderY, aTargetX, aTargetY,
-                    aKernelUnitLengthX, aKernelUnitLengthY);
-    }
-  }
-}
-
-
 TemporaryRef<DataSourceSurface>
 FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
+{
+  if (mKernelUnitLength.width == floor(mKernelUnitLength.width) &&
+      mKernelUnitLength.height == floor(mKernelUnitLength.height)) {
+    return DoRender(aRect, (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
+  }
+  return DoRender(aRect, mKernelUnitLength.width, mKernelUnitLength.height);
+}
+
+template<typename CoordType>
+TemporaryRef<DataSourceSurface>
+FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
+                                           CoordType aKernelUnitLengthX,
+                                           CoordType aKernelUnitLengthY)
 {
   if (mKernelSize.width <= 0 || mKernelSize.height <= 0 ||
       mKernelMatrix.size() != uint32_t(mKernelSize.width * mKernelSize.height) ||
@@ -1827,19 +1817,14 @@ FilterNodeConvolveMatrixSoftware::Render(const IntRect& aRect)
     kernel[kmLength - 1 - i] = mKernelMatrix[i];
   }
 
-  if (mKernelUnitLength.width == floor(mKernelUnitLength.width) &&
-      mKernelUnitLength.height == floor(mKernelUnitLength.height)) {
-    ApplyConvolution(sourceData, targetData,
-                     aRect.width, aRect.height, sourceStride, targetStride,
-                     kernel.data(), mDivisor, mBias, mPreserveAlpha,
-                     mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
-                     (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
-  } else {
-    ApplyConvolution(sourceData, targetData,
-                     aRect.width, aRect.height, sourceStride, targetStride,
-                     kernel.data(), mDivisor, mBias, mPreserveAlpha,
-                     mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
-                     mKernelUnitLength.width, mKernelUnitLength.height);
+  for (int32_t y = 0; y < aRect.width; y++) {
+    for (int32_t x = 0; x < aRect.height; x++) {
+      ConvolvePixel(sourceData, targetData,
+                    aRect.width, aRect.height, sourceStride, targetStride,
+                    x, y, kernel.data(), mDivisor, mBias, mPreserveAlpha,
+                    mKernelSize.width, mKernelSize.height, mTarget.x, mTarget.y,
+                    aKernelUnitLengthX, aKernelUnitLengthY);
+    }
   }
 
   return target;

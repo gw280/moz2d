@@ -245,6 +245,11 @@ protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
 
 private:
+  template<typename CoordType>
+  TemporaryRef<DataSourceSurface> DoRender(const IntRect& aRect,
+                                           CoordType aKernelUnitLengthX,
+                                           CoordType aKernelUnitLengthY);
+
   IntRect InflatedSourceRect(const IntRect &aDestRect);
   IntRect InflatedDestRect(const IntRect &aSourceRect);
 
