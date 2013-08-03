@@ -2324,6 +2324,12 @@ FilterNodeArithmeticCombineSoftware::SetAttribute(uint32_t aIndex,
   mK4 = aFloat[3];
 }
 
+static int32_t
+ClampToNonZero(int32_t a)
+{
+  return a * (a >= 0);
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
 {
@@ -2341,8 +2347,11 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
   uint32_t source2Stride = input2->Stride();
   uint32_t targetStride = target->Stride();
 
-  float k1Scaled = mK1 / 255.0f;
-  float k4Scaled = mK4*255.0f;
+  int32_t k1 = int32_t(clamped(mK1, -255.0f, 255.0f)             * 32);
+  int32_t k2 = int32_t(clamped(mK2, -255.0f, 255.0f) * 255       * 32);
+  int32_t k3 = int32_t(clamped(mK3, -255.0f, 255.0f) * 255       * 32);
+  int32_t k4 = int32_t(clamped(mK4, -255.0f, 255.0f) * 255 * 255 * 32);
+
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
       uint32_t source1Index = y * source1Stride + 4 * x;
@@ -2351,9 +2360,9 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
       for (int32_t i = 0; i < 4; i++) {
         uint8_t i1 = source1Data[source1Index + i];
         uint8_t i2 = source2Data[source2Index + i];
-        float result = k1Scaled*i1*i2 + mK2*i1 + mK3*i2 + k4Scaled;
+        int32_t result = umin(ClampToNonZero(k1*i1*i2 + k2*i1 + k3*i2 + k4), 255 * 255 * 32);
         targetData[targetIndex + i] =
-                     static_cast<uint8_t>(clamped(result, 0.f, 255.f));
+                   static_cast<uint8_t>(FastDivideBy255<uint32_t>(result / 32));
       }
     }
   }
