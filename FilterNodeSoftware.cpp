@@ -1730,6 +1730,7 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, int32_t x, int32_t 
 }
 
 // Accepts fractional x & y and does bilinear interpolation.
+// Only call this if the pixel (floor(x)+1, floor(y)+1) is accessible.
 static uint8_t
 ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, ptrdiff_t c)
 {
@@ -1924,8 +1925,8 @@ FilterNodeConvolveMatrixSoftware::InflatedSourceRect(const IntRect &aDestRect)
   Margin margin;
   margin.left = ceil(mTarget.x * mKernelUnitLength.width);
   margin.top = ceil(mTarget.y * mKernelUnitLength.height);
-  margin.right = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width);
-  margin.bottom = ceil((mKernelSize.height - mTarget.y - 1) * mKernelUnitLength.height);
+  margin.right = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width) + 1;
+  margin.bottom = ceil((mKernelSize.height - mTarget.y - 1) * mKernelUnitLength.height) + 1;
 
   IntRect srcRect = aDestRect;
   srcRect.Inflate(margin);
@@ -2075,7 +2076,7 @@ IntRect
 FilterNodeDisplacementMapSoftware::InflatedSourceOrDestRect(const IntRect &aDestOrSourceRect)
 {
   IntRect sourceOrDestRect = aDestOrSourceRect;
-  sourceOrDestRect.Inflate(ceil(fabs(mScale) / 2));
+  sourceOrDestRect.Inflate(ceil(fabs(mScale) / 2) + 1);
   return sourceOrDestRect;
 }
 
@@ -3408,8 +3409,8 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
                                                               CoordType aKernelUnitLengthY)
 {
   IntRect srcRect = aRect;
-  srcRect.Inflate(ceil(aKernelUnitLengthX),
-                  ceil(aKernelUnitLengthY));
+  srcRect.Inflate(ceil(aKernelUnitLengthX) + 1,
+                  ceil(aKernelUnitLengthY) + 1);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
 
