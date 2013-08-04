@@ -979,7 +979,7 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   uint32_t sourceStride = aInput->Stride();
   uint32_t targetStride = target->Stride();
 
-  const int32_t factor = 1024;
+  const int32_t factor = 255 * 4;
   const int32_t floatElementMax = INT32_MAX / (255 * factor * 5);
   static_assert(255LL * (floatElementMax * factor) * 5 <= INT32_MAX, "badly chosen float-to-int scale");
 
@@ -1007,7 +1007,8 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
           sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
           sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
           255 *                                                     rows[4][i];
-        col[i] = umin(ClampToNonZero(col[i]), 255 * factor) / factor;
+        static_assert(factor == 255 << 2, "Please adapt the calculation in the next line for a different factor.");
+        col[i] = FastDivideBy255<int32_t>(umin(ClampToNonZero(col[i]), 255 * factor) >> 2);
       }
       targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
         static_cast<uint8_t>(col[0]);
