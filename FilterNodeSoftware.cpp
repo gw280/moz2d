@@ -1736,10 +1736,10 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, p
   const uint32_t f = 256;
   const int32_t lx = floor(x);
   const int32_t ly = floor(y);
-  const int32_t tlx = uint32_t((x - lx) * f);
-  const int32_t tux = f - tlx;
-  const int32_t tly = uint32_t((y - ly) * f);
-  const int32_t tuy = f - tly;
+  const int32_t tux = uint32_t((x - lx) * f);
+  const int32_t tlx = f - tux;
+  const int32_t tuy = uint32_t((y - ly) * f);
+  const int32_t tly = f - tuy;
   const uint8_t &cll = ColorComponentAtPoint(aData, aStride, lx,     ly,     c);
   const uint8_t &cul = ColorComponentAtPoint(aData, aStride, lx + 1, ly,     c);
   const uint8_t &clu = ColorComponentAtPoint(aData, aStride, lx,     ly + 1, c);
