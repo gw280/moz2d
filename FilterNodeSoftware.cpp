@@ -914,8 +914,7 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
 
   int32_t kernelSize = (2 * rx + 1) * (2 * ry + 1);
 
-  // TODO: Find the right number
-  if (kernelSize < 16) {
+  if (kernelSize < 80) {
     if (mOperator == MORPHOLOGY_OPERATOR_ERODE) {
       return DoMorphologyWithRepeatedKernelTraversal<MORPHOLOGY_OPERATOR_ERODE>(srcRect, input, aRect, rx, ry);
     } else {
