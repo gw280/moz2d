@@ -2058,17 +2058,13 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
     for (int32_t x = 0; x < aRect.width; x++) {
       uint32_t mapIndex = y * mapStride + 4 * x;
       uint32_t targIndex = y * targetStride + 4 * x;
-      // At some point we might want to replace this with a bilinear sample.
-      int32_t sourceX = x +
-        floor(scaleOver255 * mapData[mapIndex + xChannel] +
-                scaleAdjustment);
-      int32_t sourceY = y +
-        floor(scaleOver255 * mapData[mapIndex + yChannel] +
-                scaleAdjustment);
-      int32_t sourceIndex = sourceY * sourceStride + 4 * sourceX;
-
-      *(uint32_t*)(targetData + targIndex) =
-        *(uint32_t*)(sourceData + sourceIndex);
+      Float sourceX = x +
+        scaleOver255 * mapData[mapIndex + xChannel] + scaleAdjustment;
+      Float sourceY = y +
+        scaleOver255 * mapData[mapIndex + yChannel] + scaleAdjustment;
+      for (int32_t i = 0; i < 4; i++) {
+        targetData[targIndex + i] = ColorComponentAtPoint(sourceData, sourceStride, sourceX, sourceY, i);
+      }
     }
   }
 
