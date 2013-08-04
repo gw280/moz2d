@@ -2757,7 +2757,7 @@ FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
   MOZ_ASSERT(tmpStride == stride, "different strides");
 #endif
 
-  IntRect dataRect = aRect - srcRect.TopLeft();
+  IntRect dataRect = srcRect - srcRect.TopLeft();
 
   int32_t longLobe = d/2;
   int32_t shortLobe = (d & 1) ? longLobe : longLobe - 1;
@@ -2859,7 +2859,7 @@ FilterNodeDirectionalBlurSoftware::Render(const IntRect& aRect)
   uint32_t dx = mBlurDirection == BLUR_DIRECTION_X ? GetBlurBoxSize(mStdDeviation) : 0;
   uint32_t dy = mBlurDirection == BLUR_DIRECTION_Y ? GetBlurBoxSize(mStdDeviation) : 0;
 
-  IntRect dataRect = aRect - srcRect.TopLeft();
+  IntRect dataRect = srcRect - srcRect.TopLeft();
 
   if (dx == 0) {
     CopyDataRect(tmp, sourceData, stride, dataRect);
