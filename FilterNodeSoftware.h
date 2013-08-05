@@ -105,7 +105,7 @@ private:
 class FilterNodeTileSoftware : public FilterNodeSoftware
 {
 public:
-  virtual void SetAttribute(uint32_t aIndex, const Rect &aSourceRect) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const IntRect &aSourceRect) MOZ_OVERRIDE;
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 

@@ -1107,13 +1107,11 @@ FilterNodeTileSoftware::InputIndex(uint32_t aInputEnumIndex)
 
 void
 FilterNodeTileSoftware::SetAttribute(uint32_t aIndex,
-                                     const Rect &aSourceRect)
+                                     const IntRect &aSourceRect)
 {
   MOZ_ASSERT(aIndex == ATT_TILE_SOURCE_RECT);
-  Rect srcRect = aSourceRect;
-  srcRect.Round();
-  mSourceRect = IntRect(int32_t(srcRect.x), int32_t(srcRect.y),
-                        int32_t(srcRect.width), int32_t(srcRect.height));
+  mSourceRect = IntRect(int32_t(aSourceRect.x), int32_t(aSourceRect.y),
+                        int32_t(aSourceRect.width), int32_t(aSourceRect.height));
 }
 
 TemporaryRef<DataSourceSurface>

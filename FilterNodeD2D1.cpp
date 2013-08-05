@@ -9,6 +9,9 @@
 #include "Logging.h"
 
 #include "SourceSurfaceD2D1.h"
+#include "SourceSurfaceD2D.h"
+#include "SourceSurfaceD2DTarget.h"
+#include "DrawTargetD2D.h"
 
 namespace mozilla {
 namespace gfx {
@@ -91,6 +94,30 @@ D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
 
   MOZ_NOT_REACHED("Unknown enum value!");
   return D2D1_CHANNEL_SELECTOR_R;
+}
+
+TemporaryRef<ID2D1Image> GetImageForSourceSurface(SourceSurface *aSurface)
+{
+  RefPtr<ID2D1Image> image;
+  switch (aSurface->GetType()) {
+  case SURFACE_D2D1_1_IMAGE:
+    image = static_cast<SourceSurfaceD2D1*>(aSurface)->GetImage();
+    static_cast<SourceSurfaceD2D1*>(aSurface)->EnsureIndependent();
+    break;
+  case SURFACE_D2D1_BITMAP:
+   image = static_cast<SourceSurfaceD2D*>(aSurface)->GetBitmap();
+    break;
+  case SURFACE_D2D1_DRAWTARGET: {
+      SourceSurfaceD2DTarget *surf = static_cast<SourceSurfaceD2DTarget*>(aSurface);
+      image = surf->GetBitmap(surf->GetDT()->GetRT());
+    }
+    break;
+  default:
+    gfxWarning() << "Unknown input SourceSurface set on effect.";
+    MOZ_ASSERT(0);
+  }
+
+  return image;
 }
 
 uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
@@ -383,14 +410,8 @@ FilterNodeD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
     }
   }
 
-  if (aSurface->GetType() != SURFACE_D2D1_1_IMAGE) {
-    gfxWarning() << "Unknown input SourceSurface set on effect.";
-    MOZ_ASSERT(0);
-    return;
-  }
-
-  static_cast<SourceSurfaceD2D1*>(aSurface)->EnsureIndependent();
-  mEffect->SetInput(input, static_cast<SourceSurfaceD2D1*>(aSurface)->GetImage());
+  RefPtr<ID2D1Image> image = GetImageForSourceSurface(aSurface);
+  mEffect->SetInput(input, image);
 }
 
 void
@@ -590,16 +611,9 @@ FilterNodeConvolveD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
 {
   MOZ_ASSERT(aIndex == 0);
 
-  if (aSurface->GetType() != SURFACE_D2D1_1_IMAGE) {
-    gfxWarning() << "Unknown input SourceSurface set on effect.";
-    MOZ_ASSERT(0);
-    return;
-  }
+  mInput = GetImageForSourceSurface(aSurface);
 
-  mInput = static_cast<SourceSurfaceD2D1*>(aSurface)->GetImage();
   mInputEffect = nullptr;
-
-  static_cast<SourceSurfaceD2D1*>(aSurface)->EnsureIndependent();
 
   UpdateChain();
 }

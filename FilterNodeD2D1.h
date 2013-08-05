@@ -99,6 +99,7 @@ public:
 
 protected:
   friend class DrawTargetD2D1;
+  friend class DrawTargetD2D;
   friend class FilterNodeConvolveD2D1;
 
   RefPtr<ID2D1Effect> mEffect;
