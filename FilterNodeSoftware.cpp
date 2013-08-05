@@ -2983,6 +2983,37 @@ Premultiply(DataSourceSurface* aSurface)
   return target;
 }
 
+// We use a table of precomputed factors for unpremultiplying.
+// We want to compute round(r / (alpha / 255.0f)) for arbitrary values of
+// r and alpha in constant time. This table of factors has the property that
+// r * kAlphaFactors[alpha] >> 8 roughly gives the result we want (with a
+// maximum deviation of 1).
+//
+// kAlphaFactors[alpha] == round(255.0 * (1 << 8) / alpha)
+//
+// This table has been created using the python code
+// ", ".join("%d" % (round(255.0 * 256 / alpha) if alpha > 0 else 0) for alpha in range(256))
+static const uint16_t sAlphaFactors[256] = {
+  0, 65280, 32640, 21760, 16320, 13056, 10880, 9326, 8160, 7253, 6528, 5935,
+  5440, 5022, 4663, 4352, 4080, 3840, 3627, 3436, 3264, 3109, 2967, 2838, 2720,
+  2611, 2511, 2418, 2331, 2251, 2176, 2106, 2040, 1978, 1920, 1865, 1813, 1764,
+  1718, 1674, 1632, 1592, 1554, 1518, 1484, 1451, 1419, 1389, 1360, 1332, 1306,
+  1280, 1255, 1232, 1209, 1187, 1166, 1145, 1126, 1106, 1088, 1070, 1053, 1036,
+  1020, 1004, 989, 974, 960, 946, 933, 919, 907, 894, 882, 870, 859, 848, 837,
+  826, 816, 806, 796, 787, 777, 768, 759, 750, 742, 733, 725, 717, 710, 702,
+  694, 687, 680, 673, 666, 659, 653, 646, 640, 634, 628, 622, 616, 610, 604,
+  599, 593, 588, 583, 578, 573, 568, 563, 558, 553, 549, 544, 540, 535, 531,
+  526, 522, 518, 514, 510, 506, 502, 498, 495, 491, 487, 484, 480, 476, 473,
+  470, 466, 463, 460, 457, 453, 450, 447, 444, 441, 438, 435, 432, 429, 427,
+  424, 421, 418, 416, 413, 411, 408, 405, 403, 400, 398, 396, 393, 391, 389,
+  386, 384, 382, 380, 377, 375, 373, 371, 369, 367, 365, 363, 361, 359, 357,
+  355, 353, 351, 349, 347, 345, 344, 342, 340, 338, 336, 335, 333, 331, 330,
+  328, 326, 325, 323, 322, 320, 318, 317, 315, 314, 312, 311, 309, 308, 306,
+  305, 304, 302, 301, 299, 298, 297, 295, 294, 293, 291, 290, 289, 288, 286,
+  285, 284, 283, 281, 280, 279, 278, 277, 275, 274, 273, 272, 271, 270, 269,
+  268, 266, 265, 264, 263, 262, 261, 260, 259, 258, 257, 256
+};
+
 static TemporaryRef<DataSourceSurface>
 Unpremultiply(DataSourceSurface* aSurface)
 {
@@ -2995,23 +3026,18 @@ Unpremultiply(DataSourceSurface* aSurface)
   uint8_t* targetData = target->GetData();
   int32_t targetStride = target->Stride();
 
-  uint16_t alphaFactors[256];
-  for (int32_t i = 0; i < 256; i++) {
-    alphaFactors[i] = 255 * 255 / i;
-  }
-
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x++) {
       int32_t inputIndex = y * inputStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
       uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint8_t alphaFactor = alphaFactors[alpha];
+      uint8_t alphaFactor = sAlphaFactors[alpha];
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor);
+        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor);
+        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor);
+        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
     }
   }
