@@ -86,9 +86,11 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Point &aValue);
   virtual void SetAttribute(uint32_t aIndex, const Matrix5x4 &aValue);
   virtual void SetAttribute(uint32_t aIndex, const Point3D &aValue);
+  virtual void SetAttribute(uint32_t aIndex, const Size &aValue);
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aValue);
   virtual void SetAttribute(uint32_t aIndex, const Color &aValue);
   virtual void SetAttribute(uint32_t aIndex, const Rect &aValue);
+  virtual void SetAttribute(uint32_t aIndex, const IntRect &aValue);
   virtual void SetAttribute(uint32_t aIndex, bool aValue);
   virtual void SetAttribute(uint32_t aIndex, const Float *aValues, uint32_t aSize);
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aValue);

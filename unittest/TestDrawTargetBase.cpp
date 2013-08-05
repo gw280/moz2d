@@ -512,7 +512,7 @@ TestDrawTargetBase::Tile()
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);
 
-  filter->SetAttribute(ATT_TILE_SOURCE_RECT, Rect(100, 100, 300, 300));
+  filter->SetAttribute(ATT_TILE_SOURCE_RECT, IntRect(100, 100, 300, 300));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 

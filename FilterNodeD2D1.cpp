@@ -451,6 +451,15 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Point3D &aValue)
 }
 
 void
+FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Size &aValue)
+{
+  UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
+  MOZ_ASSERT(input < mEffect->GetPropertyCount());
+
+  mEffect->SetValue(input, D2D1::Vector2F(aValue.width, aValue.height));
+}
+
+void
 FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntSize &aValue)
 {
   UINT32 widthProp, heightProp;
@@ -482,6 +491,16 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Rect &aValue)
   MOZ_ASSERT(input < mEffect->GetPropertyCount());
 
   mEffect->SetValue(input, D2DRect(aValue));
+}
+
+void
+FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntRect &aValue)
+{
+  UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
+  MOZ_ASSERT(input < mEffect->GetPropertyCount());
+
+  mEffect->SetValue(input, D2D1::RectF(Float(aValue.x), Float(aValue.y),
+                                       Float(aValue.XMost()), Float(aValue.YMost())));
 }
 
 void
