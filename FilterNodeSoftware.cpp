@@ -9,7 +9,7 @@
 #include "Tools.h"
 #include <set>
 
-#ifdef DUMP_SOURCE_SURFACE
+#ifdef DEBUG_DUMP_SURFACES
 #include "gfxImageSurface.h"
 namespace mozilla {
 namespace gfx {
@@ -483,7 +483,15 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
   renderRect.RoundOut();
   IntRect renderIntRect(int32_t(renderRect.x), int32_t(renderRect.y),
                         int32_t(renderRect.width), int32_t(renderRect.height));
+#ifdef DEBUG_DUMP_SURFACES
+  printf("<pre>\nRendering...\n");
+#endif
   RefPtr<DataSourceSurface> result = Render(renderIntRect);
+#ifdef DEBUG_DUMP_SURFACES
+  printf("output:\n");
+  printf("<img src='"); DumpAsPNG(result); printf("'>\n");
+  printf("</pre>\n");
+#endif
   aDrawTarget->DrawSurface(result, Rect(aDestPoint, aSourceRect.Size()),
                            aSourceRect - renderRect.TopLeft(),
                            DrawSurfaceOptions(), aOptions);
@@ -513,6 +521,10 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     MOZ_ASSERT(surfaceRect.Size() == surface->GetSize());
   }
   RefPtr<DataSourceSurface> result = GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
+#ifdef DEBUG_DUMP_SURFACES
+  printf("input:\n");
+  printf("<img src='"); DumpAsPNG(result); printf("'>\n");
+#endif
   MOZ_ASSERT(result->GetSize() == aRect.Size(), "wrong surface size");
   return result;
 }
