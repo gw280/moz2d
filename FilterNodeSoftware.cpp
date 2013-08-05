@@ -1903,7 +1903,7 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
   kernel = ScaledVector(kernel, mDivisor);
   Float maxResultAbs = std::max(MaxVectorSum(kernel) + mBias,
                                 MaxVectorSum(ScaledVector(kernel, -1)) - mBias);
-  maxResultAbs = std::min(maxResultAbs, 1.0f);
+  maxResultAbs = std::max(maxResultAbs, 1.0f);
 
   Float idealFactor = INT32_MAX / 2.0f / maxResultAbs / 255.0f;
   MOZ_ASSERT(255 * (maxResultAbs * idealFactor) < INT32_MAX / 2.0f, "badly chosen float-to-int scale");
