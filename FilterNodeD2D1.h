@@ -46,6 +46,8 @@ static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
     return CLSID_D2D1Composite;
   case FILTER_GAUSSIAN_BLUR:
     return CLSID_D2D1GaussianBlur;
+  case FILTER_DIRECTIONAL_BLUR:
+    return CLSID_D2D1DirectionalBlur;
   case FILTER_POINT_DIFFUSE:
     return CLSID_D2D1PointDiffuse;
   case FILTER_POINT_SPECULAR:
