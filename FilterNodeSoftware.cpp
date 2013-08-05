@@ -2986,10 +2986,10 @@ Premultiply(DataSourceSurface* aSurface)
 // We use a table of precomputed factors for unpremultiplying.
 // We want to compute round(r / (alpha / 255.0f)) for arbitrary values of
 // r and alpha in constant time. This table of factors has the property that
-// r * kAlphaFactors[alpha] >> 8 roughly gives the result we want (with a
+// r * sAlphaFactors[alpha] >> 8 roughly gives the result we want (with a
 // maximum deviation of 1).
 //
-// kAlphaFactors[alpha] == round(255.0 * (1 << 8) / alpha)
+// sAlphaFactors[alpha] == round(255.0 * (1 << 8) / alpha)
 //
 // This table has been created using the python code
 // ", ".join("%d" % (round(255.0 * 256 / alpha) if alpha > 0 else 0) for alpha in range(256))
