@@ -2955,39 +2955,6 @@ FilterNodeCropSoftware::GetOutputRectInRect(const IntRect& aRect)
   return GetInputRectInRect(IN_CROP_IN, aRect).Intersect(mCropRect);
 }
 
-#include "PremultiplyTables.h"
-
-template<const uint8_t* aTable>
-static TemporaryRef<DataSourceSurface>
-PremultiplyOrUnpremultiplyWithLookupTable(DataSourceSurface* aSurface)
-{
-  IntSize size = aSurface->GetSize();
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-
-  uint8_t* inputData = aSurface->GetData();
-  int32_t inputStride = aSurface->Stride();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t inputIndex = y * inputStride + 4 * x;
-      int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R]];
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G]];
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B]];
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
-    }
-  }
-
-  return target;
-}
-
 static TemporaryRef<DataSourceSurface>
 Premultiply(DataSourceSurface* aSurface)
 {
