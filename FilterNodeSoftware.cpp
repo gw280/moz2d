@@ -2986,8 +2986,8 @@ Premultiply(DataSourceSurface* aSurface)
 // We use a table of precomputed factors for unpremultiplying.
 // We want to compute round(r / (alpha / 255.0f)) for arbitrary values of
 // r and alpha in constant time. This table of factors has the property that
-// r * sAlphaFactors[alpha] >> 8 roughly gives the result we want (with a
-// maximum deviation of 1).
+// (r * sAlphaFactors[alpha] + 128) >> 8 roughly gives the result we want (with
+// a maximum deviation of 1).
 //
 // sAlphaFactors[alpha] == round(255.0 * (1 << 8) / alpha)
 //
@@ -3033,11 +3033,11 @@ Unpremultiply(DataSourceSurface* aSurface)
       uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
       uint8_t alphaFactor = sAlphaFactors[alpha];
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor >> 8;
+        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor + 128) >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor >> 8;
+        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor + 128) >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor >> 8;
+        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor + 128) >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
     }
   }
