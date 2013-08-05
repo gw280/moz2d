@@ -26,10 +26,10 @@ DumpAsPNG(SourceSurface* aSurface)
 }
 #endif
 
-const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_B = 0;
-const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_G = 1;
-const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_R = 2;
-const ptrdiff_t ARGB32_COMPONENT_BYTEOFFSET_A = 3;
+const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_B = 0;
+const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_G = 1;
+const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_R = 2;
+const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_A = 3;
 
 namespace mozilla {
 namespace gfx {
@@ -629,10 +629,10 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
       uint32_t targetIndex = y * targetStride + 4 * x;
       uint32_t source1Index = y * source1Stride + 4 * x;
       uint32_t source2Index = y * source2Stride + 4 * x;
-      uint32_t qa = source1Data[source1Index + ARGB32_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = source2Data[source2Index + ARGB32_COMPONENT_BYTEOFFSET_A];
-      for (int32_t i = std::min(ARGB32_COMPONENT_BYTEOFFSET_B, ARGB32_COMPONENT_BYTEOFFSET_R);
-           i <= std::max(ARGB32_COMPONENT_BYTEOFFSET_B, ARGB32_COMPONENT_BYTEOFFSET_R); i++) {
+      uint32_t qa = source1Data[source1Index + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      uint32_t qb = source2Data[source2Index + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      for (int32_t i = std::min(B8G8R8A8_COMPONENT_BYTEOFFSET_B, B8G8R8A8_COMPONENT_BYTEOFFSET_R);
+           i <= std::max(B8G8R8A8_COMPONENT_BYTEOFFSET_B, B8G8R8A8_COMPONENT_BYTEOFFSET_R); i++) {
         uint32_t ca = source1Data[source1Index + i];
         uint32_t cb = source2Data[source2Index + i];
         uint32_t val;
@@ -658,7 +658,7 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
         targetData[targetIndex + i] = static_cast<uint8_t>(val);
       }
       uint32_t alpha = 255 * 255 - (255 - qa) * (255 - qb);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
         FastDivideBy255<uint8_t>(alpha);
     }
   }
@@ -1013,21 +1013,21 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
       int32_t col[4];
       for (int i = 0; i < 4; i++) {
         col[i] =
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * rows[0][i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * rows[1][i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
-          sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
+          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * rows[0][i] +
+          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * rows[1][i] +
+          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
+          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
           255 *                                                     rows[4][i];
         static_assert(factor == 255 << 2, "Please adapt the calculation in the next line for a different factor.");
         col[i] = FastDivideBy255<int32_t>(umin(ClampToNonZero(col[i]), 255 * factor) >> 2);
       }
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
         static_cast<uint8_t>(col[0]);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
         static_cast<uint8_t>(col[1]);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
         static_cast<uint8_t>(col[2]);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] =
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
         static_cast<uint8_t>(col[3]);
     }
   }
@@ -1063,10 +1063,10 @@ ColorToBGRA(const Color& aColor)
     uint32_t color;
     uint8_t components[4];
   };
-  components[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(aColor.r * aColor.a * 255.0f);
-  components[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(aColor.g * aColor.a * 255.0f);
-  components[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(aColor.b * aColor.a * 255.0f);
-  components[ARGB32_COMPONENT_BYTEOFFSET_A] = uint8_t(aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = uint8_t(aColor.r * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = uint8_t(aColor.g * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = uint8_t(aColor.b * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = uint8_t(aColor.a * 255.0f);
   return color;
 }
 
@@ -1205,10 +1205,10 @@ FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
 
-  ApplyComponentTransfer<ARGB32_COMPONENT_BYTEOFFSET_R>(input, target, mDisableR);
-  ApplyComponentTransfer<ARGB32_COMPONENT_BYTEOFFSET_G>(input, target, mDisableG);
-  ApplyComponentTransfer<ARGB32_COMPONENT_BYTEOFFSET_B>(input, target, mDisableB);
-  ApplyComponentTransfer<ARGB32_COMPONENT_BYTEOFFSET_A>(input, target, mDisableA);
+  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_R>(input, target, mDisableR);
+  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_G>(input, target, mDisableG);
+  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_B>(input, target, mDisableB);
+  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_A>(input, target, mDisableA);
 
   return target;
 }
@@ -1279,16 +1279,16 @@ FilterNodeTableTransferSoftware::GenerateLookupTable(ptrdiff_t aComponent,
                                                      uint8_t aTable[256])
 {
   switch (aComponent) {
-    case ARGB32_COMPONENT_BYTEOFFSET_R:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_R:
       GenerateLookupTable(mTableR, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_G:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_G:
       GenerateLookupTable(mTableG, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_B:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_B:
       GenerateLookupTable(mTableB, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_A:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_A:
       GenerateLookupTable(mTableA, aTable);
       break;
     default:
@@ -1378,16 +1378,16 @@ FilterNodeDiscreteTransferSoftware::GenerateLookupTable(ptrdiff_t aComponent,
                                                         uint8_t aTable[256])
 {
   switch (aComponent) {
-    case ARGB32_COMPONENT_BYTEOFFSET_R:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_R:
       GenerateLookupTable(mTableR, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_G:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_G:
       GenerateLookupTable(mTableG, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_B:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_B:
       GenerateLookupTable(mTableB, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_A:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_A:
       GenerateLookupTable(mTableA, aTable);
       break;
     default:
@@ -1497,16 +1497,16 @@ FilterNodeLinearTransferSoftware::GenerateLookupTable(ptrdiff_t aComponent,
                                                       uint8_t aTable[256])
 {
   switch (aComponent) {
-    case ARGB32_COMPONENT_BYTEOFFSET_R:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_R:
       GenerateLookupTable(mSlopeR, mInterceptR, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_G:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_G:
       GenerateLookupTable(mSlopeG, mInterceptG, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_B:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_B:
       GenerateLookupTable(mSlopeB, mInterceptB, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_A:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_A:
       GenerateLookupTable(mSlopeA, mInterceptA, aTable);
       break;
     default:
@@ -1621,16 +1621,16 @@ FilterNodeGammaTransferSoftware::GenerateLookupTable(ptrdiff_t aComponent,
                                                      uint8_t aTable[256])
 {
   switch (aComponent) {
-    case ARGB32_COMPONENT_BYTEOFFSET_R:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_R:
       GenerateLookupTable(mAmplitudeR, mExponentR, mOffsetR, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_G:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_G:
       GenerateLookupTable(mAmplitudeG, mExponentG, mOffsetG, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_B:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_B:
       GenerateLookupTable(mAmplitudeB, mExponentB, mOffsetB, aTable);
       break;
-    case ARGB32_COMPONENT_BYTEOFFSET_A:
+    case B8G8R8A8_COMPONENT_BYTEOFFSET_A:
       GenerateLookupTable(mAmplitudeA, mExponentA, mOffsetA, aTable);
       break;
     default:
@@ -1777,10 +1777,10 @@ ConvolvePixel(const uint8_t *aSourceData,
               CoordType aKernelUnitLengthY)
 {
   int32_t sum[4] = {0, 0, 0, 0};
-  int32_t offsets[4] = { ARGB32_COMPONENT_BYTEOFFSET_R,
-                         ARGB32_COMPONENT_BYTEOFFSET_G,
-                         ARGB32_COMPONENT_BYTEOFFSET_B,
-                         ARGB32_COMPONENT_BYTEOFFSET_A };
+  int32_t offsets[4] = { B8G8R8A8_COMPONENT_BYTEOFFSET_R,
+                         B8G8R8A8_COMPONENT_BYTEOFFSET_G,
+                         B8G8R8A8_COMPONENT_BYTEOFFSET_B,
+                         B8G8R8A8_COMPONENT_BYTEOFFSET_A };
   int32_t channels = aPreserveAlpha ? 3 : 4;
 
   for (int32_t y = 0; y < aOrderY; y++) {
@@ -1799,8 +1799,8 @@ ConvolvePixel(const uint8_t *aSourceData,
       umin(ClampToNonZero(sum[i] + aBias), 255 << shiftL >> shiftR) << shiftR >> shiftL;
   }
   if (aPreserveAlpha) {
-    aTargetData[aY * aTargetStride + 4 * aX + ARGB32_COMPONENT_BYTEOFFSET_A] =
-      aSourceData[aY * aSourceStride + 4 * aX + ARGB32_COMPONENT_BYTEOFFSET_A];
+    aTargetData[aY * aTargetStride + 4 * aX + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
+      aSourceData[aY * aSourceStride + 4 * aX + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
   }
 }
 
@@ -2057,10 +2057,10 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
   sourceData += DataOffset(input, offset);
 
   static const ptrdiff_t channelMap[4] = {
-                             ARGB32_COMPONENT_BYTEOFFSET_R,
-                             ARGB32_COMPONENT_BYTEOFFSET_G,
-                             ARGB32_COMPONENT_BYTEOFFSET_B,
-                             ARGB32_COMPONENT_BYTEOFFSET_A };
+                             B8G8R8A8_COMPONENT_BYTEOFFSET_R,
+                             B8G8R8A8_COMPONENT_BYTEOFFSET_G,
+                             B8G8R8A8_COMPONENT_BYTEOFFSET_B,
+                             B8G8R8A8_COMPONENT_BYTEOFFSET_A };
   uint16_t xChannel = channelMap[mChannelX];
   uint16_t yChannel = channelMap[mChannelY];
 
@@ -2372,10 +2372,10 @@ FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
       }
 
       uint8_t a = uint8_t(col[3]);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_R] = FastDivideBy255<uint8_t>(unsigned(col[0]) * a);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_G] = FastDivideBy255<uint8_t>(unsigned(col[1]) * a);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_B] = FastDivideBy255<uint8_t>(unsigned(col[2]) * a);
-      targetData[targIndex + ARGB32_COMPONENT_BYTEOFFSET_A] = a;
+      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] = FastDivideBy255<uint8_t>(unsigned(col[0]) * a);
+      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] = FastDivideBy255<uint8_t>(unsigned(col[1]) * a);
+      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] = FastDivideBy255<uint8_t>(unsigned(col[2]) * a);
+      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = a;
     }
   }
 
@@ -2495,8 +2495,8 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
     for (int32_t x = 0; x < size.width; x++) {
       uint32_t sourceIndex = y * sourceStride + 4 * x;
       uint32_t destIndex = y * destStride + 4 * x;
-      uint32_t qa = destData[destIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint32_t qa = destData[destIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      uint32_t qb = sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
       for (int32_t i = 0; i < 4; i++) {
         uint32_t ca = destData[destIndex + i];
         uint32_t cb = sourceData[sourceIndex + i];
@@ -2619,15 +2619,15 @@ BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
 #define SUM(j)        sums[j] += nextInput[j] - lastInput[j];
     // process pixels in B, G, R, A order because that's 0, 1, 2, 3 for x86
 #define OUTPUT_PIXEL() \
-        if (!aAlphaOnly) { OUTPUT(ARGB32_COMPONENT_BYTEOFFSET_B); \
-                           OUTPUT(ARGB32_COMPONENT_BYTEOFFSET_G); \
-                           OUTPUT(ARGB32_COMPONENT_BYTEOFFSET_R); } \
-        OUTPUT(ARGB32_COMPONENT_BYTEOFFSET_A);
+        if (!aAlphaOnly) { OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
+                           OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
+                           OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_R); } \
+        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
 #define SUM_PIXEL() \
-        if (!aAlphaOnly) { SUM(ARGB32_COMPONENT_BYTEOFFSET_B); \
-                           SUM(ARGB32_COMPONENT_BYTEOFFSET_G); \
-                           SUM(ARGB32_COMPONENT_BYTEOFFSET_R); } \
-        SUM(ARGB32_COMPONENT_BYTEOFFSET_A);
+        if (!aAlphaOnly) { SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
+                           SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
+                           SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); } \
+        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
     for (int32_t minor = aStartMinor;
          minor < aStartMinor + aLeftLobe;
          minor++) {
@@ -2666,10 +2666,10 @@ BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
       OUTPUT_PIXEL();
 #define SUM(j)     sums[j] += aInput[aStrideMinor*next + j] - \
                               aInput[aStrideMinor*last + j];
-      if (!aAlphaOnly) { SUM(ARGB32_COMPONENT_BYTEOFFSET_B);
-                         SUM(ARGB32_COMPONENT_BYTEOFFSET_G);
-                         SUM(ARGB32_COMPONENT_BYTEOFFSET_R); }
-      SUM(ARGB32_COMPONENT_BYTEOFFSET_A);
+      if (!aAlphaOnly) { SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B);
+                         SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G);
+                         SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); }
+      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
       aOutput += aStrideMinor;
 #undef SUM
 #undef OUTPUT_PIXEL
@@ -2974,14 +2974,14 @@ PremultiplyOrUnpremultiplyWithLookupTable(DataSourceSurface* aSurface)
     for (int32_t x = 0; x < size.width; x++) {
       int32_t inputIndex = y * inputStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
-        aTable[alpha * 256 + inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_R]];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
-        aTable[alpha * 256 + inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_G]];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
-        aTable[alpha * 256 + inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_B]];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] = alpha;
+      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R]];
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G]];
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+        aTable[alpha * 256 + inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B]];
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
     }
   }
 
@@ -3004,14 +3004,14 @@ Premultiply(DataSourceSurface* aSurface)
     for (int32_t x = 0; x < size.width; x++) {
       int32_t inputIndex = y * inputStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * alpha);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * alpha);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * alpha);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] = alpha;
+      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alpha);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alpha);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alpha);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
     }
   }
 
@@ -3039,15 +3039,15 @@ Unpremultiply(DataSourceSurface* aSurface)
     for (int32_t x = 0; x < size.width; x++) {
       int32_t inputIndex = y * inputStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_A];
+      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
       uint8_t alphaFactor = alphaFactors[alpha];
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_R] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_R] * alphaFactor);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_G] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_G] * alphaFactor);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_B] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + ARGB32_COMPONENT_BYTEOFFSET_B] * alphaFactor);
-      targetData[targetIndex + ARGB32_COMPONENT_BYTEOFFSET_A] = alpha;
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor);
+      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
     }
   }
 
@@ -3286,10 +3286,10 @@ SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
   color = aLightColor;
   Float dot = -aRayDirection.DotProduct(mCoreRayDirection);
   Float tmp = dot < mLimitingConeCos ? 0 : pow(dot, mSpecularFocus);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_R] * tmp);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_G] * tmp);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] = uint8_t(colorC[ARGB32_COMPONENT_BYTEOFFSET_B] * tmp);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] * tmp);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] * tmp);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = uint8_t(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] * tmp);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = 255;
   return color;
 }
 
@@ -3392,7 +3392,7 @@ GenerateNormal(const uint8_t *data, int32_t stride,
     yflag = 1;
   }
 
-  const uint8_t *index = data + y * stride + 4 * x + ARGB32_COMPONENT_BYTEOFFSET_A;
+  const uint8_t *index = data + y * stride + 4 * x + B8G8R8A8_COMPONENT_BYTEOFFSET_A;
 
   Point3D normal;
   normal.x = -surfaceScale * FACTORx[yflag][xflag] *
@@ -3451,7 +3451,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
                                       aKernelUnitLengthX, aKernelUnitLengthY);
 
       IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
-      Float Z = mSurfaceScale * sourceData[sourceIndex + ARGB32_COMPONENT_BYTEOFFSET_A] / 255.0f;
+      Float Z = mSurfaceScale * sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] / 255.0f;
       Point3D pt(pointInFilterSpace.x, pointInFilterSpace.y, Z);
       Point3D rayDir = mLight.GetRayDirection(pt);
       uint32_t color = mLight.GetColor(lightColor, rayDir);
@@ -3495,13 +3495,13 @@ DiffuseLightingSoftware::LightPixel(const Point3D &aNormal,
     uint8_t colorC[4];
   };
   color = aColor;
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] =
-    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] =
-    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] =
-    std::min(uint32_t(diffuseNL * colorC[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] = 255;
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+    std::min(uint32_t(diffuseNL * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+    std::min(uint32_t(diffuseNL * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+    std::min(uint32_t(diffuseNL * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = 255;
   return color;
 }
 
@@ -3550,17 +3550,17 @@ SpecularLightingSoftware::LightPixel(const Point3D &aNormal,
     uint8_t colorC[4];
   };
   color = aColor;
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_B] =
-    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_B]), 255U);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_G] =
-    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_G]), 255U);
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_R] =
-    std::min(uint32_t(specularNH * colorC[ARGB32_COMPONENT_BYTEOFFSET_R]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+    std::min(uint32_t(specularNH * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+    std::min(uint32_t(specularNH * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G]), 255U);
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+    std::min(uint32_t(specularNH * colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R]), 255U);
 
-  colorC[ARGB32_COMPONENT_BYTEOFFSET_A] =
-    std::max(minAlpha, std::max(colorC[ARGB32_COMPONENT_BYTEOFFSET_B],
-                            std::max(colorC[ARGB32_COMPONENT_BYTEOFFSET_G],
-                                   colorC[ARGB32_COMPONENT_BYTEOFFSET_R])));
+  colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
+    std::max(minAlpha, std::max(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B],
+                            std::max(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G],
+                                   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R])));
   return color;
 }
 
