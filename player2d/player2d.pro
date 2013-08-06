@@ -76,11 +76,20 @@ win32 {
 
 } else:symbian: LIBS += -lgfx2d
 else:unix {
-  LIBS += -L`echo \$$PWD`/../ -lmoz2d `echo \$$MOZ2D_PLAYER2D_LIBS`
+  isEmpty(MOZ2D_PATH) {
+    MOZ2D_PATH = "$$PWD/.."
+  }
+
+  CONFIG(release, debug|release) {
+    LIBS += -L$$MOZ2D_PATH/release -lmoz2d $$(MOZ2D_PLAYER2D_LIBS)
+  } else {
+    LIBS += -L$$MOZ2D_PATH/debug -lmoz2d $$(MOZ2D_PLAYER2D_LIBS)
+  }
+
   !macx: GROUP_START = -Wl,--start-group
   !macx: GROUP_END = -Wl,--end-group
   !isEmpty(MOZ2D_SKIA) {
-    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ $$GROUP_START -lskia_images -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgpu -lskia_opts -lskia_opts_ssse3 -lskia_ports $$GROUP_END
+    LIBS += -L$$MOZ2D_SKIA/out/$$CONFIG_PREFIX/ $$GROUP_START -lskia_images -lskia_effects -lskia_sfnt -lskia_utils -lskia_core -lskia_skgpu -lskia_opts -lskia_opts_ssse3 -lskia_ports -lfreetype -lfontconfig -lGL $$GROUP_END
   }
   !isEmpty(MOZ2D_NVPR) {
     LIBS += -ldl -lX11
