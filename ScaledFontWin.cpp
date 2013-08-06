@@ -7,7 +7,7 @@
 #include "ScaledFontBase.h"
 
 #ifdef USE_SKIA
-#include "skia/include/ports/SkTypeface_win.h"
+#include "ports/SkTypeface_win.h"
 #endif
 
 namespace mozilla {

@@ -8,8 +8,8 @@
 
 #include "2D.h"
 #include <vector>
-#include "skia/include/core/SkCanvas.h"
-#include "skia/include/core/SkBitmap.h"
+#include "core/SkCanvas.h"
+#include "core/SkBitmap.h"
 
 namespace mozilla {
 namespace gfx {
