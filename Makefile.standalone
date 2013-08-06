@@ -9,6 +9,11 @@ DEBUGFLAGS=-g -DDEBUG
 RELEASEFLAGS=-O3
 DEFINES=
 
+ifeq ($(QMAKE_BIN),)
+QMAKE_BIN=qmake
+else
+endif
+
 # Mark these targets as phony because we don't know all the dependencies for
 # player2d at this level, so invoke the player2d Makefiles every time and let
 # the submake deal with it.
@@ -112,6 +117,8 @@ ifdef MOZ2D_NVPR
   QMAKE_PARAMS += "MOZ2D_NVPR=$(MOZ2D_NVPR)"
 endif
 
+QMAKE_PARAMS += "MOZ2D_PATH=$(PWD)"
+
 CXXFLAGS += $(addprefix -I,$(INCLUDES))
   
 CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS) $(PERFTEST_CPPSRCS) $(RECORDBENCH_CPPSRCS)
@@ -175,12 +182,12 @@ $(OBJDIR_DEBUG)/libmoz2d.a: $(DEBUG_CPPSRCS:.cpp=.o)
 	ar rcs $(OBJDIR_DEBUG)/libmoz2d.a $(DEBUG_CPPSRCS:.cpp=.o)
 
 $(OBJDIR_RELEASE)/player2d/player2d: $(OBJDIR_RELEASE)/.mkdir.done $(OBJDIR_RELEASE)/libmoz2d.a
-	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
-	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_RELEASE)/player2d && qmake ../../player2d $(QMAKE_PARAMS) && make
+	@hash $(QMAKE_BIN) || "echo Please install Qt for your platform: http://qt-project.org/"
+	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_RELEASE)/player2d && $(QMAKE_BIN) ../../player2d $(QMAKE_PARAMS) && make
 
 $(OBJDIR_DEBUG)/player2d/player2d: $(OBJDIR_DEBUG)/.mkdir.done $(OBJDIR_DEBUG)/libmoz2d.a
-	@hash qmake || "echo Please install Qt for your platform: http://qt-project.org/"
-	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && qmake ../../player2d $(QMAKE_PARAMS) MOZ2D_DEBUG=1 && make
+	@hash $(QMAKE_BIN) || "echo Please install Qt for your platform: http://qt-project.org/"
+	export MOZ2D_PLAYER2D_LIBS="$(MOZ2D_PLAYER2D_LIBS)" && cd $(OBJDIR_DEBUG)/player2d && $(QMAKE_BIN) ../../player2d $(QMAKE_PARAMS) MOZ2D_DEBUG=1 && make
 
 check: $(OBJDIR_RELEASE)/unittest/unittest $(OBJDIR_RELEASE)/perftest/perftest
 	$(OBJDIR_RELEASE)/unittest/unittest
