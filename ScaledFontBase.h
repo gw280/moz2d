@@ -9,7 +9,7 @@
 #include "2D.h"
 
 #ifdef USE_SKIA
-#include "skia/include/core/SkTypeface.h"
+#include "core/SkTypeface.h"
 #endif
 #ifdef USE_CAIRO
 #include "cairo.h"
