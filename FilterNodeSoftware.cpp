@@ -3031,7 +3031,12 @@ Unpremultiply(DataSourceSurface* aSurface)
       int32_t inputIndex = y * inputStride + 4 * x;
       int32_t targetIndex = y * targetStride + 4 * x;
       uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint8_t alphaFactor = sAlphaFactors[alpha];
+      uint16_t alphaFactor = sAlphaFactors[alpha];
+      // inputColor * alphaFactor + 128 is guaranteed to fit into uint16_t
+      // because the input is premultiplied and thus inputColor <= inputAlpha.
+      // The maximum value this can attain is 65520 (which is smaller than 65535)
+      // for color == alpha == 244:
+      // 244 * sAlphaFactors[244] + 128 == 244 * 268 + 128 == 65520
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
         (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor + 128) >> 8;
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
