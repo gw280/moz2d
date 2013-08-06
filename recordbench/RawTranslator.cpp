@@ -40,6 +40,18 @@ RawTranslator::LookupSourceSurface(ReferencePtr aRefPtr)
   return NULL;
 }
 
+FilterNode*
+RawTranslator::LookupFilterNode(ReferencePtr aRefPtr)
+{
+  FilterNodeMap::iterator iter = mFilterNodes.find(aRefPtr);
+
+  if (iter != mFilterNodes.end()) {
+    return iter->second;
+  }
+
+  return NULL;
+}
+
 GradientStops*
 RawTranslator::LookupGradientStops(ReferencePtr aRefPtr)
 {

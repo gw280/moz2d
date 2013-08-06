@@ -143,6 +143,7 @@
     <ClCompile Include="TestDrawTargetCairoImage.cpp" />
     <ClCompile Include="TestDrawTargetD2D.cpp" />
     <ClCompile Include="TestDrawTargetD2D1.cpp" />
+    <ClCompile Include="TestDrawTargetD2DRecording.cpp" />
     <ClCompile Include="TestDrawTargetSkiaSoftware.cpp" />
     <ClCompile Include="TestPoint.cpp" />
     <ClCompile Include="TestRect.cpp" />
@@ -155,6 +156,7 @@
     <ClInclude Include="TestDrawTargetCairoImage.h" />
     <ClInclude Include="TestDrawTargetD2D.h" />
     <ClInclude Include="TestDrawTargetD2D1.h" />
+    <ClInclude Include="TestDrawTargetD2DRecording.h" />
     <ClInclude Include="TestDrawTargetSkiaSoftware.h" />
     <ClInclude Include="TestPoint.h" />
     <ClInclude Include="TestRect.h" />

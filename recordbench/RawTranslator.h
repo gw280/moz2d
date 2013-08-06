@@ -15,6 +15,7 @@ public:
   typedef mozilla::gfx::DrawTarget DrawTarget;
   typedef mozilla::gfx::Path Path;
   typedef mozilla::gfx::SourceSurface SourceSurface;
+  typedef mozilla::gfx::FilterNode FilterNode;
   typedef mozilla::gfx::GradientStops GradientStops;
   typedef mozilla::gfx::ScaledFont ScaledFont;
 
@@ -30,6 +31,7 @@ public:
   virtual DrawTarget *LookupDrawTarget(mozilla::gfx::ReferencePtr aRefPtr);
   virtual Path *LookupPath(mozilla::gfx::ReferencePtr aRefPtr);
   virtual SourceSurface *LookupSourceSurface(mozilla::gfx::ReferencePtr aRefPtr);
+  virtual FilterNode *LookupFilterNode(mozilla::gfx::ReferencePtr aRefPtr);
   virtual GradientStops *LookupGradientStops(mozilla::gfx::ReferencePtr aRefPtr);
   virtual ScaledFont *LookupScaledFont(mozilla::gfx::ReferencePtr aRefPtr);
   virtual DrawTarget *GetReferenceDrawTarget() { return mBaseDT; }
@@ -37,9 +39,11 @@ public:
   virtual void AddDrawTarget(mozilla::gfx::ReferencePtr aRefPtr, DrawTarget *aDT) { mDrawTargets[aRefPtr] = aDT; }
   virtual void RemoveDrawTarget(mozilla::gfx::ReferencePtr aRefPtr) { mDrawTargets.erase(aRefPtr); }
   virtual void AddPath(mozilla::gfx::ReferencePtr aRefPtr, Path *aPath) { mPaths[aRefPtr] = aPath; }
+  virtual void RemovePath(mozilla::gfx::ReferencePtr aRefPtr) { mPaths.erase(aRefPtr); }
   virtual void AddSourceSurface(mozilla::gfx::ReferencePtr aRefPtr, SourceSurface *aSurface) { mSourceSurfaces[aRefPtr] = aSurface; }
   virtual void RemoveSourceSurface(mozilla::gfx::ReferencePtr aRefPtr) { mSourceSurfaces.erase(aRefPtr); }
-  virtual void RemovePath(mozilla::gfx::ReferencePtr aRefPtr) { mPaths.erase(aRefPtr); }
+  virtual void AddFilterNode(mozilla::gfx::ReferencePtr aRefPtr, FilterNode *aSurface) { mFilterNodes[aRefPtr] = aSurface; }
+  virtual void RemoveFilterNode(mozilla::gfx::ReferencePtr aRefPtr) { mFilterNodes.erase(aRefPtr); }
   virtual void AddGradientStops(mozilla::gfx::ReferencePtr aRefPtr, GradientStops *aStops) { mGradientStops[aRefPtr] = aStops; }
   virtual void RemoveGradientStops(mozilla::gfx::ReferencePtr aRefPtr) { mGradientStops.erase(aRefPtr); }
   virtual void AddScaledFont(mozilla::gfx::ReferencePtr aRefPtr, ScaledFont *aStops);
@@ -48,6 +52,7 @@ public:
   typedef std::map<void*, mozilla::RefPtr<DrawTarget> > DTMap;
   typedef std::map<void*, mozilla::RefPtr<Path> > PathMap;
   typedef std::map<void*, mozilla::RefPtr<SourceSurface> > SourceSurfaceMap;
+  typedef std::map<void*, mozilla::RefPtr<FilterNode> > FilterNodeMap;
   typedef std::map<void*, mozilla::RefPtr<GradientStops> > GradientStopsMap;
   typedef std::map<void*, std::vector<StoredScaledFont> > ScaledFontMap;
 
@@ -55,6 +60,7 @@ public:
   DTMap mDrawTargets;
   PathMap mPaths;
   SourceSurfaceMap mSourceSurfaces;
+  FilterNodeMap mFilterNodes;
   GradientStopsMap mGradientStops;
   ScaledFontMap mScaledFonts;
   

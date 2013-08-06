@@ -50,7 +50,7 @@ public:
   virtual void DrawFilter(FilterNode *aNode,
                           const Rect &aSourceRect,
                           const Point &aDestPoint,
-                          const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
+                          const DrawOptions &aOptions = DrawOptions());
 
   /*
    * Blend a surface to the draw target with a shadow. The shadow is drawn as a
@@ -258,7 +258,7 @@ public:
                         uint32_t aNumStops,
                         ExtendMode aExtendMode = EXTEND_CLAMP) const;
 
-  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType) { /* Implement me! */ MOZ_ASSERT(0); return nullptr; }
+  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType);
 
   /*
    * Set a transform on the surface, this transform is applied at drawing time
