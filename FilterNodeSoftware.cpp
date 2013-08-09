@@ -1091,10 +1091,10 @@ ColorToBGRA(const Color& aColor)
     uint32_t color;
     uint8_t components[4];
   };
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = uint8_t(aColor.r * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = uint8_t(aColor.g * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = uint8_t(aColor.b * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = uint8_t(aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = round(aColor.r * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = round(aColor.g * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = round(aColor.b * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = round(aColor.a * 255.0f);
   return color;
 }
 
