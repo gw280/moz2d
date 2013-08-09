@@ -2108,7 +2108,7 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
   uint16_t yChannel = channelMap[mChannelY];
 
   double scaleOver255 = mScale / 255.0;
-  double scaleAdjustment = 0.5 - 0.5 * mScale;
+  double scaleAdjustment = -0.5 * mScale;
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
