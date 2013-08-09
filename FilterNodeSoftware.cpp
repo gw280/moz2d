@@ -1444,7 +1444,7 @@ FilterNodeDiscreteTransferSoftware::GenerateLookupTable(std::vector<Float>& aTab
     uint32_t k = (i * tvLength) / 255;
     k = std::min(k, tvLength - 1);
     Float v = aTableValues[k];
-    int32_t val = int32_t(255 * v);
+    int32_t val = round(255 * v);
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
