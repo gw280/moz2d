@@ -6,6 +6,7 @@
 #define _USE_MATH_DEFINES
 
 #include <cmath>
+#include "nsMathUtils.h"
 #include "FilterNodeSoftware.h"
 #include "2D.h"
 #include "Tools.h"
