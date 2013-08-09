@@ -1954,9 +1954,9 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
 
   std::vector<int32_t> intKernel(kernel.size(), 0);
   for (size_t i = 0; i < kernel.size(); i++) {
-    intKernel[i] = int32_t(kernel[i] * factorFromShifts);
+    intKernel[i] = round(kernel[i] * factorFromShifts);
   }
-  int32_t bias = int32_t(mBias * 255 * factorFromShifts);
+  int32_t bias = round(mBias * 255 * factorFromShifts);
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
