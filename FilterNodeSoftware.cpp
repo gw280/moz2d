@@ -1556,7 +1556,7 @@ FilterNodeLinearTransferSoftware::GenerateLookupTable(Float aSlope,
                                                       uint8_t aTable[256])
 {
   for (size_t i = 0; i < 256; i++) {
-    int32_t val = int32_t(aSlope * i + 255 * aIntercept);
+    int32_t val = round(aSlope * i + 255 * aIntercept);
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
