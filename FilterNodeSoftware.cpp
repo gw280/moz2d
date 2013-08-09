@@ -367,6 +367,10 @@ GetDataSurfaceInRect(SourceSurface *aSurface,
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aDestRect.Size(), FORMAT_B8G8R8A8);
 
+  if (!target || !dataSource) {
+    return nullptr;
+  }
+
   if (aEdgeMode == EDGE_MODE_WRAP) {
     TileSurface(dataSource, target, intersectInDestSpace.TopLeft());
     return target;
@@ -487,6 +491,9 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
   printf("<pre>\nRendering...\n");
 #endif
   RefPtr<DataSourceSurface> result = Render(renderIntRect);
+  if (!result) {
+    return;
+  }
 #ifdef DEBUG_DUMP_SURFACES
   printf("output:\n");
   printf("<img src='"); DumpAsPNG(result); printf("'>\n");
@@ -525,7 +532,7 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
   printf("input:\n");
   printf("<img src='"); DumpAsPNG(result); printf("'>\n");
 #endif
-  MOZ_ASSERT(result->GetSize() == aRect.Size(), "wrong surface size");
+  MOZ_ASSERT(!result || result->GetSize() == aRect.Size(), "wrong surface size");
   return result;
 }
 
@@ -616,6 +623,9 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_
   IntSize size = aInput1->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* source1Data = aInput1->GetData();
   uint8_t* source2Data = aInput2->GetData();
@@ -673,6 +683,9 @@ FilterNodeBlendSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_BLEND_IN, aRect);
   RefPtr<DataSourceSurface> input2 =
     GetInputDataSourceSurface(IN_BLEND_IN2, aRect);
+  if (!input1 || !input2) {
+    return nullptr;
+  }
   return ApplyBlendFilter(input1, input2, mBlendMode);
 }
 
@@ -735,6 +748,9 @@ DoMorphologyWithRepeatedKernelTraversal(const IntRect& aSourceRect,
 
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(destRect.Size(), FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* sourceData = aInput->GetData();
   int32_t sourceStride = aInput->Stride();
@@ -830,6 +846,9 @@ DoMorphologyWithCachedKernel(const IntRect& aSourceRect,
 
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(destRect.Size(), FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* sourceData = aInput->GetData();
   int32_t sourceStride = aInput->Stride();
@@ -916,6 +935,9 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
 
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_MORPHOLOGY_IN, srcRect);
+  if (!input) {
+    return nullptr;
+  }
 
   int32_t rx = mRadii.width;
   int32_t ry = mRadii.height;
@@ -984,6 +1006,9 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   IntSize size = aInput->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* sourceData = aInput->GetData();
   uint8_t* targetData = target->GetData();
@@ -1075,6 +1100,9 @@ FilterNodeFloodSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint32_t color = ColorToBGRA(mColor);
   uint8_t* targetData = target->GetData();
@@ -1121,6 +1149,9 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_TILE_IN, mSourceRect);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !target) {
+    return nullptr;
+  }
 
   TileSurface(input, target, mSourceRect.TopLeft() - aRect.TopLeft());
 
@@ -1202,6 +1233,9 @@ FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_TABLE_TRANSFER_IN, aRect);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !target) {
+    return nullptr;
+  }
 
   ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_R>(input, target, mDisableR);
   ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_G>(input, target, mDisableG);
@@ -1886,6 +1920,9 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
     GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, mEdgeMode);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !target) {
+    return nullptr;
+  }
   ClearDataSourceSurface(target);
 
   uint8_t* sourceData = input->GetData();
@@ -2043,6 +2080,9 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_DISPLACEMENT_MAP_IN2, aRect);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !map || !target) {
+    return nullptr;
+  }
 
   uint8_t* sourceData = input->GetData();
   int32_t sourceStride = input->Stride();
@@ -2310,6 +2350,9 @@ FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
@@ -2424,6 +2467,9 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN2, aRect);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!input1 || !input2 || !target) {
+    return nullptr;
+  }
 
   uint8_t* source1Data = input1->GetData();
   uint8_t* source2Data = input2->GetData();
@@ -2532,10 +2578,16 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_COMPOSITE_IN_START, aRect);
   RefPtr<DataSourceSurface> dest =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+  if (!start || !dest) {
+    return nullptr;
+  }
   CopyRect(start, dest, aRect - aRect.TopLeft(), IntPoint());
   for (size_t inputIndex = 1; inputIndex < NumberOfSetInputs(); inputIndex++) {
     RefPtr<DataSourceSurface> input =
       GetInputDataSourceSurface(IN_COMPOSITE_IN_START + inputIndex, aRect);
+    if (!input) {
+      return nullptr;
+    }
     ApplyComposition(input, dest, mOperator);
   }
   return dest;
@@ -2744,12 +2796,16 @@ FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
   IntRect srcRect = InflatedSourceOrDestRect(aRect);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, srcRect);
-  input = CloneForStride(input);
   RefPtr<DataSourceSurface> intermediateBuffer =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  ClearDataSourceSurface(intermediateBuffer);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !intermediateBuffer || !target) {
+    return nullptr;
+  }
+
+  ClearDataSourceSurface(intermediateBuffer);
+  input = CloneForStride(input);
   ClearDataSourceSurface(target);
 
   // TODO: use this
@@ -2849,12 +2905,15 @@ FilterNodeDirectionalBlurSoftware::Render(const IntRect& aRect)
   IntRect srcRect = InflatedSourceOrDestRect(aRect);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_DIRECTIONAL_BLUR_IN, srcRect);
-  input = CloneForStride(input);
   RefPtr<DataSourceSurface> intermediateBuffer =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  ClearDataSourceSurface(intermediateBuffer);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !intermediateBuffer || !target) {
+    return nullptr;
+  }
+  input = CloneForStride(input);
+  ClearDataSourceSurface(intermediateBuffer);
   ClearDataSourceSurface(target);
 
   // TODO: use this
@@ -2944,6 +3003,9 @@ FilterNodeCropSoftware::Render(const IntRect& aRect)
   IntRect sourceRect = aRect.Intersect(mCropRect);
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_CROP_IN, sourceRect);
+  if (!input) {
+    return nullptr;
+  }
   return GetDataSurfaceInRect(input, sourceRect, aRect, EDGE_MODE_NONE);
 }
 
@@ -2959,6 +3021,9 @@ Premultiply(DataSourceSurface* aSurface)
   IntSize size = aSurface->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* inputData = aSurface->GetData();
   int32_t inputStride = aSurface->Stride();
@@ -3020,6 +3085,9 @@ Unpremultiply(DataSourceSurface* aSurface)
   IntSize size = aSurface->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
 
   uint8_t* inputData = aSurface->GetData();
   int32_t inputStride = aSurface->Stride();
@@ -3417,14 +3485,16 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
                                                               CoordType aKernelUnitLengthY)
 {
   IntRect srcRect = aRect;
+  IntSize size = aRect.Size();
   srcRect.Inflate(ceil(aKernelUnitLengthX),
                   ceil(aKernelUnitLengthY));
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
-
-  IntSize size = aRect.Size();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!input || !target) {
+    return nullptr;
+  }
 
   uint8_t* sourceData = input->GetData();
   int32_t sourceStride = input->Stride();
