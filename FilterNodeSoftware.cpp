@@ -1817,6 +1817,7 @@ ConvolvePixel(const uint8_t *aSourceData,
                          B8G8R8A8_COMPONENT_BYTEOFFSET_B,
                          B8G8R8A8_COMPONENT_BYTEOFFSET_A };
   int32_t channels = aPreserveAlpha ? 3 : 4;
+  int32_t roundingAddition = shiftL == 0 ? 0 : 1 << (shiftL - 1);
 
   for (int32_t y = 0; y < aOrderY; y++) {
     CoordType sampleY = aY + (y - aTargetY) * aKernelUnitLengthY;
@@ -1830,8 +1831,9 @@ ConvolvePixel(const uint8_t *aSourceData,
     }
   }
   for (int32_t i = 0; i < channels; i++) {
+    int32_t clamped = umin(ClampToNonZero(sum[i] + aBias), 255 << shiftL >> shiftR);
     aTargetData[aY * aTargetStride + 4 * aX + offsets[i]] =
-      umin(ClampToNonZero(sum[i] + aBias), 255 << shiftL >> shiftR) << shiftR >> shiftL;
+      (clamped + roundingAddition) << shiftR >> shiftL;
   }
   if (aPreserveAlpha) {
     aTargetData[aY * aTargetStride + 4 * aX + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
