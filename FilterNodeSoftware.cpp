@@ -1793,7 +1793,7 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, p
   const uint8_t &clu = ColorComponentAtPoint(aData, aStride, lx,     ly + 1, c);
   const uint8_t &cuu = ColorComponentAtPoint(aData, aStride, lx + 1, ly + 1, c);
   return ((cll * tlx + cul * tux) * tly +
-          (clu * tlx + cuu * tux) * tuy) / (f * f);
+          (clu * tlx + cuu * tux) * tuy + f * f / 2) / (f * f);
 }
 
 template<typename CoordType>
