@@ -1679,7 +1679,7 @@ FilterNodeGammaTransferSoftware::GenerateLookupTable(Float aAmplitude, Float aEx
                                                                       uint8_t aTable[256])
 {
   for (size_t i = 0; i < 256; i++) {
-    int32_t val = int32_t(255 * (aAmplitude * pow(i / 255.0f, aExponent) + aOffset));
+    int32_t val = round(255 * (aAmplitude * pow(i / 255.0f, aExponent) + aOffset));
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
