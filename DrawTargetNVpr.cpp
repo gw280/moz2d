@@ -12,6 +12,8 @@
 #include "ScaledFontNVpr.h"
 #include "SourceSurfaceNVpr.h"
 #include "nvpr/Clip.h"
+#include "nvpr/Paint.h"
+#include "nvpr/ShadowShaders.h"
 #include <sstream>
 #include <vector>
 
@@ -19,7 +21,7 @@
 #include "DXTextureInteropNVpr.h"
 #endif
 
-static const size_t sMaxSnapshotTexturePoolSize = 2;
+static const size_t sMaxScratchTextures = 2;
 
 using namespace mozilla::gfx::nvpr;
 using namespace std;
@@ -34,18 +36,18 @@ operator <<(ostream& aStream, const DrawTargetNVpr& aDrawTarget)
   return aStream;
 }
 
-class SnapshotNVpr : public SourceSurfaceNVpr {
+class DrawTargetNVpr::ScratchSurface : public SourceSurfaceNVpr {
 public:
-  SnapshotNVpr(WeakPtr<DrawTargetNVpr> aDrawTarget,
-               TemporaryRef<TextureObjectNVpr> aTexture)
+  ScratchSurface(WeakPtr<DrawTargetNVpr> aDrawTarget,
+                 TemporaryRef<TextureObjectNVpr> aTexture)
     : SourceSurfaceNVpr(aTexture)
     , mDrawTarget(aDrawTarget)
   {}
 
-  virtual ~SnapshotNVpr()
+  virtual ~ScratchSurface()
   {
     if (mDrawTarget) {
-      mDrawTarget->OnSnapshotDeleted(Texture());
+      mDrawTarget->OnScratchSurfaceDeleted(Texture());
     }
   }
 
@@ -60,7 +62,7 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   , mColorBuffer(0)
   , mStencilBuffer(0)
   , mFramebuffer(0)
-  , mSnapshotTextureCount(0)
+  , mScratchTextureCount(0)
   , mPoppedStencilClips(nullptr)
   , mTransformId(0)
   , mStencilClipBits(0)
@@ -90,21 +92,28 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   GLenum colorBufferFormat;
   switch (mFormat) {
-    case FORMAT_A8:
     case FORMAT_YUV:
     case FORMAT_UNKNOWN:
     default:
+      mHasAlpha = false;
       return;
     case FORMAT_B8G8R8A8:
     case FORMAT_R8G8B8A8:
       colorBufferFormat = GL_RGBA8;
+      mHasAlpha = true;
       break;
     case FORMAT_B8G8R8X8:
     case FORMAT_R8G8B8X8:
       colorBufferFormat = GL_RGB8;
+      mHasAlpha = false;
       break;
     case FORMAT_R5G6B5:
       colorBufferFormat = GL_RGB565;
+      mHasAlpha = false;
+      break;
+    case FORMAT_A8:
+      colorBufferFormat = GL_ALPHA;
+      mHasAlpha = true;
       break;
   }
   gl->GenRenderbuffers(1, &mColorBuffer);
@@ -121,7 +130,7 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
   gl->NamedFramebufferRenderbufferEXT(mFramebuffer, GL_STENCIL_ATTACHMENT,
                                       GL_RENDERBUFFER, mStencilBuffer);
 
-  Validate(FRAMEBUFFER | COLOR_WRITES_ENABLED);
+  Validate(FRAMEBUFFER | COLOR_WRITE_MASK);
 
   gl->DisableScissorTest();
   gl->SetClearColor(Color());
@@ -138,44 +147,52 @@ DrawTargetNVpr::~DrawTargetNVpr()
   gl->DeleteFramebuffers(1, &mFramebuffer);
 }
 
+TemporaryRef<DrawTargetNVpr::ScratchSurface>
+DrawTargetNVpr::GetScratchSurface()
+{
+  RefPtr<TextureObjectNVpr> texture;
+
+  if (!mScratchTexturePool.empty()) {
+    texture = mScratchTexturePool.front();
+    mScratchTexturePool.pop_front();
+  } else {
+    mScratchTextureCount++;
+    texture = TextureObjectNVpr::Create(mFormat, mSize);
+  }
+
+  return new ScratchSurface(this->asWeakPtr(), texture.forget());
+}
+
+void
+DrawTargetNVpr::OnScratchSurfaceDeleted(TemporaryRef<TextureObjectNVpr> aBackingTexture)
+{
+  if (mScratchTextureCount > sMaxScratchTextures) {
+    mScratchTextureCount--;
+    return;
+  }
+
+  mScratchTexturePool.push_back(aBackingTexture);
+}
+
 TemporaryRef<SourceSurface>
 DrawTargetNVpr::Snapshot()
 {
   if (!mSnapshot) {
-    RefPtr<TextureObjectNVpr> texture;
-    if (!mSnapshotTexturePool.empty()) {
-      texture = mSnapshotTexturePool.front();
-      mSnapshotTexturePool.pop_front();
-    } else {
-      texture = TextureObjectNVpr::Create(mFormat, mSize);
-      mSnapshotTextureCount++;
-    }
+    mSnapshot = GetScratchSurface();
 
     gl->MakeCurrent();
 
     gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
-    gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *texture);
+    gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, *mSnapshot);
     gl->DisableScissorTest();
-    gl->EnableColorWrites();
+    gl->SetColorWriteMask(GL::WRITE_COLOR_AND_ALPHA);
 
     gl->BlitFramebuffer(0, 0, mSize.width, mSize.height,
                         0, 0, mSize.width, mSize.height,
                         GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-    mSnapshot = new SnapshotNVpr(this->asWeakPtr(), texture.forget());
   }
 
   return mSnapshot;
-}
-void
-DrawTargetNVpr::OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture)
-{
-  if (mSnapshotTextureCount > sMaxSnapshotTexturePoolSize) {
-    mSnapshotTextureCount--;
-    return;
-  }
-
-  mSnapshotTexturePool.push_back(aTexture);
 }
 
 bool
@@ -205,7 +222,7 @@ DrawTargetNVpr::BlitToDXTexture(DXTextureInteropNVpr* aDXTexture)
   gl->SetFramebuffer(GL_READ_FRAMEBUFFER, mFramebuffer);
   gl->SetFramebufferToTexture(GL_DRAW_FRAMEBUFFER, GL_TEXTURE_2D, dxTextureId);
   gl->DisableScissorTest();
-  gl->EnableColorWrites();
+  gl->SetColorWriteMask(GL::WRITE_COLOR_AND_ALPHA);
 
   gl->BlitFramebuffer(0, 0, mSize.width, mSize.height,
                       0, 0, mSize.width, mSize.height,
@@ -245,15 +262,14 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
     gl->DisableStencilTest();
   }
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
+  Paint paint;
   if (aSurfOptions.mSamplingBounds == SAMPLING_UNBOUNDED) {
-    shaderConfig.mPaintConfig.SetToSurface(surface, aSurfOptions.mFilter);
+    paint.SetToSurface(surface, aSurfOptions.mFilter);
   } else {
-    shaderConfig.mPaintConfig.SetToSurface(surface, aSourceRect,
-                                           aSurfOptions.mFilter);
+    paint.SetToClampedSurface(surface, aSurfOptions.mFilter, aSourceRect);
   }
-  gl->EnableShading(shaderConfig);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -264,8 +280,8 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
                                textureRect.XMost(), textureRect.y,
                                textureRect.XMost(), textureRect.YMost(),
                                textureRect.x, textureRect.YMost()};
-  gl->EnableTexCoordArray(GL::PAINT_UNIT, texCoords);
-  gl->DisableTexCoordArray(GL::MASK_UNIT);
+  gl->EnableTexCoordArray(PaintShader::PAINT_UNIT, texCoords);
+  gl->DisableTexCoordArray(PaintShader::MASK_UNIT);
 
   const GLfloat vertices[] = {aDestRect.x, aDestRect.y,
                               aDestRect.XMost(), aDestRect.y,
@@ -289,12 +305,75 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   MOZ_ASSERT(aSurface->GetType() == SURFACE_NVPR_TEXTURE);
 
   SourceSurfaceNVpr* const surface = static_cast<SourceSurfaceNVpr*>(aSurface);
+  RefPtr<ScratchSurface> horizontalConvolution = GetScratchSurface();
+  ShadowShaders& shadowShaders =
+    gl->GetUserObject<ShadowShaders>(&nvpr::UserData::mShadowShaders);
 
   gl->MakeCurrent();
 
-  Validate();
+  // We take advantage of the fact that a Gausian blur is separable by drawing
+  // the shadow in two passes: Once with a 1-dimensional kernel in the horizontal
+  // direction, and again with that same kernel in the vertical direction.
+  GLuint horizontalConvolutionShader;
+  GLuint shadowShader;
+  shadowShaders.ConfigureShaders(mSize,
+                                 mHasAlpha ? ShadowShaders::ALPHA : ShadowShaders::RED,
+                                 Rect(aDest + aOffset, Size(surface->GetSize())),
+                                 aColor, aSigma, &horizontalConvolutionShader,
+                                 &shadowShader);
 
-  gfxWarning() << *this << ": DrawSurfaceWithShadow not implemented";
+  // Step 1: Draw the horizontal convolution into a scratch texture.
+  gl->SetSize(mSize);
+  gl->SetFramebufferToTexture(GL_FRAMEBUFFER, GL_TEXTURE_2D,
+                              *horizontalConvolution);
+  gl->DisableScissorTest();
+  gl->DisableClipPlanes();
+  gl->DisableStencilTest();
+  gl->DisableBlending();
+  gl->SetColorWriteMask(mHasAlpha ? GL::WRITE_ALPHA : GL::WRITE_RED);
+
+  gl->SetShaderProgram(horizontalConvolutionShader);
+
+  surface->SetWrapMode(GL_CLAMP_TO_BORDER);
+  surface->SetFilter(FILTER_POINT);
+  gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *surface);
+
+  gl->Rectf(0, 0, 1, 1);
+
+  // Step 2: Use the horizontal convolution to draw the shadow.
+  Validate(FRAMEBUFFER | CLIPPING | COLOR_WRITE_MASK);
+  ApplyDrawOptions(aOperator, AA_DEFAULT, SNAP_NONE);
+
+  gl->SetShaderProgram(shadowShader);
+
+  horizontalConvolution->SetWrapMode(GL_CLAMP_TO_EDGE);
+  horizontalConvolution->SetFilter(FILTER_POINT);
+  gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *horizontalConvolution);
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  }
+  gl->Rectf(0, 0, 1, 1);
+
+  // Step 3: Draw the surface on top of its shadow.
+  gl->SetTransformToIdentity();
+
+  Paint paint;
+  paint.SetToSurface(surface, FILTER_LINEAR);
+  ApplyPaint(paint);
+
+  const GLfloat texCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
+  gl->EnableTexCoordArray(PaintShader::PAINT_UNIT, texCoords);
+  gl->DisableTexCoordArray(PaintShader::MASK_UNIT);
+
+  const GLfloat vertices[] = {aDest.x, aDest.y,
+                              aDest.x + surface->GetSize().width, aDest.y,
+                              aDest.x + surface->GetSize().width, aDest.y + surface->GetSize().height,
+                              aDest.x, aDest.y + surface->GetSize().height};
+  gl->SetVertexArray(vertices);
+
+  gl->DrawArrays(GL_QUADS, 0, 4);
 
   MarkChanged();
 }
@@ -321,7 +400,7 @@ DrawTargetNVpr::CopySurface(SourceSurface* aSurface,
   gl->SetFramebufferToTexture(GL_READ_FRAMEBUFFER, GL_TEXTURE_2D, *surface);
   gl->SetFramebuffer(GL_DRAW_FRAMEBUFFER, mFramebuffer);
   gl->DisableScissorTest();
-  gl->EnableColorWrites();
+  gl->SetColorWriteMask(GL::WRITE_COLOR_AND_ALPHA);
 
   gl->BlitFramebuffer(aSourceRect.x, aSourceRect.y, aSourceRect.XMost(),
                       aSourceRect.YMost(), aDestination.x, aDestination.y,
@@ -349,7 +428,7 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
     if (!needsBlending && !hasComplexClips && GetTransform().IsRectilinear()
         && GetTransform().TransformBounds(aRect).ToIntRect(&scissorRect)) {
 
-      Validate(FRAMEBUFFER | COLOR_WRITES_ENABLED);
+      Validate(FRAMEBUFFER | COLOR_WRITE_MASK);
 
       if (mTopScissorClip) {
         scissorRect.IntersectRect(scissorRect, mTopScissorClip->ScissorRect());
@@ -372,10 +451,10 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
     gl->DisableStencilTest();
   }
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aPattern);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aPattern);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -437,10 +516,10 @@ DrawTargetNVpr::Stroke(const Path* aPath,
 
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, 1, GL::CLEAR_PASSING_VALUES, 1);
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aPattern);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aPattern);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -472,10 +551,10 @@ DrawTargetNVpr::Fill(const Path* aPath,
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
                         GL::CLEAR_PASSING_VALUES, countingMask);
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aPattern);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aPattern);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -542,10 +621,10 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
                         GL::CLEAR_PASSING_VALUES, countingMask);
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aPattern);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aPattern);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -572,11 +651,11 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
     gl->DisableStencilTest();
   }
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aSource);
-  shaderConfig.mMaskConfig.SetToPattern(aMask);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aSource);
+  paint.mMask.SetToPattern(aMask);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
@@ -613,18 +692,18 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
     gl->DisableStencilTest();
   }
 
-  GL::ShaderConfig shaderConfig;
-  shaderConfig.mGlobalAlpha = aOptions.mAlpha;
-  shaderConfig.mPaintConfig.SetToPattern(aSource);
-  shaderConfig.mMaskConfig.SetToSurface(mask);
-  gl->EnableShading(shaderConfig);
+  Paint paint;
+  paint.SetToPattern(aSource);
+  paint.mMask.SetToSurface(mask);
+  paint.mGlobalAlpha = aOptions.mAlpha;
+  ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
                    aOptions.mSnapping);
 
   const GLfloat maskCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
-  gl->DisableTexCoordArray(GL::PAINT_UNIT);
-  gl->EnableTexCoordArray(GL::MASK_UNIT, maskCoords);
+  gl->DisableTexCoordArray(PaintShader::PAINT_UNIT);
+  gl->EnableTexCoordArray(PaintShader::MASK_UNIT, maskCoords);
 
   const GLfloat vertices[] = {maskRect.x, maskRect.y,
                               maskRect.XMost(), maskRect.y,
@@ -730,7 +809,7 @@ DrawTargetNVpr::PopClip()
   mClipTypeStack.pop();
 }
 
-TemporaryRef<SourceSurface> 
+TemporaryRef<SourceSurface>
 DrawTargetNVpr::CreateSourceSurfaceFromData(unsigned char* aData,
                                             const IntSize& aSize,
                                             int32_t aStride,
@@ -742,7 +821,7 @@ DrawTargetNVpr::CreateSourceSurfaceFromData(unsigned char* aData,
   return texture ? new SourceSurfaceNVpr(texture.forget()) : nullptr;
 }
 
-TemporaryRef<SourceSurface> 
+TemporaryRef<SourceSurface>
 DrawTargetNVpr::OptimizeSourceSurface(SourceSurface* aSurface) const
 {
   if (aSurface->GetType() == SURFACE_NVPR_TEXTURE) {
@@ -802,7 +881,7 @@ DrawTargetNVpr::Validate(ValidationFlags aFlags)
   MOZ_ASSERT(gl->IsCurrent());
 
   if (aFlags & FRAMEBUFFER) {
-    gl->SetTargetSize(mSize);
+    gl->SetSize(mSize);
     gl->SetFramebuffer(GL_FRAMEBUFFER, mFramebuffer);
   }
 
@@ -834,9 +913,39 @@ DrawTargetNVpr::Validate(ValidationFlags aFlags)
     gl->SetTransform(GetTransform(), mTransformId);
   }
 
-  if (aFlags & COLOR_WRITES_ENABLED) {
-    gl->EnableColorWrites();
+  if (aFlags & COLOR_WRITE_MASK) {
+    gl->SetColorWriteMask(GL::WRITE_COLOR_AND_ALPHA);
   }
+}
+
+void
+DrawTargetNVpr::ApplyPaint(const Paint& aPaint)
+{
+  MOZ_ASSERT(gl->IsCurrent());
+
+  struct PaintShaders : public nvpr::UserData::Object {
+    RefPtr<PaintShader> mShaders[PaintConfig::MODE_COUNT]
+                                [PaintConfig::MODE_COUNT][2];
+  };
+
+  PaintShaders& shaders =
+    gl->GetUserObject<PaintShaders>(&nvpr::UserData::mPaintShaders);
+
+  RefPtr<PaintShader>& shader = shaders.mShaders[aPaint.mPaintMode]
+                                                [aPaint.mMask.mPaintMode]
+                                                [aPaint.mGlobalAlpha != 1];
+  if (!shader) {
+    shader = PaintShader::Create(aPaint);
+  }
+
+  gl->SetTexGen(PaintShader::PAINT_UNIT, aPaint.mTexGenComponents,
+                aPaint.mTexGenCoefficients);
+  gl->SetTexGen(PaintShader::MASK_UNIT, aPaint.mMask.mTexGenComponents,
+                aPaint.mMask.mTexGenCoefficients);
+
+  shader->ApplyFragmentUniforms(aPaint);
+
+  gl->SetShaderProgram(*shader);
 }
 
 void

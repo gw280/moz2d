@@ -13,8 +13,9 @@ MOZ2D_CPPSRCS += \
   nvpr/ConvexPolygon.cpp \
   nvpr/GL.cpp \
   nvpr/GLX.cpp \
-  nvpr/Shader.cpp \
-  nvpr/PaintConfig.cpp \
+  nvpr/ShaderProgram.cpp \
+  nvpr/Paint.cpp \
+  nvpr/ShadowShaders.cpp \
   $(NULL)
 
 UNITTEST_CPPSRCS += \

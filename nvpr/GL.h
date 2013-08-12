@@ -14,7 +14,6 @@
 #endif
 
 #include "2D.h"
-#include "PaintConfig.h"
 #include <GL/gl.h>
 #include "GL/glext.h"
 #include <memory>
@@ -27,7 +26,6 @@ namespace nvpr {
 typedef uint64_t UniqueId;
 
 class ConvexPolygon;
-class Shader;
 
 struct UserData {
   class Object { public: virtual ~Object() {} };
@@ -35,6 +33,8 @@ struct UserData {
   std::unique_ptr<Object> mPathCache;
   std::unique_ptr<Object> mColorRampData;
   std::unique_ptr<Object> mFonts;
+  std::unique_ptr<Object> mPaintShaders;
+  std::unique_ptr<Object> mShadowShaders;
 };
 
 class GL
@@ -80,7 +80,7 @@ public:
   UniqueId TransformId() const { return mTransformIdStack.top(); }
   UniqueId ClipPolygonId() const { return mClipPolygonId; }
 
-  void SetTargetSize(const IntSize& aSize);
+  void SetSize(const IntSize& aSize);
 
   void SetFramebuffer(GLenum aFramebufferTarget, GLuint aFramebuffer);
   void SetFramebufferToTexture(GLenum aFramebufferTarget, GLenum aTextureTarget,
@@ -107,15 +107,14 @@ public:
     GL* mGL;
   };
 
-  void EnableColorWrites();
-  void DisableColorWrites();
+  enum ColorWriteMaskBit { WRITE_NONE = 0x0, WRITE_RED = 0x1, WRITE_GREEN = 0x2,
+                           WRITE_BLUE = 0x4, WRITE_ALPHA = 0x8,
+                           WRITE_COLOR_AND_ALPHA = 0xf };
+  typedef unsigned ColorWriteMask;
+  void SetColorWriteMask(ColorWriteMask aColorWriteMask);
 
   void SetClearColor(const Color& aColor);
   void SetClearColor(const Color& aColor, GLfloat aAlpha);
-
-  void SetColor(const Color& aColor);
-  void SetColor(const Color& aColor, GLfloat aAlpha);
-  void SetColorToAlpha(GLfloat aAlpha);
 
   void EnableScissorTest(const IntRect& aScissorRect);
   void DisableScissorTest();
@@ -145,22 +144,17 @@ public:
   }
   void DisableBlending();
 
-  struct ShaderConfig {
-    ShaderConfig()
-      : mGlobalAlpha(1)
-    {}
-    GLfloat mGlobalAlpha;
-    PaintConfig mPaintConfig;
-    PaintConfig mMaskConfig;
-  };
-  void EnableShading(const ShaderConfig& aShaderConfig);
-  void DisableShading();
+  void SetShaderProgram(GLuint aShaderProgram);
   void DeleteShaderProgram(GLuint aShaderProgram);
 
-  enum TextureUnit { PAINT_UNIT, MASK_UNIT, TEXTURE_UNIT_COUNT };
+  enum TextureUnit { UNIT_0, UNIT_1, TEXTURE_UNIT_COUNT };
   void SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
                   GLuint aTextureId);
   void DeleteTexture(GLuint aTextureId);
+
+  enum TexGenComponents { TEXGEN_NONE, TEXGEN_S, TEXGEN_ST };
+  void SetTexGen(TextureUnit aTextureUnit, TexGenComponents aComponents,
+                 const GLfloat* aCoefficients = nullptr);
 
   void EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords);
   void DisableTexCoordArray(TextureUnit aTextureUnit);
@@ -174,9 +168,6 @@ protected:
   void Initialize();
 
 private:
-  void ConfigureTexgen(TextureUnit aTextureUnit, unsigned aComponents,
-                       const GLfloat* aTexgenCoefficients);
-
   bool mIsValid;
   bool mSupportedExtensions[EXTENSION_COUNT];
   GLint mMaxRenderbufferSize;
@@ -187,16 +178,15 @@ private:
   UniqueId mNextUniqueId;
   GLuint mTextureFramebuffer1D;
   GLuint mTextureFramebuffer2D;
-  RefPtr<Shader> mShaders[2][PaintConfig::MODE_COUNT][PaintConfig::MODE_COUNT];
 
   // GL state.
-  IntSize mTargetSize;
+  IntSize mSize;
   GLuint mReadFramebuffer;
   GLuint mDrawFramebuffer;
   std::stack<UniqueId> mTransformIdStack;
   size_t mNumClipPlanes;
   UniqueId mClipPolygonId;
-  bool mColorWritesEnabled;
+  ColorWriteMask mColorWriteMask;
   Color mClearColor;
   Color mColor;
   bool mScissorTestEnabled;
@@ -214,8 +204,8 @@ private:
   GLenum mSourceBlendFactorAlpha;
   GLenum mDestBlendFactorAlpha;
   GLuint mShaderProgram;
-  unsigned mTexgenComponents[TEXTURE_UNIT_COUNT];
-  GLfloat mTexgenCoefficients[TEXTURE_UNIT_COUNT][6];
+  unsigned mTexGenComponents[TEXTURE_UNIT_COUNT];
+  GLfloat mTexGenCoefficients[TEXTURE_UNIT_COUNT][6];
   GLenum mActiveTextureTargets[TEXTURE_UNIT_COUNT];
   GLenum mBoundTextures[TEXTURE_UNIT_COUNT];
   bool mTexCoordArraysEnabled[TEXTURE_UNIT_COUNT];
@@ -225,9 +215,11 @@ private:
   MACRO(CreateShader) \
   MACRO(ShaderSource) \
   MACRO(CompileShader) \
+  MACRO(GetIntegerv) \
   MACRO(GetShaderiv) \
   MACRO(GetShaderInfoLog) \
   MACRO(GetProgramiv) \
+  MACRO(GetProgramInfoLog) \
   MACRO(CreateProgram) \
   MACRO(AttachShader) \
   MACRO(LinkProgram) \
@@ -235,6 +227,7 @@ private:
   MACRO(GetUniformLocation) \
   MACRO(ProgramUniform1iEXT) \
   MACRO(ProgramUniform1fEXT) \
+  MACRO(ProgramUniform1fvEXT) \
   MACRO(ProgramUniform2fvEXT) \
   MACRO(ProgramUniform4fvEXT) \
   MACRO(GenRenderbuffers) \
@@ -285,7 +278,6 @@ private:
 #define FOR_ALL_PRIVATE_GL_ENTRY_POINTS(MACRO) \
   MACRO(DeleteTextures) \
   MACRO(DeleteProgram) \
-  MACRO(GetIntegerv) \
   MACRO(EnableClientState) \
   MACRO(DebugMessageCallback) \
   MACRO(DebugMessageControl) \
@@ -297,7 +289,6 @@ private:
   MACRO(StencilOp) \
   MACRO(StencilMask) \
   MACRO(ClearColor) \
-  MACRO(Color4f) \
   MACRO(UseProgram) \
   MACRO(BlendFunc) \
   MACRO(BlendFuncSeparate) \
@@ -314,8 +305,8 @@ private:
   MACRO(MultiTexGenivEXT) \
   MACRO(MultiTexGenfvEXT) \
   MACRO(BindMultiTextureEXT) \
-  MACRO(EnableClientStateIndexedEXT) \
-  MACRO(DisableClientStateIndexedEXT) \
+  MACRO(EnableClientStateiEXT) \
+  MACRO(DisableClientStateiEXT) \
   MACRO(MultiTexCoordPointerEXT) \
   MACRO(PathStencilFuncNV) \
   MACRO(PathTexGenNV)
@@ -331,12 +322,11 @@ protected:
 
 #undef DECLARE_GL_METHOD
 
+  // WAR for http://nvbugs/1333774.
   void MultiTexGeniEXT(GLenum texunit, GLenum coord, GLenum pname, GLint param)
   {
-    // WAR for driver bug with glMultiTexGeniEXT.
     MultiTexGenivEXT(texunit, coord, pname, &param);
   }
-
   GL(const GL&);
   GL& operator =(const GL&);
 };

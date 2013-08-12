@@ -17,8 +17,8 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
   : mFormat(aFormat)
   , mSize(aSize)
   , mTextureId(0)
+  , mWrapMode(GL_REPEAT)
   , mFilter(FILTER_LINEAR)
-  , mExtendMode(EXTEND_REPEAT)
   , mHasMipmaps(false)
 {
   MOZ_ASSERT(mSize.width >= 0 && mSize.height >= 0);
@@ -39,12 +39,6 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
     case FORMAT_UNKNOWN:
     default:
       return;
-    case FORMAT_A8:
-      internalFormat = GL_ALPHA;
-      mGLFormat = GL_ALPHA;
-      mGLType = GL_UNSIGNED_BYTE;
-      mBytesPerPixel = 1;
-      break;
     case FORMAT_B8G8R8A8:
       internalFormat = GL_RGBA8;
       mGLFormat = GL_BGRA;
@@ -74,6 +68,12 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
       mGLFormat = GL_RGB;
       mGLType = GL_UNSIGNED_SHORT_5_6_5;
       mBytesPerPixel = 2;
+      break;
+    case FORMAT_A8:
+      internalFormat = GL_ALPHA;
+      mGLFormat = GL_ALPHA;
+      mGLType = GL_UNSIGNED_BYTE;
+      mBytesPerPixel = 1;
       break;
   }
 
@@ -125,10 +125,41 @@ TextureObjectNVpr::~TextureObjectNVpr()
 }
 
 void
-TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode)
+TextureObjectNVpr::SetWrapMode(ExtendMode aExtendMode)
 {
-  MOZ_ASSERT(gl->IsCurrent());
+  switch (aExtendMode) {
+    default:
+      MOZ_ASSERT(!"Invalid extend mode");
+    case EXTEND_CLAMP:
+      SetWrapMode(GL_CLAMP_TO_EDGE);
+      return;
+    case EXTEND_REPEAT:
+      SetWrapMode(GL_REPEAT);
+      return;
+    case EXTEND_REFLECT:
+      SetWrapMode(GL_MIRRORED_REPEAT);
+      return;
+  }
+}
 
+void
+TextureObjectNVpr::SetWrapMode(GLenum aWrapMode)
+{
+  if (mWrapMode == aWrapMode) {
+    return;
+  }
+
+  gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+                           aWrapMode);
+  gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+                           aWrapMode);
+
+  mWrapMode = aWrapMode;
+}
+
+void
+TextureObjectNVpr::SetFilter(Filter aFilter)
+{
   if (mFilter != aFilter) {
     GLenum minFilter;
     GLenum magFilter;
@@ -163,30 +194,6 @@ TextureObjectNVpr::ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode)
   if (mFilter == FILTER_LINEAR && !mHasMipmaps) {
     gl->GenerateTextureMipmapEXT(mTextureId, GL_TEXTURE_2D);
     mHasMipmaps = true;
-  }
-
-  if (mExtendMode != aExtendMode) {
-    GLenum wrapMode;
-    switch (aExtendMode) {
-      default:
-        MOZ_ASSERT(!"Invalid extend mode");
-      case EXTEND_CLAMP:
-        wrapMode = GL_CLAMP_TO_EDGE;
-        break;
-      case EXTEND_REPEAT:
-        wrapMode = GL_REPEAT;
-        break;
-      case EXTEND_REFLECT:
-        wrapMode = GL_MIRRORED_REPEAT;
-        break;
-    }
-
-    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                             GL_TEXTURE_WRAP_S, wrapMode);
-    gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                             GL_TEXTURE_WRAP_T, wrapMode);
-
-    mExtendMode = aExtendMode;
   }
 }
 

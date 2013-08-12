@@ -8,7 +8,6 @@
 #include "ConvexPolygon.h"
 #include "Line.h"
 #include "Logging.h"
-#include "Shader.h"
 #include <iterator>
 #include <iostream>
 #include <sstream>
@@ -53,7 +52,7 @@ GL::GL()
   , mNextUniqueId(1)
   , mReadFramebuffer(0)
   , mDrawFramebuffer(0)
-  , mColorWritesEnabled(true)
+  , mColorWriteMask(WRITE_COLOR_AND_ALPHA)
   , mNumClipPlanes(0)
   , mClipPolygonId(0)
   , mColor(1, 1, 1, 1)
@@ -73,8 +72,8 @@ GL::GL()
   , mShaderProgram(0)
 {
   mTransformIdStack.push(0);
-  memset(mTexgenComponents, 0, sizeof(mTexgenComponents));
-  memset(mTexgenCoefficients, 0, sizeof(mTexgenCoefficients));
+  memset(mTexGenComponents, 0, sizeof(mTexGenComponents));
+  memset(mTexGenCoefficients, 0, sizeof(mTexGenCoefficients));
   memset(mActiveTextureTargets, 0, sizeof(mActiveTextureTargets));
   memset(mBoundTextures, 0, sizeof(mBoundTextures));
   memset(mTexCoordArraysEnabled, 0, sizeof(mTexCoordArraysEnabled));
@@ -152,18 +151,18 @@ GL::~GL()
 }
 
 void
-GL::SetTargetSize(const IntSize& aSize)
+GL::SetSize(const IntSize& aSize)
 {
   MOZ_ASSERT(IsCurrent());
 
-  if (mTargetSize == aSize) {
+  if (mSize == aSize) {
     return;
   }
 
   Viewport(0, 0, aSize.width, aSize.height);
   MatrixLoadIdentityEXT(GL_PROJECTION);
   MatrixOrthoEXT(GL_PROJECTION, 0, aSize.width, 0, aSize.height, -1, 1);
-  mTargetSize = aSize;
+  mSize = aSize;
 }
 
 void
@@ -282,6 +281,10 @@ GL::SetTransformToIdentity()
 {
   MOZ_ASSERT(IsCurrent());
 
+  if (mTransformIdStack.top() == 0) {
+    return;
+  }
+
   MatrixLoadIdentityEXT(GL_MODELVIEW);
   mTransformIdStack.top() = 0;
 }
@@ -304,29 +307,17 @@ GL::PopTransform()
 }
 
 void
-GL::EnableColorWrites()
+GL::SetColorWriteMask(ColorWriteMask aColorWriteMask)
 {
   MOZ_ASSERT(IsCurrent());
 
-  if (mColorWritesEnabled) {
+  if (mColorWriteMask == aColorWriteMask) {
     return;
   }
 
-  ColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  mColorWritesEnabled = true;
-}
-
-void
-GL::DisableColorWrites()
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!mColorWritesEnabled) {
-    return;
-  }
-
-  ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-  mColorWritesEnabled = false;
+  ColorMask(aColorWriteMask & WRITE_RED, aColorWriteMask & WRITE_GREEN,
+            aColorWriteMask & WRITE_BLUE, aColorWriteMask & WRITE_ALPHA);
+  mColorWriteMask = aColorWriteMask;
 }
 
 void
@@ -352,37 +343,6 @@ void
 GL::SetClearColor(const Color& aColor, GLfloat aAlpha)
 {
   SetClearColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
-}
-
-void
-GL::SetColor(const Color& aColor)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!memcmp(&mColor, &aColor, sizeof(Color))) {
-    return;
-  }
-
-  if (aColor.a == 1) {
-    Color4f(aColor.r, aColor.g, aColor.b, 1);
-  } else {
-    const float a = aColor.a;
-    Color4f(a * aColor.r, a * aColor.g, a * aColor.b, a);
-  }
-
-  mColor = aColor;
-}
-
-void
-GL::SetColor(const Color& aColor, GLfloat aAlpha)
-{
-  SetColor(Color(aColor.r, aColor.g, aColor.b, aAlpha * aColor.a));
-}
-
-void
-GL::SetColorToAlpha(GLfloat aAlpha)
-{
-  SetColor(Color(1, 1, 1, aAlpha));
 }
 
 void
@@ -626,43 +586,16 @@ GL::DisableBlending()
 }
 
 void
-GL::EnableShading(const ShaderConfig& aShaderConfig)
+GL::SetShaderProgram(GLuint aShaderProgram)
 {
   MOZ_ASSERT(IsCurrent());
 
-  const bool hasAlpha = aShaderConfig.mGlobalAlpha != 1;
-  const PaintConfig::PaintMode paintMode = aShaderConfig.mPaintConfig.mPaintMode;
-  const PaintConfig::PaintMode maskMode = aShaderConfig.mMaskConfig.mPaintMode;
-
-  ConfigureTexgen(PAINT_UNIT, aShaderConfig.mPaintConfig.mTexgenComponents,
-                  aShaderConfig.mPaintConfig.mTexgenCoefficients);
-  ConfigureTexgen(MASK_UNIT, aShaderConfig.mMaskConfig.mTexgenComponents,
-                  aShaderConfig.mMaskConfig.mTexgenCoefficients);
-
-  RefPtr<Shader>& shader = mShaders[hasAlpha][paintMode][maskMode];
-  if (!shader) {
-    shader = Shader::Create(hasAlpha, paintMode, maskMode);
-  }
-
-  if (mShaderProgram != *shader) {
-    UseProgram(*shader);
-    mShaderProgram = *shader;
-  }
-
-  shader->ApplyFragmentUniforms(aShaderConfig);
-}
-
-void
-GL::DisableShading()
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (mShaderProgram == 0) {
+  if (mShaderProgram == aShaderProgram) {
     return;
   }
 
-  UseProgram(0);
-  mShaderProgram = 0;
+  UseProgram(aShaderProgram);
+  mShaderProgram = aShaderProgram;
 }
 
 void
@@ -671,62 +604,10 @@ GL::DeleteShaderProgram(GLuint aShaderProgram)
   MOZ_ASSERT(IsCurrent());
 
   if (mShaderProgram == aShaderProgram) {
-    DisableShading();
+    SetShaderProgram(0);
   }
 
   DeleteProgram(aShaderProgram);
-}
-
-void
-GL::ConfigureTexgen(TextureUnit aTextureUnit, unsigned aComponents,
-                    const GLfloat* aTexgenCoefficients)
-{
-  MOZ_ASSERT(IsCurrent());
-  MOZ_ASSERT(aComponents <= 2);
-
-  if (mTexgenComponents[aTextureUnit] == aComponents
-      && !memcmp(mTexgenCoefficients[aTextureUnit], aTexgenCoefficients,
-          aComponents * 3 * sizeof(GLfloat))) {
-    return;
-  }
-
-  if (mTexgenComponents[aTextureUnit] > aComponents) {
-    if (aComponents < 2 && mTexgenComponents[aTextureUnit] >= 2) {
-      Disablei(GL_TEXTURE_GEN_T, aTextureUnit);
-    }
-    if (aComponents < 1 && mTexgenComponents[aTextureUnit] >= 1) {
-      Disablei(GL_TEXTURE_GEN_S, aTextureUnit);
-    }
-  } else if (mTexgenComponents[aTextureUnit] < aComponents) {
-    if (aComponents >= 1 && mTexgenComponents[aTextureUnit] < 1) {
-      Enablei(GL_TEXTURE_GEN_S, aTextureUnit);
-    }
-    if (aComponents >= 2 && mTexgenComponents[aTextureUnit] < 2) {
-      Enablei(GL_TEXTURE_GEN_T, aTextureUnit);
-    }
-  }
-
-  if (aComponents >= 1) {
-    const GLfloat plane[] = {aTexgenCoefficients[0], aTexgenCoefficients[1],
-                             0, aTexgenCoefficients[2]};
-    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_S, GL_OBJECT_PLANE, plane);
-  }
-  if (aComponents >= 2) {
-    const GLfloat plane[] = {aTexgenCoefficients[3], aTexgenCoefficients[4],
-                             0, aTexgenCoefficients[5]};
-    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_T, GL_OBJECT_PLANE, plane);
-  }
-
-  if (!aComponents) {
-    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_NONE, 0, 0);
-  } else {
-    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_OBJECT_LINEAR,
-                 aComponents, aTexgenCoefficients);
-  }
-
-  mTexgenComponents[aTextureUnit] = aComponents;
-  memcpy(mTexgenCoefficients[aTextureUnit], aTexgenCoefficients,
-         aComponents * 3 * sizeof(GLfloat));
 }
 
 void
@@ -765,11 +646,62 @@ GL::DeleteTexture(GLuint aTextureId)
 }
 
 void
+GL::SetTexGen(TextureUnit aTextureUnit, TexGenComponents aComponents,
+              const GLfloat* aCoefficients)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  if (mTexGenComponents[aTextureUnit] == aComponents
+      && !memcmp(mTexGenCoefficients[aTextureUnit], aCoefficients,
+          aComponents * 3 * sizeof(GLfloat))) {
+    return;
+  }
+
+  if (mTexGenComponents[aTextureUnit] > aComponents) {
+    if (aComponents < TEXGEN_ST && mTexGenComponents[aTextureUnit] >= TEXGEN_ST) {
+      Disablei(GL_TEXTURE_GEN_T, aTextureUnit);
+    }
+    if (aComponents < TEXGEN_S && mTexGenComponents[aTextureUnit] >= TEXGEN_S) {
+      Disablei(GL_TEXTURE_GEN_S, aTextureUnit);
+    }
+  } else if (mTexGenComponents[aTextureUnit] < aComponents) {
+    if (aComponents >= TEXGEN_S && mTexGenComponents[aTextureUnit] < TEXGEN_S) {
+      Enablei(GL_TEXTURE_GEN_S, aTextureUnit);
+    }
+    if (aComponents >= TEXGEN_ST && mTexGenComponents[aTextureUnit] < TEXGEN_ST) {
+      Enablei(GL_TEXTURE_GEN_T, aTextureUnit);
+    }
+  }
+
+  if (aComponents >= TEXGEN_S) {
+    const GLfloat plane[] = {aCoefficients[0], aCoefficients[1],
+                             0, aCoefficients[2]};
+    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_S, GL_OBJECT_PLANE, plane);
+  }
+  if (aComponents >= TEXGEN_ST) {
+    const GLfloat plane[] = {aCoefficients[3], aCoefficients[4],
+                             0, aCoefficients[5]};
+    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_T, GL_OBJECT_PLANE, plane);
+  }
+
+  if (!aComponents) {
+    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_NONE, 0, 0);
+  } else {
+    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_OBJECT_LINEAR,
+                 aComponents, aCoefficients);
+  }
+
+  mTexGenComponents[aTextureUnit] = aComponents;
+  memcpy(mTexGenCoefficients[aTextureUnit], aCoefficients,
+         aComponents * 3 * sizeof(GLfloat));
+}
+
+void
 GL::EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords)
 {
+
   if (!mTexCoordArraysEnabled[aTextureUnit]) {
-    EnableClientStateIndexedEXT(GL_TEXTURE0 + aTextureUnit,
-                                GL_TEXTURE_COORD_ARRAY);
+    EnableClientStateiEXT(GL_TEXTURE_COORD_ARRAY, aTextureUnit);
     mTexCoordArraysEnabled[aTextureUnit] = true;
   }
 
@@ -783,8 +715,7 @@ GL::DisableTexCoordArray(TextureUnit aTextureUnit)
     return;
   }
 
-  DisableClientStateIndexedEXT(GL_TEXTURE0 + aTextureUnit,
-                               GL_TEXTURE_COORD_ARRAY);
+  DisableClientStateiEXT(GL_TEXTURE_COORD_ARRAY, aTextureUnit);
   mTexCoordArraysEnabled[aTextureUnit] = false;
 }
 

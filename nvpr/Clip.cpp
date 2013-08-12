@@ -66,8 +66,8 @@ void StencilClip::ApplyToStencilBuffer()
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetTransform(mTransform, mTransformId);
-  gl->DisableColorWrites();
-  gl->DisableShading();
+  gl->SetColorWriteMask(GL::WRITE_NONE);
+  gl->SetShaderProgram(0);
 
   mOwnClipBit = mDrawTarget->ReserveStencilClipBit();
   if (mOwnClipBit) {
@@ -77,7 +77,7 @@ void StencilClip::ApplyToStencilBuffer()
     gl->ConfigurePathStencilTest(existingClipBits);
     gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
                           (mPath->GetFillRule() == FILL_WINDING)
-                            ? mOwnClipBit - 1 : 0x1);
+                           ? mOwnClipBit - 1 : 0x1);
 
     gl->EnableStencilTest(GL::PASS_IF_NOT_EQUAL, mOwnClipBit, mOwnClipBit - 1,
                           GL::REPLACE_PASSING_WITH_COMPARAND,
@@ -98,7 +98,7 @@ void StencilClip::ApplyToStencilBuffer()
   gl->ConfigurePathStencilTest(existingClipBits);
   gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
                         (mPath->GetFillRule() == FILL_WINDING)
-                          ? sharedClipBit - 1 : 0x1);
+                         ? sharedClipBit - 1 : 0x1);
 
   gl->SetTransform(lastClipBitOwner->mTransform, lastClipBitOwner->mTransformId);
 
@@ -123,8 +123,8 @@ void StencilClip::RestoreStencilBuffer()
   MOZ_ASSERT(gl->IsCurrent());
 
   gl->SetTransform(mTransform, mTransformId);
-  gl->DisableColorWrites();
-  gl->DisableShading();
+  gl->SetColorWriteMask(GL::WRITE_NONE);
+  gl->SetShaderProgram(0);
 
   // In order to reset the stencil buffer to the previous clipping state, we
   // need to clear our bit plane as well as any stencil data from future clips.

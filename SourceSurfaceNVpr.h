@@ -37,7 +37,10 @@ public:
   GLsizei BytesPerPixel() const { return mBytesPerPixel; }
   operator GLuint() const { return mTextureId; }
 
-  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode);
+  void SetWrapMode(ExtendMode aExtendMode);
+  void SetWrapMode(GLenum aWrapMode);
+  void SetFilter(Filter aFilter);
+
   void WritePixels(const GLvoid* aData, GLsizei aStride = 0);
   void ReadPixels(GLvoid* aBuffer);
 
@@ -51,8 +54,8 @@ private:
   GLenum mGLType;
   GLsizei mBytesPerPixel;
   GLuint mTextureId;
+  GLenum mWrapMode;
   Filter mFilter;
-  ExtendMode mExtendMode;
   bool mHasMipmaps;
 };
 
@@ -65,10 +68,9 @@ public:
   TextureObjectNVpr* Texture() const { return mTexture; }
   operator GLuint() const { return *mTexture; }
 
-  void ApplyTexturingOptions(Filter aFilter, ExtendMode aExtendMode)
-  {
-    mTexture->ApplyTexturingOptions(aFilter, aExtendMode);
-  }
+  void SetWrapMode(ExtendMode aExtendMode) { mTexture->SetWrapMode(aExtendMode); }
+  void SetWrapMode(GLenum aWrapMode) { mTexture->SetWrapMode(aWrapMode); }
+  void SetFilter(Filter aFilter) { mTexture->SetFilter(aFilter); }
 
   virtual SurfaceType GetType() const { return SURFACE_NVPR_TEXTURE; }
   virtual SurfaceFormat GetFormat() const { return mTexture->Format(); }

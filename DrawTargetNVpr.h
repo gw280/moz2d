@@ -28,6 +28,7 @@ class DXTextureInteropNVpr;
 
 namespace nvpr {
 class ScissorClip;
+class Paint;
 class PlanesClip;
 class StencilClip;
 }
@@ -36,6 +37,9 @@ class DrawTargetNVpr
   : public DrawTarget
   , public SupportsWeakPtr<DrawTargetNVpr>
 {
+  class ScratchSurface;
+  friend class ScratchSurface;
+
 public:
   static TemporaryRef<DrawTargetNVpr> Create(const IntSize& aSize,
                                              SurfaceFormat aFormat)
@@ -51,7 +55,6 @@ public:
   virtual IntSize GetSize() { return mSize; }
 
   virtual TemporaryRef<SourceSurface> Snapshot();
-  void OnSnapshotDeleted(TemporaryRef<TextureObjectNVpr> aTexture);
 
   bool BlitToForeignTexture(void* aForeignContext, GLuint aForeignTextureId);
 
@@ -157,14 +160,19 @@ public:
 private:
   DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat, bool& aSuccess);
 
+  TemporaryRef<ScratchSurface> GetScratchSurface();
+  void OnScratchSurfaceDeleted(TemporaryRef<TextureObjectNVpr> aBackingTexture);
+
   enum ValidationFlag {
     FRAMEBUFFER = 1 << 0,
     CLIPPING = 1 << 1,
     TRANSFORM = 1 << 2,
-    COLOR_WRITES_ENABLED = 1 << 3
+    COLOR_WRITE_MASK = 1 << 3
   };
   typedef unsigned ValidationFlags;
   void Validate(ValidationFlags aFlags = ~0);
+
+  void ApplyPaint(const nvpr::Paint& aPaint);
 
   void ApplyDrawOptions(CompositionOp aCompositionOp,
                         AntialiasMode aAntialiasMode, Snapping aSnapping);
@@ -173,11 +181,12 @@ private:
 
   const IntSize mSize;
   const SurfaceFormat mFormat;
+  bool mHasAlpha;
   GLuint mColorBuffer;
   GLuint mStencilBuffer;
   GLuint mFramebuffer;
-  size_t mSnapshotTextureCount;
-  std::deque<RefPtr<TextureObjectNVpr> > mSnapshotTexturePool;
+  size_t mScratchTextureCount;
+  std::deque<RefPtr<TextureObjectNVpr> > mScratchTexturePool;
   RefPtr<SourceSurfaceNVpr> mSnapshot;
   RefPtr<PathNVpr> mUnitSquarePath;
   enum ClipType { SCISSOR_CLIP_TYPE, PLANES_CLIP_TYPE, STENCIL_CLIP_TYPE };

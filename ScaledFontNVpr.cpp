@@ -25,15 +25,16 @@ bool operator <(const FontOptions& aLeft, const FontOptions& aRight)
   return aLeft.mName < aRight.mName;
 }
 
-struct FontCache
-  : public map<FontOptions, RefPtr<FontNVpr> >
-  , public nvpr::UserData::Object
-{};
-
 TemporaryRef<ScaledFontNVpr>
 ScaledFontNVpr::Create(const FontOptions* aFont, GLfloat aSize)
 {
+  struct FontCache
+    : public map<FontOptions, RefPtr<FontNVpr> >
+    , public nvpr::UserData::Object
+  {};
+
   FontCache& fontCache = gl->GetUserObject<FontCache>(&nvpr::UserData::mFonts);
+
   RefPtr<FontNVpr>& font = fontCache[*aFont];
   if (!font) {
     font = FontNVpr::Create(aFont);
