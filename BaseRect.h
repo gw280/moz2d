@@ -343,27 +343,28 @@ struct BaseRect {
     height = y1 - y0;
   }
 
-  // Scale 'this' by aScale.
-  void Scale(double aScale) { Scale(aScale, aScale); }
-  // Scale 'this' by aXScale and aYScale.
-  void Scale(double aXScale, double aYScale)
+  // Scale 'this' by aScale without doing any rounding.
+  void Scale(T aScale) { Scale(aScale, aScale); }
+  // Scale 'this' by aXScale and aYScale, without doing any rounding.
+  void Scale(T aXScale, T aYScale)
   {
-    T right = static_cast<T>(double(XMost()) * aXScale);
-    T bottom = static_cast<T>(double(YMost()) * aYScale);
-    x = static_cast<T>(double(x) * aXScale);
-    y = static_cast<T>(double(y) * aYScale);
+    T right = XMost() * aXScale;
+    T bottom = YMost() * aYScale;
+    x = x * aXScale;
+    y = y * aYScale;
     width = right - x;
     height = bottom - y;
   }
-  // Scale 'this' by 1/aScale.
-  void ScaleInverse(double aScale) { Scale(aScale, aScale); }
-  // Scale 'this' by 1/aXScale and 1/aYScale.
-  void ScaleInverse(double aXScale, double aYScale)
+
+  // Scale 'this' by aScale without doing any rounding.
+  void ScaleInverse(T aScale) { Scale(aScale, aScale); }
+  // Scale 'this' by aXScale and aYScale, without doing any rounding.
+  void ScaleInverse(T aXScale, T aYScale)
   {
-    T right = static_cast<T>(double(XMost()) / aXScale);
-    T bottom = static_cast<T>(double(YMost()) / aYScale);
-    x = static_cast<T>(double(x) / aXScale);
-    y = static_cast<T>(double(y) / aYScale);
+    T right = static_cast<T>(XMost() / aXScale);
+    T bottom = static_cast<T>(YMost() * aYScale);
+    x = static_cast<T>(x * aXScale);
+    y = static_cast<T>(y * aYScale);
     width = right - x;
     height = bottom - y;
   }
