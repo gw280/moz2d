@@ -9,6 +9,10 @@
 #include "TestScaling.h"
 #ifdef WIN32
 #include "TestDrawTargetD2D.h"
+#include "TestDrawTargetD2DRecording.h"
+#ifdef USE_D2D1_1
+#include "TestDrawTargetD2D1.h"
+#endif
 #endif
 #ifdef USE_CAIRO
 #include "TestDrawTargetCairoImage.h"
@@ -36,6 +40,10 @@ main()
     { new SanityChecks(), "Sanity Checks" },
   #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
+    { new TestDrawTargetD2DRecording(), "DrawTarget (D2D Recording)" },
+  #ifdef USE_D2D1_1
+    { new  TestDrawTargetD2D1(), "DrawTarget (D2D 1.1)" },
+  #endif
   #endif
   #ifdef USE_CAIRO
     { new TestDrawTargetCairoImage(), "DrawTarget (Cairo Image)" },

@@ -48,6 +48,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200SmallRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
+  REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter100x100Radius40);
 
   mGroup = GROUP_DRAWTARGETS;
 }
@@ -393,6 +394,26 @@ TestDrawTargetBase::DrawShadow200x200LargeRadius()
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, OP_OVER);
   }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawMorphologyFilter100x100Radius40()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+
+  filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(40, 40));
+  filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(100, 100), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(40, 40, 20, 20), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  mDT->DrawFilter(filter, Rect(0, 0, 100, 100), Point());
   Flush();
 }
 

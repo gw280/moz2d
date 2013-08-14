@@ -7,6 +7,7 @@
 #define MOZILLA_GFX_SOURCESURFACERAWDATA_H_
 
 #include "2D.h"
+#include "Tools.h"
 
 namespace mozilla {
 namespace gfx {
@@ -36,6 +37,28 @@ private:
   SurfaceFormat mFormat;
   IntSize mSize;
   bool mOwnData;
+};
+
+class SourceSurfaceAlignedRawData : public DataSourceSurface
+{
+public:
+  SourceSurfaceAlignedRawData() {}
+
+  virtual uint8_t *GetData() { return mArray; }
+  virtual int32_t Stride() { return mStride; }
+
+  virtual SurfaceType GetType() const { return SURFACE_DATA; }
+  virtual IntSize GetSize() const { return mSize; }
+  virtual SurfaceFormat GetFormat() const { return mFormat; }
+
+  bool Init(const IntSize &aSize,
+            SurfaceFormat aFormat);
+
+private:
+  AlignedArray<uint8_t> mArray;
+  int32_t mStride;
+  SurfaceFormat mFormat;
+  IntSize mSize;
 };
 
 }

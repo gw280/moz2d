@@ -54,6 +54,7 @@ public:
   void DrawShadow200x200SmallRadius();
   void DrawShadow10x10LargeRadius();
   void DrawShadow200x200LargeRadius();
+  void DrawMorphologyFilter100x100Radius40();
 
 protected:
   FlushFunc mFlush;

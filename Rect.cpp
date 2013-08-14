@@ -9,6 +9,7 @@
 namespace mozilla {
 namespace gfx {
 
+template<>
 void Rect::NudgeToIntegers()
 {
   NudgeToInteger(&x);

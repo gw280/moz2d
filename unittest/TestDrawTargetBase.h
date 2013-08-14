@@ -38,7 +38,25 @@ public:
   void Mask();
   void CopySurface();
   void Shadow();
-  
+  void RoundtripThroughA8MakesColorsBlack();
+  void ColorMatrix();
+  void Blend();
+  void Morphology();
+  void Flood();
+  void Tile();
+  void TableTransfer();
+  void DiscreteTransfer();
+  void LinearTransfer();
+  void GammaTransfer();
+  void ConvolveMatrixNone();
+  void ConvolveMatrixWrap();
+  void OffsetFilter();
+  void DisplacementMap();
+  void Turbulence();
+  void ArithmeticCombine();
+  void Composite();
+  void GaussianBlur();
+
 protected:
   TestDrawTargetBase();
   
