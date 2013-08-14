@@ -357,14 +357,14 @@ struct BaseRect {
   }
 
   // Scale 'this' by aScale without doing any rounding.
-  void ScaleInverse(T aScale) { Scale(aScale, aScale); }
+  void ScaleInverse(T aScale) { ScaleInverse(aScale, aScale); }
   // Scale 'this' by aXScale and aYScale, without doing any rounding.
   void ScaleInverse(T aXScale, T aYScale)
   {
     T right = static_cast<T>(XMost() / aXScale);
-    T bottom = static_cast<T>(YMost() * aYScale);
-    x = static_cast<T>(x * aXScale);
-    y = static_cast<T>(y * aYScale);
+    T bottom = static_cast<T>(YMost() / aYScale);
+    x = static_cast<T>(x / aXScale);
+    y = static_cast<T>(y / aYScale);
     width = right - x;
     height = bottom - y;
   }
