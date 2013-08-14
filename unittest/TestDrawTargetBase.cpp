@@ -32,6 +32,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, Mask);
   REGISTER_TEST(TestDrawTargetBase, CopySurface);
   REGISTER_TEST(TestDrawTargetBase, Shadow);
+  REGISTER_TEST(TestDrawTargetBase, RoundtripThroughA8MakesColorsBlack);
   REGISTER_TEST(TestDrawTargetBase, ColorMatrix);
   REGISTER_TEST(TestDrawTargetBase, Blend);
   REGISTER_TEST(TestDrawTargetBase, Morphology);
@@ -392,6 +393,24 @@ TestDrawTargetBase::Shadow()
   RefreshSnapshot();
 
   VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void TestDrawTargetBase::RoundtripThroughA8MakesColorsBlack()
+{
+  Rect r(0, 0, DT_WIDTH, DT_HEIGHT);
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<DrawTarget> rgbaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  rgbaDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.1f, 0.2f, 0.3f, 0.4f)));
+  RefPtr<SourceSurface> rgbaSrc = rgbaDT->Snapshot();
+  RefPtr<DrawTarget> alphaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_A8);
+  alphaDT->DrawSurface(rgbaSrc, r, r);
+  RefPtr<SourceSurface> alphaSrc = alphaDT->Snapshot();
+  mDT->DrawSurface(alphaSrc, r, r);
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0, 0, 0.4f));
 }
 
 void

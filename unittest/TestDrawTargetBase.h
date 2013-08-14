@@ -38,6 +38,7 @@ public:
   void Mask();
   void CopySurface();
   void Shadow();
+  void RoundtripThroughA8MakesColorsBlack();
   void ColorMatrix();
   void Blend();
   void Morphology();
