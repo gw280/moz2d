@@ -8,8 +8,7 @@
 #define MOZILLA_GFX_NVPR_GLX_H_
 
 #include "GL.h"
-#include <GL/glx.h>
-#include <GL/glxext.h>
+#include "GLXDefs.h"
 
 namespace mozilla {
 namespace gfx {
@@ -47,13 +46,13 @@ public:
   MACRO(QueryExtensionsString)
 
 #define DECLARE_GLX_METHOD(NAME) \
-  decltype(&glX##NAME) NAME;
+  GLX##NAME NAME;
 
   FOR_ALL_GLX_ENTRY_POINTS(DECLARE_GLX_METHOD);
 
 #undef DECLARE_GLX_METHOD
 
-  PFNGLXCOPYIMAGESUBDATANVPROC CopyImageSubDataNV;
+  GLXCopyImageSubDataNV CopyImageSubDataNV;
 
 private:
   template<typename C, typename T> bool

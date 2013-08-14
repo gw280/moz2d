@@ -64,11 +64,8 @@ GL::GL()
   , mStencilOp(LEAVE_UNCHANGED)
   , mStencilWriteMask(~0)
   , mPathStencilFuncBits(0)
-  , mBlendingEnabled(false)
-  , mSourceBlendFactorRGB(GL_ONE)
-  , mDestBlendFactorRGB(GL_ZERO)
-  , mSourceBlendFactorAlpha(GL_ONE)
-  , mDestBlendFactorAlpha(GL_ZERO)
+  , mBlendMode(OP_SOURCE)
+  , mMultisampleEnabled(true)
   , mShaderProgram(0)
 {
   mTransformIdStack.push(0);
@@ -83,6 +80,20 @@ void GL::Initialize()
 {
   MOZ_ASSERT(IsCurrent());
 
+  GLint majorVersion;
+  GetIntegerv(GL_MAJOR_VERSION, &majorVersion);
+  if (majorVersion < 4) {
+    return;
+  }
+
+  if (majorVersion == 4) {
+    GLint minorVersion;
+    GetIntegerv(GL_MINOR_VERSION, &minorVersion);
+    if (minorVersion < 3) {
+      return;
+    }
+  }
+
   memset(mSupportedExtensions, 0, sizeof(mSupportedExtensions));
   stringstream extensions(reinterpret_cast<const char*>(GetString(GL_EXTENSIONS)));
   istream_iterator<string> iter(extensions);
@@ -91,8 +102,18 @@ void GL::Initialize()
   for (; iter != end; iter++) {
     const string& extension = *iter;
 
+    if (*iter == "GL_EXT_texture_filter_anisotropic") {
+      mSupportedExtensions[EXT_texture_filter_anisotropic] = true;
+      continue;
+    }
+
     if (*iter == "GL_EXT_direct_state_access") {
       mSupportedExtensions[EXT_direct_state_access] = true;
+      continue;
+    }
+
+    if (*iter == "GL_ARB_texture_storage") {
+      mSupportedExtensions[ARB_texture_storage] = true;
       continue;
     }
 
@@ -101,20 +122,22 @@ void GL::Initialize()
       continue;
     }
 
-    if (*iter == "GL_EXT_framebuffer_multisample") {
-      mSupportedExtensions[EXT_framebuffer_multisample] = true;
+    if (*iter == "GL_NV_blend_equation_advanced") {
+      mSupportedExtensions[NV_blend_equation_advanced] = true;
       continue;
     }
 
-    if (*iter == "GL_EXT_framebuffer_blit") {
-      mSupportedExtensions[EXT_framebuffer_blit] = true;
+    if (*iter == "GL_NV_blend_equation_advanced_coherent") {
+      mSupportedExtensions[NV_blend_equation_advanced_coherent] = true;
       continue;
     }
+  }
 
-    if (*iter == "GL_EXT_texture_filter_anisotropic") {
-      mSupportedExtensions[EXT_texture_filter_anisotropic] = true;
-      continue;
-    }
+  if (!HasExtension(GL::EXT_direct_state_access)
+      || !HasExtension(GL::ARB_texture_storage)
+      || !HasExtension(GL::NV_path_rendering)
+      || !HasExtension(GL::NV_blend_equation_advanced)) {
+    return;
   }
 
   GetIntegerv(GL_MAX_RENDERBUFFER_SIZE, &mMaxRenderbufferSize);
@@ -136,6 +159,8 @@ void GL::Initialize()
   }
 
   EnableClientState(GL_VERTEX_ARRAY);
+
+  Enable(GL_BLEND);
 
   DebugMessageCallback(GLDebugCallback, nullptr);
   DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
@@ -542,50 +567,6 @@ GL::ConfigurePathStencilTest(GLubyte aClipBits)
 }
 
 void
-GL::EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
-                   GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!mBlendingEnabled) {
-    Enable(GL_BLEND);
-    mBlendingEnabled = true;
-  }
-
-  if (mSourceBlendFactorRGB != aSourceFactorRGB
-      || mDestBlendFactorRGB != aDestFactorRGB
-      || mSourceBlendFactorAlpha != aSourceFactorAlpha
-      || mDestBlendFactorAlpha != aDestFactorAlpha) {
-
-    if (aSourceFactorRGB == aSourceFactorAlpha
-        && aDestFactorRGB == aDestFactorAlpha) {
-      BlendFunc(aSourceFactorRGB, aDestFactorRGB);
-    } else {
-      BlendFuncSeparate(aSourceFactorRGB, aDestFactorRGB,
-                        aSourceFactorAlpha, aDestFactorAlpha);
-    }
-
-    mSourceBlendFactorRGB = aSourceFactorRGB;
-    mDestBlendFactorRGB = aDestFactorRGB;
-    mSourceBlendFactorAlpha = aSourceFactorAlpha;
-    mDestBlendFactorAlpha = aDestFactorAlpha;
-  }
-}
-
-void
-GL::DisableBlending()
-{
-  MOZ_ASSERT(IsCurrent());
-
-  if (!mBlendingEnabled) {
-    return;
-  }
-
-  Disable(GL_BLEND);
-  mBlendingEnabled = false;
-}
-
-void
 GL::SetShaderProgram(GLuint aShaderProgram)
 {
   MOZ_ASSERT(IsCurrent());
@@ -608,6 +589,78 @@ GL::DeleteShaderProgram(GLuint aShaderProgram)
   }
 
   DeleteProgram(aShaderProgram);
+}
+
+void
+GL::SetBlendMode(CompositionOp aBlendMode)
+{
+  if (mBlendMode == aBlendMode) {
+    return;
+  }
+
+  switch (aBlendMode) {
+    default: MOZ_ASSERT(!"Invalid blend mode");
+    case OP_OVER: BlendEquation(GL_SRC_OVER_NV); break;
+    case OP_ADD: BlendEquation(GL_PLUS_NV); break;
+    case OP_ATOP: BlendEquation(GL_SRC_ATOP_NV); break;
+    case OP_OUT: BlendEquation(GL_SRC_OUT_NV); break;
+    case OP_IN: BlendEquation(GL_SRC_IN_NV); break;
+    case OP_SOURCE: BlendEquation(GL_SRC_NV); break;
+    case OP_DEST_IN: BlendEquation(GL_DST_IN_NV); break;
+    case OP_DEST_OUT: BlendEquation(GL_DST_OUT_NV); break;
+    case OP_DEST_OVER: BlendEquation(GL_DST_OVER_NV); break;
+    case OP_DEST_ATOP: BlendEquation(GL_DST_ATOP_NV); break;
+    case OP_XOR: BlendEquation(GL_XOR); break;
+    case OP_MULTIPLY: BlendEquation(GL_MULTIPLY_NV); break;
+    case OP_SCREEN: BlendEquation(GL_SCREEN_NV); break;
+    case OP_OVERLAY: BlendEquation(GL_OVERLAY_NV); break;
+    case OP_DARKEN: BlendEquation(GL_DARKEN_NV); break;
+    case OP_LIGHTEN: BlendEquation(GL_LIGHTEN_NV); break;
+    case OP_COLOR_DODGE: BlendEquation(GL_COLORDODGE_NV); break;
+    case OP_COLOR_BURN: BlendEquation(GL_COLORBURN_NV); break;
+    case OP_HARD_LIGHT: BlendEquation(GL_HARDLIGHT_NV); break;
+    case OP_SOFT_LIGHT: BlendEquation(GL_SOFTLIGHT_NV); break;
+    case OP_DIFFERENCE: BlendEquation(GL_DIFFERENCE_NV); break;
+    case OP_EXCLUSION: BlendEquation(GL_EXCLUSION_NV); break;
+    case OP_HUE: BlendEquation(GL_HSL_HUE_NV); break;
+    case OP_SATURATION: BlendEquation(GL_HSL_SATURATION_NV); break;
+    case OP_COLOR: BlendEquation(GL_HSL_COLOR_NV); break;
+    case OP_LUMINOSITY: BlendEquation(GL_HSL_LUMINOSITY_NV); break;
+  }
+
+  mBlendMode = aBlendMode;
+}
+
+void
+GL::BlendBarrier()
+{
+  if (HasExtension(NV_blend_equation_advanced_coherent)) {
+    return;
+  }
+
+  BlendBarrierNV();
+}
+
+void
+GL::EnableMultisample()
+{
+  if (mMultisampleEnabled) {
+    return;
+  }
+
+  Enable(GL_MULTISAMPLE);
+  mMultisampleEnabled = true;
+}
+
+void
+GL::DisableMultisample()
+{
+  if (!mMultisampleEnabled) {
+    return;
+  }
+
+  Disable(GL_MULTISAMPLE);
+  mMultisampleEnabled = false;
 }
 
 void

@@ -5,10 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "WGL.h"
-
 #include "Logging.h"
-#include <Windows.h>
-#include "GL/wglext.h"
 #include <iterator>
 #include <iostream>
 #include <sstream>

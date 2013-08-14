@@ -7,15 +7,8 @@
 #ifndef MOZILLA_GFX_NVPR_GL_H_
 #define MOZILLA_GFX_NVPR_GL_H_
 
-#ifdef WIN32
-#define NOMINMAX
-#include <Windows.h>
-#undef NOMINMAX
-#endif
-
 #include "2D.h"
-#include <GL/gl.h>
-#include "GL/glext.h"
+#include "GLDefs.h"
 #include <memory>
 #include <stack>
 
@@ -49,11 +42,12 @@ public:
                                    void* aForeignContext, GLuint aForeignTextureId);
 
   enum Extension {
-    EXT_direct_state_access,
-    NV_path_rendering,
-    EXT_framebuffer_multisample,
-    EXT_framebuffer_blit,
     EXT_texture_filter_anisotropic,
+    EXT_direct_state_access,
+    ARB_texture_storage,
+    NV_path_rendering,
+    NV_blend_equation_advanced,
+    NV_blend_equation_advanced_coherent,
     EXTENSION_COUNT
   };
   bool HasExtension(Extension aExtension) const
@@ -136,16 +130,14 @@ public:
 
   void ConfigurePathStencilTest(GLubyte aClipBits);
 
-  void EnableBlending(GLenum aSourceFactorRGB, GLenum aDestFactorRGB,
-                      GLenum aSourceFactorAlpha, GLenum aDestFactorAlpha);
-  void EnableBlending(GLenum aSourceFactor, GLenum aDestFactor)
-  {
-    EnableBlending(aSourceFactor, aDestFactor, aSourceFactor, aDestFactor);
-  }
-  void DisableBlending();
-
   void SetShaderProgram(GLuint aShaderProgram);
   void DeleteShaderProgram(GLuint aShaderProgram);
+
+  void SetBlendMode(CompositionOp aBlendMode);
+  void BlendBarrier();
+
+  void EnableMultisample();
+  void DisableMultisample();
 
   enum TextureUnit { UNIT_0, UNIT_1, TEXTURE_UNIT_COUNT };
   void SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
@@ -198,11 +190,8 @@ private:
   StencilOperation mStencilOp;
   GLuint mStencilWriteMask;
   GLubyte mPathStencilFuncBits;
-  bool mBlendingEnabled;
-  GLenum mSourceBlendFactorRGB;
-  GLenum mDestBlendFactorRGB;
-  GLenum mSourceBlendFactorAlpha;
-  GLenum mDestBlendFactorAlpha;
+  CompositionOp mBlendMode;
+  bool mMultisampleEnabled;
   GLuint mShaderProgram;
   unsigned mTexGenComponents[TEXTURE_UNIT_COUNT];
   GLfloat mTexGenCoefficients[TEXTURE_UNIT_COUNT][6];
@@ -236,8 +225,6 @@ private:
   MACRO(DrawArrays) \
   MACRO(BlitFramebuffer) \
   MACRO(Rectf) \
-  MACRO(Enable) \
-  MACRO(Disable) \
   MACRO(GenFramebuffers) \
   MACRO(DeleteFramebuffers) \
   MACRO(PixelStorei) \
@@ -290,8 +277,9 @@ private:
   MACRO(StencilMask) \
   MACRO(ClearColor) \
   MACRO(UseProgram) \
-  MACRO(BlendFunc) \
-  MACRO(BlendFuncSeparate) \
+  MACRO(BlendEquation) \
+  MACRO(Enable) \
+  MACRO(Disable) \
   MACRO(Enablei) \
   MACRO(Disablei) \
   MACRO(VertexPointer) \
@@ -302,17 +290,18 @@ private:
   MACRO(MatrixLoadIdentityEXT) \
   MACRO(NamedFramebufferTexture1DEXT) \
   MACRO(NamedFramebufferTexture2DEXT) \
-  MACRO(MultiTexGenivEXT) \
+  MACRO(MultiTexGeniEXT) \
   MACRO(MultiTexGenfvEXT) \
   MACRO(BindMultiTextureEXT) \
   MACRO(EnableClientStateiEXT) \
   MACRO(DisableClientStateiEXT) \
   MACRO(MultiTexCoordPointerEXT) \
   MACRO(PathStencilFuncNV) \
-  MACRO(PathTexGenNV)
+  MACRO(PathTexGenNV) \
+  MACRO(BlendBarrierNV)
 
 #define DECLARE_GL_METHOD(NAME) \
-  decltype(&gl##NAME) NAME;
+  GL##NAME NAME;
 
 public:
   FOR_ALL_PUBLIC_GL_ENTRY_POINTS(DECLARE_GL_METHOD);
@@ -322,11 +311,6 @@ protected:
 
 #undef DECLARE_GL_METHOD
 
-  // WAR for http://nvbugs/1333774.
-  void MultiTexGeniEXT(GLenum texunit, GLenum coord, GLenum pname, GLint param)
-  {
-    MultiTexGenivEXT(texunit, coord, pname, &param);
-  }
   GL(const GL&);
   GL& operator =(const GL&);
 };
