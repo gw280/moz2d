@@ -391,34 +391,42 @@ private:
   CompositeOperator mOperator;
 };
 
-class FilterNodeGaussianBlurSoftware : public FilterNodeSoftware
+// Base class for FilterNodeGaussianBlurSoftware and
+// FilterNodeDirectionalBlurSoftware.
+class FilterNodeBlurXYSoftware : public FilterNodeSoftware
+{
+protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  IntRect InflatedSourceOrDestRect(const IntRect &aDestRect);
+
+  // Implemented by subclasses.
+  virtual Size StdDeviationXY() = 0;
+};
+
+class FilterNodeGaussianBlurSoftware : public FilterNodeBlurXYSoftware
 {
 public:
   FilterNodeGaussianBlurSoftware();
   virtual void SetAttribute(uint32_t aIndex, Float aStdDeviation) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
-  IntRect InflatedSourceOrDestRect(const IntRect &aDestRect);
+  virtual Size StdDeviationXY() MOZ_OVERRIDE;
 
 private:
   Float mStdDeviation;
 };
 
-class FilterNodeDirectionalBlurSoftware : public FilterNodeSoftware
+class FilterNodeDirectionalBlurSoftware : public FilterNodeBlurXYSoftware
 {
 public:
   FilterNodeDirectionalBlurSoftware();
   virtual void SetAttribute(uint32_t aIndex, Float aStdDeviation) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aBlurDirection) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
-  IntRect InflatedSourceOrDestRect(const IntRect &aDestRect);
+  virtual Size StdDeviationXY() MOZ_OVERRIDE;
 
 private:
   Float mStdDeviation;

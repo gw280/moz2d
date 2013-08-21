@@ -9,6 +9,7 @@
 #include "FilterNodeSoftware.h"
 #include "2D.h"
 #include "Tools.h"
+#include "Blur.h"
 #include <set>
 #include "SVGTurbulenceRenderer.h"
 
@@ -2563,7 +2564,7 @@ static uint32_t ComputeScaledDivisor(uint32_t aDivisor)
 static void
 BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
         int32_t aStrideMinor, int32_t aStartMinor, int32_t aEndMinor,
-        int32_t aLeftLobe, int32_t aRightLobe, bool aAlphaOnly)
+        int32_t aLeftLobe, int32_t aRightLobe)
 {
   int32_t boxSize = aLeftLobe + aRightLobe + 1;
   int32_t scaledDivisor = ComputeScaledDivisor(boxSize);
@@ -2586,14 +2587,14 @@ BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
 #define SUM(j)        sums[j] += nextInput[j] - lastInput[j];
     // process pixels in B, G, R, A order because that's 0, 1, 2, 3 for x86
 #define OUTPUT_PIXEL() \
-        if (!aAlphaOnly) { OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
-                           OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
-                           OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_R); } \
+        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
+        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
+        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_R); \
         OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
 #define SUM_PIXEL() \
-        if (!aAlphaOnly) { SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
-                           SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
-                           SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); } \
+        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
+        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
+        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); \
         SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
     for (int32_t minor = aStartMinor;
          minor < aStartMinor + aLeftLobe;
@@ -2633,9 +2634,9 @@ BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
       OUTPUT_PIXEL();
 #define SUM(j)     sums[j] += aInput[aStrideMinor*next + j] - \
                               aInput[aStrideMinor*last + j];
-      if (!aAlphaOnly) { SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B);
-                         SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G);
-                         SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); }
+      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B);
+      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G);
+      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R);
       SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
       aOutput += aStrideMinor;
 #undef SUM
@@ -2664,18 +2665,122 @@ InflateRectForBlurDXY(IntRect* aRect, uint32_t aDX, uint32_t aDY)
   aRect->Inflate(3*(aDX/2), 3*(aDY/2));
 }
 
-FilterNodeGaussianBlurSoftware::FilterNodeGaussianBlurSoftware()
- : mStdDeviation(0)
-{}
-
 int32_t
-FilterNodeGaussianBlurSoftware::InputIndex(uint32_t aInputEnumIndex)
+FilterNodeBlurXYSoftware::InputIndex(uint32_t aInputEnumIndex)
 {
   switch (aInputEnumIndex) {
     case IN_GAUSSIAN_BLUR_IN: return 0;
     default: return -1;
   }
 }
+
+TemporaryRef<DataSourceSurface>
+FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
+{
+  Size sigmaXY = StdDeviationXY();
+  uint32_t dx = GetBlurBoxSize(sigmaXY.width);
+  uint32_t dy = GetBlurBoxSize(sigmaXY.height);
+
+  if (dx == 0 && dy == 0) {
+    return GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, aRect);
+  }
+
+  IntRect srcRect = InflatedSourceOrDestRect(aRect);
+  RefPtr<DataSourceSurface> input =
+    GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, srcRect);
+  if (!input) {
+    return nullptr;
+  }
+
+  if (input->GetFormat() == FORMAT_A8) {
+    RefPtr<DataSourceSurface> target =
+      Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_A8);
+    CopyRect(input, target, IntRect(IntPoint(), input->GetSize()), IntPoint());
+    Rect r(0, 0, srcRect.width, srcRect.height);
+    AlphaBoxBlur blur(r, target->Stride(), sigmaXY.width, sigmaXY.height);
+    blur.Blur(target->GetData());
+    return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
+  }
+
+  RefPtr<DataSourceSurface> target1 =
+    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
+  RefPtr<DataSourceSurface> target2 =
+    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
+  if (!input || !target1 || !target2) {
+    return nullptr;
+  }
+
+  MOZ_ASSERT(target1->Stride() == target2->Stride(), "different stride!");
+
+  CopyRect(input, target1, IntRect(IntPoint(), input->GetSize()), IntPoint());
+
+  uint32_t stride = target1->Stride();
+
+  // Blur from target1 into target2.
+  if (dx == 0) {
+    // Swap target1 and target2.
+    RefPtr<DataSourceSurface> tmp = target1;
+    target1 = target2;
+    target2 = tmp;
+  } else {
+    uint8_t* target1Data = target1->GetData();
+    uint8_t* target2Data = target2->GetData();
+
+    int32_t longLobe = dx/2;
+    int32_t shortLobe = (dx & 1) ? longLobe : longLobe - 1;
+    for (int32_t major = 0; major < srcRect.height; ++major) {
+      int32_t ms = major*stride;
+      BoxBlur(target1Data + ms, target2Data + ms, 4, 0, srcRect.width, longLobe, shortLobe);
+      BoxBlur(target2Data + ms, target1Data + ms, 4, 0, srcRect.width, shortLobe, longLobe);
+      BoxBlur(target1Data + ms, target2Data + ms, 4, 0, srcRect.width, longLobe, longLobe);
+    }
+  }
+
+  // Blur from target2 into target1.
+  if (dy == 0) {
+    // Swap target1 and target2.
+    RefPtr<DataSourceSurface> tmp = target1;
+    target1 = target2;
+    target2 = tmp;
+  } else {
+    uint8_t* target1Data = target1->GetData();
+    uint8_t* target2Data = target2->GetData();
+
+    int32_t longLobe = dy/2;
+    int32_t shortLobe = (dy & 1) ? longLobe : longLobe - 1;
+    for (int32_t major = 0; major < srcRect.width; ++major) {
+      int32_t ms = major*4;
+      BoxBlur(target2Data + ms, target1Data + ms, stride, 0, srcRect.height, longLobe, shortLobe);
+      BoxBlur(target1Data + ms, target2Data + ms, stride, 0, srcRect.height, shortLobe, longLobe);
+      BoxBlur(target2Data + ms, target1Data + ms, stride, 0, srcRect.height, longLobe, longLobe);
+    }
+  }
+
+  // Return target1, cropped to the requested rect.
+  return GetDataSurfaceInRect(target1, srcRect, aRect, EDGE_MODE_NONE);
+}
+IntRect
+FilterNodeBlurXYSoftware::InflatedSourceOrDestRect(const IntRect &aDestRect)
+{
+  Size sigmaXY = StdDeviationXY();
+  uint32_t dx = GetBlurBoxSize(sigmaXY.width);
+  uint32_t dy = GetBlurBoxSize(sigmaXY.height);
+  IntRect srcRect = aDestRect;
+  InflateRectForBlurDXY(&srcRect, dx, dy);
+  return srcRect;
+}
+
+IntRect
+FilterNodeBlurXYSoftware::GetOutputRectInRect(const IntRect& aRect)
+{
+  IntRect srcRequest = InflatedSourceOrDestRect(aRect);
+  IntRect srcOutput = GetInputRectInRect(IN_GAUSSIAN_BLUR_IN, srcRequest);
+  return InflatedSourceOrDestRect(srcOutput).Intersect(aRect);
+}
+
+FilterNodeGaussianBlurSoftware::FilterNodeGaussianBlurSoftware()
+ : mStdDeviation(0)
+{}
 
 void
 FilterNodeGaussianBlurSoftware::SetAttribute(uint32_t aIndex,
@@ -2690,105 +2795,15 @@ FilterNodeGaussianBlurSoftware::SetAttribute(uint32_t aIndex,
   }
 }
 
-static void
-CopyDataRect(uint8_t *aDest, const uint8_t *aSrc, uint32_t aStride,
-             const IntRect& aDataRect)
+Size
+FilterNodeGaussianBlurSoftware::StdDeviationXY()
 {
-  for (int32_t y = aDataRect.y; y < aDataRect.YMost(); y++) {
-    memcpy(aDest + y * aStride + 4 * aDataRect.x,
-           aSrc + y * aStride + 4 * aDataRect.x,
-           4 * aDataRect.width);
-  }
-}
-
-TemporaryRef<DataSourceSurface>
-FilterNodeGaussianBlurSoftware::Render(const IntRect& aRect)
-{
-  uint32_t d = GetBlurBoxSize(mStdDeviation);
-
-  if (d == 0) {
-    return GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, aRect);
-  }
-
-  IntRect srcRect = InflatedSourceOrDestRect(aRect);
-  RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, srcRect);
-  RefPtr<DataSourceSurface> intermediateBuffer =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  if (!input || !intermediateBuffer || !target) {
-    return nullptr;
-  }
-
-  ClearDataSourceSurface(intermediateBuffer);
-  input = CloneForStride(input);
-  ClearDataSourceSurface(target);
-
-  // TODO: use this
-  bool alphaOnly = false;
-
-  uint8_t* sourceData = input->GetData();
-  uint8_t* tmp = intermediateBuffer->GetData();
-  uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
-
-#ifdef DEBUG
-  uint32_t sourceStride = input->Stride();
-  uint32_t tmpStride = intermediateBuffer->Stride();
-  MOZ_ASSERT(sourceStride == stride, "different strides");
-  MOZ_ASSERT(tmpStride == stride, "different strides");
-#endif
-
-  IntRect dataRect = srcRect - srcRect.TopLeft();
-
-  int32_t longLobe = d/2;
-  int32_t shortLobe = (d & 1) ? longLobe : longLobe - 1;
-  for (int32_t major = dataRect.y; major < dataRect.YMost(); ++major) {
-    int32_t ms = major*stride;
-    BoxBlur(sourceData + ms, tmp + ms, 4, dataRect.x, dataRect.XMost(), longLobe, shortLobe, alphaOnly);
-    BoxBlur(tmp + ms, targetData + ms, 4, dataRect.x, dataRect.XMost(), shortLobe, longLobe, alphaOnly);
-    BoxBlur(targetData + ms, tmp + ms, 4, dataRect.x, dataRect.XMost(), longLobe, longLobe, alphaOnly);
-  }
-  for (int32_t major = dataRect.x; major < dataRect.XMost(); ++major) {
-    int32_t ms = major*4;
-    BoxBlur(tmp + ms, targetData + ms, stride, dataRect.y, dataRect.YMost(), longLobe, shortLobe, alphaOnly);
-    BoxBlur(targetData + ms, tmp + ms, stride, dataRect.y, dataRect.YMost(), shortLobe, longLobe, alphaOnly);
-    BoxBlur(tmp + ms, targetData + ms, stride, dataRect.y, dataRect.YMost(), longLobe, longLobe, alphaOnly);
-  }
-
-  return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
-}
-
-IntRect
-FilterNodeGaussianBlurSoftware::InflatedSourceOrDestRect(const IntRect &aDestRect)
-{
-  uint32_t d = GetBlurBoxSize(mStdDeviation);
-  IntRect srcRect = aDestRect;
-  InflateRectForBlurDXY(&srcRect, d, d);
-  return srcRect;
-}
-
-IntRect
-FilterNodeGaussianBlurSoftware::GetOutputRectInRect(const IntRect& aRect)
-{
-  IntRect srcRequest = InflatedSourceOrDestRect(aRect);
-  IntRect srcOutput = GetInputRectInRect(IN_GAUSSIAN_BLUR_IN, srcRequest);
-  return InflatedSourceOrDestRect(srcOutput).Intersect(aRect);
+  return Size(mStdDeviation, mStdDeviation);
 }
 
 FilterNodeDirectionalBlurSoftware::FilterNodeDirectionalBlurSoftware()
  : mBlurDirection(BLUR_DIRECTION_X)
 {}
-
-int32_t
-FilterNodeDirectionalBlurSoftware::InputIndex(uint32_t aInputEnumIndex)
-{
-  switch (aInputEnumIndex) {
-    case IN_DIRECTIONAL_BLUR_IN: return 0;
-    default: return -1;
-  }
-}
 
 void
 FilterNodeDirectionalBlurSoftware::SetAttribute(uint32_t aIndex,
@@ -2816,82 +2831,12 @@ FilterNodeDirectionalBlurSoftware::SetAttribute(uint32_t aIndex,
   }
 }
 
-TemporaryRef<DataSourceSurface>
-FilterNodeDirectionalBlurSoftware::Render(const IntRect& aRect)
+Size
+FilterNodeDirectionalBlurSoftware::StdDeviationXY()
 {
-  IntRect srcRect = InflatedSourceOrDestRect(aRect);
-  RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_DIRECTIONAL_BLUR_IN, srcRect);
-  RefPtr<DataSourceSurface> intermediateBuffer =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  if (!input || !intermediateBuffer || !target) {
-    return nullptr;
-  }
-  input = CloneForStride(input);
-  ClearDataSourceSurface(intermediateBuffer);
-  ClearDataSourceSurface(target);
-
-  // TODO: use this
-  bool alphaOnly = false;
-
-  uint8_t* sourceData = input->GetData();
-  uint8_t* tmp = intermediateBuffer->GetData();
-  uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
-
-  // XXX This needs to be fixed.
-  uint32_t dx = mBlurDirection == BLUR_DIRECTION_X ? GetBlurBoxSize(mStdDeviation) : 0;
-  uint32_t dy = mBlurDirection == BLUR_DIRECTION_Y ? GetBlurBoxSize(mStdDeviation) : 0;
-
-  IntRect dataRect = srcRect - srcRect.TopLeft();
-
-  if (dx == 0) {
-    CopyDataRect(tmp, sourceData, stride, dataRect);
-  } else {
-    int32_t longLobe = dx/2;
-    int32_t shortLobe = (dx & 1) ? longLobe : longLobe - 1;
-    for (int32_t major = dataRect.y; major < dataRect.YMost(); ++major) {
-      int32_t ms = major*stride;
-      BoxBlur(sourceData + ms, tmp + ms, 4, dataRect.x, dataRect.XMost(), longLobe, shortLobe, alphaOnly);
-      BoxBlur(tmp + ms, targetData + ms, 4, dataRect.x, dataRect.XMost(), shortLobe, longLobe, alphaOnly);
-      BoxBlur(targetData + ms, tmp + ms, 4, dataRect.x, dataRect.XMost(), longLobe, longLobe, alphaOnly);
-    }
-  }
-
-  if (dy == 0) {
-    CopyDataRect(targetData, tmp, stride, dataRect);
-  } else {
-    int32_t longLobe = dy/2;
-    int32_t shortLobe = (dy & 1) ? longLobe : longLobe - 1;
-    for (int32_t major = dataRect.x; major < dataRect.XMost(); ++major) {
-      int32_t ms = major*4;
-      BoxBlur(tmp + ms, targetData + ms, stride, dataRect.y, dataRect.YMost(), longLobe, shortLobe, alphaOnly);
-      BoxBlur(targetData + ms, tmp + ms, stride, dataRect.y, dataRect.YMost(), shortLobe, longLobe, alphaOnly);
-      BoxBlur(tmp + ms, targetData + ms, stride, dataRect.y, dataRect.YMost(), longLobe, longLobe, alphaOnly);
-    }
-  }
-
-  return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
-}
-
-IntRect
-FilterNodeDirectionalBlurSoftware::InflatedSourceOrDestRect(const IntRect &aDestRect)
-{
-  uint32_t dx = mBlurDirection == BLUR_DIRECTION_X ? GetBlurBoxSize(mStdDeviation) : 0;
-  uint32_t dy = mBlurDirection == BLUR_DIRECTION_Y ? GetBlurBoxSize(mStdDeviation) : 0;
-  IntRect srcRect = aDestRect;
-  InflateRectForBlurDXY(&srcRect, dx, dy);
-  return srcRect;
-}
-
-IntRect
-FilterNodeDirectionalBlurSoftware::GetOutputRectInRect(const IntRect& aRect)
-{
-  IntRect srcRequest = InflatedSourceOrDestRect(aRect);
-  IntRect srcOutput = GetInputRectInRect(IN_DIRECTIONAL_BLUR_IN, srcRequest);
-  return InflatedSourceOrDestRect(srcOutput).Intersect(aRect);
+  float sigmaX = mBlurDirection == BLUR_DIRECTION_X ? mStdDeviation : 0;
+  float sigmaY = mBlurDirection == BLUR_DIRECTION_Y ? mStdDeviation : 0;
+  return Size(sigmaX, sigmaY);
 }
 
 int32_t
