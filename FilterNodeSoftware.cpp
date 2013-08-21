@@ -19,13 +19,14 @@ static void
 DumpAsPNG(SourceSurface* aSurface)
 {
   RefPtr<DataSourceSurface> dataSource = aSurface->GetDataSurface();
+  IntSize size = dataSource->GetSize();
   nsRefPtr<gfxImageSurface> imageSurface =
-    new gfxImageSurface(dataSource->GetData(), gfxIntSize(dataSource->GetSize().width, dataSource->GetSize().height),
+    new gfxImageSurface(dataSource->GetData(), gfxIntSize(size.width, size.height),
                         dataSource->Stride(), gfxASurface::ImageFormatARGB32);
   imageSurface->PrintAsDataURL();
 }
-}
-}
+} // namespace gfx
+} // namespace mozilla
 #endif
 
 const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_B = 0;
