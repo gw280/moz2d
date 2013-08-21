@@ -149,6 +149,13 @@ clamped(const T& a, const T& min, const T& max)
   return std::min(std::max(a, min), max);
 }
 
+// from xpcom/ds/nsMathUtils.h
+static int32_t
+NS_lround(double x)
+{
+  return x >= 0.0 ? int32_t(x + 0.5) : int32_t(x - 0.5);
+}
+
 void
 ClearDataSourceSurface(DataSourceSurface *aSurface)
 {
@@ -1387,10 +1394,10 @@ ColorToBGRA(const Color& aColor)
     uint32_t color;
     uint8_t components[4];
   };
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = round(aColor.r * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = round(aColor.g * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = round(aColor.b * aColor.a * 255.0f);
-  components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = round(aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = NS_lround(aColor.r * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = NS_lround(aColor.g * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = NS_lround(aColor.b * aColor.a * 255.0f);
+  components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] = NS_lround(aColor.a * 255.0f);
   return color;
 }
 
@@ -1425,7 +1432,7 @@ FilterNodeFloodSoftware::Render(const IntRect& aRect)
       targetData += stride;
     }
   } else if (format == FORMAT_A8) {
-    uint8_t alpha = round(mColor.a * 255.0f);
+    uint8_t alpha = NS_lround(mColor.a * 255.0f);
     for (int32_t y = 0; y < aRect.height; y++) {
       for (int32_t x = 0; x < aRect.width; x++) {
         targetData[x] = alpha;
@@ -1781,7 +1788,7 @@ FilterNodeDiscreteTransferSoftware::GenerateLookupTable(std::vector<Float>& aTab
     uint32_t k = (i * tvLength) / 255;
     k = std::min(k, tvLength - 1);
     Float v = aTableValues[k];
-    int32_t val = round(255 * v);
+    int32_t val = NS_lround(255 * v);
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
@@ -1863,7 +1870,7 @@ FilterNodeLinearTransferSoftware::GenerateLookupTable(Float aSlope,
                                                       uint8_t aTable[256])
 {
   for (size_t i = 0; i < 256; i++) {
-    int32_t val = round(aSlope * i + 255 * aIntercept);
+    int32_t val = NS_lround(aSlope * i + 255 * aIntercept);
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
@@ -1956,7 +1963,7 @@ FilterNodeGammaTransferSoftware::GenerateLookupTable(Float aAmplitude, Float aEx
                                                                       uint8_t aTable[256])
 {
   for (size_t i = 0; i < 256; i++) {
-    int32_t val = round(255 * (aAmplitude * pow(i / 255.0f, aExponent) + aOffset));
+    int32_t val = NS_lround(255 * (aAmplitude * pow(i / 255.0f, aExponent) + aOffset));
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
@@ -2238,9 +2245,9 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
 
   std::vector<int32_t> intKernel(kernel.size(), 0);
   for (size_t i = 0; i < kernel.size(); i++) {
-    intKernel[i] = round(kernel[i] * factorFromShifts);
+    intKernel[i] = NS_lround(kernel[i] * factorFromShifts);
   }
-  int32_t bias = round(mBias * 255 * factorFromShifts);
+  int32_t bias = NS_lround(mBias * 255 * factorFromShifts);
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
