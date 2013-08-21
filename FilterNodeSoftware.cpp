@@ -1382,24 +1382,46 @@ ColorToBGRA(const Color& aColor)
   return color;
 }
 
+static SurfaceFormat
+FormatForColor(Color aColor)
+{
+  if (aColor.r == 0 && aColor.g == 0 && aColor.b == 0) {
+    return FORMAT_A8;
+  }
+  return FORMAT_B8G8R8A8;
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeFloodSoftware::Render(const IntRect& aRect)
 {
+  SurfaceFormat format = FormatForColor(mColor);
   RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
+    Factory::CreateDataSourceSurface(aRect.Size(), format);
   if (!target) {
     return nullptr;
   }
 
-  uint32_t color = ColorToBGRA(mColor);
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  for (int32_t y = 0; y < aRect.height; y++) {
-    for (int32_t x = 0; x < aRect.width; x++) {
-      *((uint32_t*)targetData + x) = color;
+  if (format == FORMAT_B8G8R8A8) {
+    uint32_t color = ColorToBGRA(mColor);
+    for (int32_t y = 0; y < aRect.height; y++) {
+      for (int32_t x = 0; x < aRect.width; x++) {
+        *((uint32_t*)targetData + x) = color;
+      }
+      targetData += stride;
     }
-    targetData += stride;
+  } else if (format == FORMAT_A8) {
+    uint8_t alpha = round(mColor.a * 255.0f);
+    for (int32_t y = 0; y < aRect.height; y++) {
+      for (int32_t x = 0; x < aRect.width; x++) {
+        targetData[x] = alpha;
+      }
+      targetData += stride;
+    }
+  } else {
+    MOZ_CRASH();
   }
 
   return target;
