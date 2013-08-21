@@ -525,23 +525,35 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
                          const Point &aDestPoint,
                          const DrawOptions &aOptions)
 {
+#ifdef DEBUG_DUMP_SURFACES
+  printf("<pre>\nRendering...\n");
+#endif
+
   Rect renderRect = aSourceRect;
   renderRect.RoundOut();
   IntRect renderIntRect(int32_t(renderRect.x), int32_t(renderRect.y),
                         int32_t(renderRect.width), int32_t(renderRect.height));
-  renderIntRect = renderIntRect.Intersect(GetOutputRectInRect(renderIntRect));
-#ifdef DEBUG_DUMP_SURFACES
-  printf("<pre>\nRendering...\n");
-#endif
-  RefPtr<DataSourceSurface> result = GetOutput(renderIntRect);
+  IntRect outputRect = renderIntRect.Intersect(GetOutputRectInRect(renderIntRect));
+
+  // Render.
+  RefPtr<DataSourceSurface> result = GetOutput(outputRect);
   if (!result) {
     return;
   }
+
+  // Add transparency around outputRect in renderIntRect.
+  result = GetDataSurfaceInRect(result, outputRect, renderIntRect, EDGE_MODE_NONE);
+  if (!result) {
+    return;
+  }
+
 #ifdef DEBUG_DUMP_SURFACES
   printf("output:\n");
   printf("<img src='"); DumpAsPNG(result); printf("'>\n");
   printf("</pre>\n");
 #endif
+
+  // Draw.
   aDrawTarget->DrawSurface(result, Rect(aDestPoint, aSourceRect.Size()),
                            aSourceRect - renderIntRect.TopLeft(),
                            DrawSurfaceOptions(), aOptions);
