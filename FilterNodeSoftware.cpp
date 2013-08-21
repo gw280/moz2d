@@ -1322,7 +1322,7 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
           sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * rows[1][i] +
           sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
           sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
-          255 *                                                     rows[4][i];
+          255 *                                                       rows[4][i];
         static_assert(factor == 255 << 2, "Please adapt the calculation in the next line for a different factor.");
         col[i] = FastDivideBy255<int32_t>(umin(ClampToNonZero(col[i]), 255 * factor) >> 2);
       }
