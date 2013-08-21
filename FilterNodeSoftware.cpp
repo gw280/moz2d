@@ -2626,8 +2626,9 @@ FilterNodeCompositeSoftware::SetAttribute(uint32_t aIndex, uint32_t aCompositeOp
   Invalidate();
 }
 
+template<uint32_t aCompositeOperator>
 static void
-ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t aCompositeOperator)
+ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
 {
   IntSize size = aDest->GetSize();
 
@@ -2662,8 +2663,6 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest, uint32_t 
           case COMPOSITE_OPERATOR_XOR:
             val = cb * (255 - qa) + ca * (255 - qb);
             break;
-          default:
-            MOZ_CRASH();
         }
         destData[destIndex + i] =
           static_cast<uint8_t>(umin(FastDivideBy255<unsigned>(val), 255U));
@@ -2689,7 +2688,25 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
     if (!input) {
       return nullptr;
     }
-    ApplyComposition(input, dest, mOperator);
+    switch (mOperator) {
+      case COMPOSITE_OPERATOR_OVER:
+        ApplyComposition<COMPOSITE_OPERATOR_OVER>(input, dest);
+        break;
+      case COMPOSITE_OPERATOR_IN:
+        ApplyComposition<COMPOSITE_OPERATOR_IN>(input, dest);
+        break;
+      case COMPOSITE_OPERATOR_OUT:
+        ApplyComposition<COMPOSITE_OPERATOR_OUT>(input, dest);
+        break;
+      case COMPOSITE_OPERATOR_ATOP:
+        ApplyComposition<COMPOSITE_OPERATOR_ATOP>(input, dest);
+        break;
+      case COMPOSITE_OPERATOR_XOR:
+        ApplyComposition<COMPOSITE_OPERATOR_XOR>(input, dest);
+        break;
+      default:
+        MOZ_CRASH();
+    }
   }
   return dest;
 }
