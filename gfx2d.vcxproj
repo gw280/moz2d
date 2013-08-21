@@ -233,6 +233,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="SVGTurbulenceRenderer.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="UserData.h" />
@@ -308,6 +309,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="SVGTurbulenceRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile.in" />
