@@ -45,8 +45,8 @@ public:
   bool SetAttribute(uint32_t aIndex, Float) { return false; }
   bool SetAttribute(uint32_t aIndex, const Point3D &);
   void Prepare() {}
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+  Point3D GetInverseRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection);
 
 private:
   Point3D mPosition;
@@ -59,13 +59,13 @@ public:
   bool SetAttribute(uint32_t aIndex, Float);
   bool SetAttribute(uint32_t aIndex, const Point3D &);
   void Prepare();
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+  Point3D GetInverseRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection);
 
 private:
   Point3D mPosition;
   Point3D mPointsAt;
-  Point3D mCoreRayDirection;
+  Point3D mInverseCoreRayDirection;
   Float mSpecularFocus;
   Float mLimitingConeAngle;
   Float mLimitingConeCos;
@@ -78,13 +78,13 @@ public:
   bool SetAttribute(uint32_t aIndex, Float);
   bool SetAttribute(uint32_t aIndex, const Point3D &) { return false; }
   void Prepare();
-  Point3D GetRayDirection(const Point3D &aTargetPoint);
-  uint32_t GetColor(uint32_t aLightColor, const Point3D &aRayDirection);
+  Point3D GetInverseRayDirection(const Point3D &aTargetPoint);
+  uint32_t GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection);
 
 private:
   Float mAzimuth;
   Float mElevation;
-  Point3D mRayDirection;
+  Point3D mInverseRayDirection;
 };
 
 class DiffuseLightingSoftware
@@ -92,7 +92,7 @@ class DiffuseLightingSoftware
 public:
   DiffuseLightingSoftware();
   bool SetAttribute(uint32_t aIndex, Float);
-  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aInverseRayDirection,
                       uint32_t aColor);
 
 private:
@@ -104,7 +104,7 @@ class SpecularLightingSoftware
 public:
   SpecularLightingSoftware();
   bool SetAttribute(uint32_t aIndex, Float);
-  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aRayDirection,
+  uint32_t LightPixel(const Point3D &aNormal, const Point3D &aInverseRayDirection,
                       uint32_t aColor);
 
 private:
@@ -3320,13 +3320,13 @@ FilterNodeLightingSoftware<LightType, LightingType>::GetOutputRectInRect(const I
 }
 
 Point3D
-PointLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
+PointLightSoftware::GetInverseRayDirection(const Point3D &aTargetPoint)
 {
   return NORMALIZE(mPosition - aTargetPoint);
 }
 
 uint32_t
-PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
+PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection)
 {
   return aLightColor;
 }
@@ -3334,26 +3334,26 @@ PointLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
 void
 SpotLightSoftware::Prepare()
 {
-  mCoreRayDirection = NORMALIZE(mPointsAt - mPosition);
+  mInverseCoreRayDirection = NORMALIZE(mPointsAt - mPosition);
   const float radPerDeg = static_cast<float>(M_PI/180.0);
   mLimitingConeCos = std::max<double>(cos(mLimitingConeAngle * radPerDeg), 0.0);
 }
 
 Point3D
-SpotLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
+SpotLightSoftware::GetInverseRayDirection(const Point3D &aTargetPoint)
 {
   return NORMALIZE(mPosition - aTargetPoint);
 }
 
 uint32_t
-SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
+SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection)
 {
   union {
     uint32_t color;
     uint8_t colorC[4];
   };
   color = aLightColor;
-  Float dot = -aRayDirection.DotProduct(mCoreRayDirection);
+  Float dot = -aInverseRayDirection.DotProduct(mInverseCoreRayDirection);
   Float tmp = dot < mLimitingConeCos ? 0 : pow(dot, mSpecularFocus);
   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = uint8_t(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] * tmp);
   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = uint8_t(colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] * tmp);
@@ -3366,19 +3366,19 @@ void
 DistantLightSoftware::Prepare()
 {
   const float radPerDeg = static_cast<float>(M_PI/180.0);
-  mRayDirection.x = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  mRayDirection.y = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
-  mRayDirection.z = sin(mElevation * radPerDeg);
+  mInverseRayDirection.x = cos(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  mInverseRayDirection.y = sin(mAzimuth * radPerDeg) * cos(mElevation * radPerDeg);
+  mInverseRayDirection.z = sin(mElevation * radPerDeg);
 }
 
 Point3D
-DistantLightSoftware::GetRayDirection(const Point3D &aTargetPoint)
+DistantLightSoftware::GetInverseRayDirection(const Point3D &aTargetPoint)
 {
-  return mRayDirection;
+  return mInverseRayDirection;
 }
 
 uint32_t
-DistantLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aRayDirection)
+DistantLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aInverseRayDirection)
 {
   return aLightColor;
 }
@@ -3524,7 +3524,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
       IntPoint pointInFilterSpace(aRect.x + x, aRect.y + y);
       Float Z = mSurfaceScale * sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] / 255.0f;
       Point3D pt(pointInFilterSpace.x, pointInFilterSpace.y, Z);
-      Point3D rayDir = mLight.GetRayDirection(pt);
+      Point3D rayDir = mLight.GetInverseRayDirection(pt);
       uint32_t color = mLight.GetColor(lightColor, rayDir);
 
       *(uint32_t*)(targetData + targetIndex) = mLighting.LightPixel(normal, rayDir, color);
@@ -3554,10 +3554,10 @@ DiffuseLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 
 uint32_t
 DiffuseLightingSoftware::LightPixel(const Point3D &aNormal,
-                                    const Point3D &aRayDirection,
+                                    const Point3D &aInverseRayDirection,
                                     uint32_t aColor)
 {
-  float diffuseNL = mDiffuseConstant * aNormal.DotProduct(aRayDirection);
+  float diffuseNL = mDiffuseConstant * aNormal.DotProduct(aInverseRayDirection);
 
   if (diffuseNL < 0) diffuseNL = 0;
 
@@ -3600,10 +3600,10 @@ SpecularLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 
 uint32_t
 SpecularLightingSoftware::LightPixel(const Point3D &aNormal,
-                                     const Point3D &aRayDirection,
+                                     const Point3D &aInverseRayDirection,
                                      uint32_t aColor)
 {
-  Point3D H = aRayDirection;
+  Point3D H = aInverseRayDirection;
   H.z += 1;
   H.Normalize();
 
