@@ -15,10 +15,31 @@ namespace gfx {
 class DataSourceSurface;
 class DrawTarget;
 struct DrawOptions;
+class FilterNodeSoftware;
 
-class FilterNodeSoftware : public FilterNode
+/**
+ * Can be attached to FilterNodeSoftware instances using
+ * AddInvalidationListener. FilterInvalidated is called whenever the output of
+ * the observed filter may have changed; that is, whenever cached GetOutput()
+ * results (and results derived from them) need to discarded.
+ */
+class FilterInvalidationListener
 {
 public:
+  virtual void FilterInvalidated(FilterNodeSoftware* aFilter) = 0;
+};
+
+/**
+ * This is base class for the software (i.e. pure CPU, non-accelerated)
+ * FilterNode implementation. The software implementation is backend-agnostic,
+ * so it can be used as a fallback for all DrawTarget implementations.
+ */
+class FilterNodeSoftware : public FilterNode,
+                           public FilterInvalidationListener
+{
+public:
+  virtual ~FilterNodeSoftware();
+
   static TemporaryRef<FilterNode> Create(FilterType aType);
 
   void Draw(DrawTarget* aDrawTarget, const Rect &aSourceRect,
@@ -27,6 +48,12 @@ public:
   virtual FilterBackend GetBackendType() MOZ_OVERRIDE { return FILTER_BACKEND_SOFTWARE; }
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) MOZ_OVERRIDE;
   virtual void SetInput(uint32_t aIndex, FilterNode *aFilter) MOZ_OVERRIDE;
+
+  virtual void AddInvalidationListener(FilterInvalidationListener* aListener);
+  virtual void RemoveInvalidationListener(FilterInvalidationListener* aListener);
+
+  // FilterInvalidationListener implementation
+  virtual void FilterInvalidated(FilterNodeSoftware* aFilter);
 
 protected:
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface, FilterNodeSoftware *aFilter);
@@ -111,6 +138,12 @@ protected:
 
   size_t NumberOfSetInputs();
 
+  /**
+   * Discard the cached surface that was stored in the GetOutput default
+   * implementation. Needs to be called whenever attributes or inputs are set
+   * that might change the result of a Render() call.
+   */
+  void Invalidate();
 
   /**
    * Called in order to let this filter know what to cache during the next
@@ -121,6 +154,14 @@ protected:
 private:
   std::vector<RefPtr<SourceSurface> > mInputSurfaces;
   std::vector<RefPtr<FilterNodeSoftware> > mInputFilters;
+
+  /**
+   * Weak pointers to our invalidation listeners, i.e. to those filters who
+   * have this filter as an input. Invalidation listeners are required to
+   * unsubscribe themselves from us when they let go of their reference to us.
+   * This ensures that the pointers in this array are never stale.
+   */
+  std::vector<FilterInvalidationListener*> mInvalidationListeners;
 
   /**
    * Stores the rect which we want to render and cache on the next call to

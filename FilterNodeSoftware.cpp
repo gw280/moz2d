@@ -751,6 +751,52 @@ FilterNodeSoftware::NumberOfSetInputs()
 }
 
 void
+FilterNodeSoftware::AddInvalidationListener(FilterInvalidationListener* aListener)
+{
+  MOZ_ASSERT(aListener, "null listener");
+  mInvalidationListeners.push_back(aListener);
+}
+
+void
+FilterNodeSoftware::RemoveInvalidationListener(FilterInvalidationListener* aListener)
+{
+  MOZ_ASSERT(aListener, "null listener");
+  std::vector<FilterInvalidationListener*>::iterator it =
+    std::find(mInvalidationListeners.begin(), mInvalidationListeners.end(), aListener);
+  mInvalidationListeners.erase(it);
+}
+
+void
+FilterNodeSoftware::FilterInvalidated(FilterNodeSoftware* aFilter)
+{
+  Invalidate();
+}
+
+void
+FilterNodeSoftware::Invalidate()
+{
+  mCachedOutput = nullptr;
+  mCachedRect = IntRect();
+  for (std::vector<FilterInvalidationListener*>::iterator it = mInvalidationListeners.begin();
+       it != mInvalidationListeners.end(); it++) {
+    (*it)->FilterInvalidated(this);
+  }
+}
+
+FilterNodeSoftware::~FilterNodeSoftware()
+{
+  MOZ_ASSERT(!mInvalidationListeners.size(),
+             "All invalidation listeners should have unsubscribed themselves by now!");
+
+  for (std::vector<RefPtr<FilterNodeSoftware> >::iterator it = mInputFilters.begin();
+       it != mInputFilters.end(); it++) {
+    if (*it) {
+      (*it)->RemoveInvalidationListener(this);
+    }
+  }
+}
+
+void
 FilterNodeSoftware::SetInput(uint32_t aIndex, FilterNode *aFilter)
 {
   if (aFilter->GetBackendType() != FILTER_BACKEND_SOFTWARE) {
@@ -783,7 +829,14 @@ FilterNodeSoftware::SetInput(uint32_t aInputEnumIndex,
     mInputFilters.resize(inputIndex + 1);
   }
   mInputSurfaces[inputIndex] = aSurface;
+  if (mInputFilters[inputIndex]) {
+    mInputFilters[inputIndex]->RemoveInvalidationListener(this);
+  }
+  if (aFilter) {
+    aFilter->AddInvalidationListener(this);
+  }
   mInputFilters[inputIndex] = aFilter;
+  Invalidate();
 }
 
 FilterNodeBlendSoftware::FilterNodeBlendSoftware()
@@ -805,6 +858,7 @@ FilterNodeBlendSoftware::SetAttribute(uint32_t aIndex, uint32_t aBlendMode)
 {
   MOZ_ASSERT(aIndex == ATT_BLEND_BLENDMODE);
   mBlendMode = static_cast<BlendMode>(aBlendMode);
+  Invalidate();
 }
 
 static TemporaryRef<DataSourceSurface>
@@ -929,6 +983,7 @@ FilterNodeMorphologySoftware::SetAttribute(uint32_t aIndex,
   MOZ_ASSERT(aIndex == ATT_MORPHOLOGY_RADII);
   mRadii.width = clamped(aRadii.width, 0, 100000);
   mRadii.height = clamped(aRadii.height, 0, 100000);
+  Invalidate();
 }
 
 void
@@ -937,6 +992,7 @@ FilterNodeMorphologySoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_MORPHOLOGY_OPERATOR);
   mOperator = static_cast<MorphologyOperator>(aOperator);
+  Invalidate();
 }
 
 template<MorphologyOperator Operator>
@@ -1213,6 +1269,7 @@ FilterNodeColorMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_COLOR_MATRIX_MATRIX);
   mMatrix = aMatrix;
+  Invalidate();
 }
 
 static int32_t
@@ -1368,6 +1425,7 @@ FilterNodeTileSoftware::SetAttribute(uint32_t aIndex,
   MOZ_ASSERT(aIndex == ATT_TILE_SOURCE_RECT);
   mSourceRect = IntRect(int32_t(aSourceRect.x), int32_t(aSourceRect.y),
                         int32_t(aSourceRect.width), int32_t(aSourceRect.height));
+  Invalidate();
 }
 
 TemporaryRef<DataSourceSurface>
@@ -1429,6 +1487,7 @@ FilterNodeComponentTransferSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1578,6 +1637,7 @@ FilterNodeTableTransferSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1646,6 +1706,7 @@ FilterNodeDiscreteTransferSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1734,6 +1795,7 @@ FilterNodeLinearTransferSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1827,6 +1889,7 @@ FilterNodeGammaTransferSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1886,6 +1949,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_KERNEL_SIZE);
   mKernelSize = aKernelSize;
+  Invalidate();
 }
 
 void
@@ -1895,6 +1959,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_KERNEL_MATRIX);
   mKernelMatrix = std::vector<Float>(aMatrix, aMatrix + aSize);
+  Invalidate();
 }
 
 void
@@ -1910,6 +1975,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex, Float aValue)
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1922,6 +1988,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex, const Size &aKer
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -1930,6 +1997,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_TARGET);
   mTarget = aTarget;
+  Invalidate();
 }
 
 void
@@ -1938,6 +2006,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_EDGE_MODE);
   mEdgeMode = static_cast<ConvolveMatrixEdgeMode>(aEdgeMode);
+  Invalidate();
 }
 
 void
@@ -1946,6 +2015,7 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA);
   mPreserveAlpha = aPreserveAlpha;
+  Invalidate();
 }
 
 static uint8_t
@@ -2206,6 +2276,7 @@ FilterNodeOffsetSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_OFFSET_OFFSET);
   mOffset = aOffset;
+  Invalidate();
 }
 
 TemporaryRef<DataSourceSurface>
@@ -2248,6 +2319,7 @@ FilterNodeDisplacementMapSoftware::SetAttribute(uint32_t aIndex,
 {
   MOZ_ASSERT(aIndex == ATT_DISPLACEMENT_MAP_SCALE);
   mScale = aScale;
+  Invalidate();
 }
 
 void
@@ -2263,6 +2335,7 @@ FilterNodeDisplacementMapSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 TemporaryRef<DataSourceSurface>
@@ -2365,6 +2438,7 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const Size &aBaseFre
       MOZ_CRASH();
       break;
   }
+  Invalidate();
 }
 
 void
@@ -2372,6 +2446,7 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, bool aStitchable)
 {
   MOZ_ASSERT(aIndex == ATT_TURBULENCE_STITCHABLE);
   mStitchable = aStitchable;
+  Invalidate();
 }
 
 void
@@ -2391,6 +2466,7 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue)
       MOZ_CRASH();
       break;
   }
+  Invalidate();
 }
 
 template<TurbulenceType aType, bool aStitchable>
@@ -2470,6 +2546,8 @@ FilterNodeArithmeticCombineSoftware::SetAttribute(uint32_t aIndex,
   mK2 = aFloat[1];
   mK3 = aFloat[2];
   mK4 = aFloat[3];
+
+  Invalidate();
 }
 
 TemporaryRef<DataSourceSurface>
@@ -2544,6 +2622,7 @@ FilterNodeCompositeSoftware::SetAttribute(uint32_t aIndex, uint32_t aCompositeOp
 {
   MOZ_ASSERT(aIndex == ATT_COMPOSITE_OPERATOR);
   mOperator = static_cast<CompositeOperator>(aCompositeOperator);
+  Invalidate();
 }
 
 static void
@@ -2911,6 +2990,7 @@ FilterNodeGaussianBlurSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 Size
@@ -2934,6 +3014,7 @@ FilterNodeDirectionalBlurSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 void
@@ -2947,6 +3028,7 @@ FilterNodeDirectionalBlurSoftware::SetAttribute(uint32_t aIndex,
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 Size
@@ -2975,6 +3057,7 @@ FilterNodeCropSoftware::SetAttribute(uint32_t aIndex,
   srcRect.Round();
   mCropRect = IntRect(int32_t(srcRect.x), int32_t(srcRect.y),
                       int32_t(srcRect.width), int32_t(srcRect.height));
+  Invalidate();
 }
 
 TemporaryRef<DataSourceSurface>
@@ -3270,6 +3353,7 @@ void
 FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aIndex, const Point3D &aPoint)
 {
   if (mLight.SetAttribute(aIndex, aPoint)) {
+    Invalidate();
     return;
   }
   MOZ_CRASH();
@@ -3281,6 +3365,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aInde
 {
   if (mLight.SetAttribute(aIndex, aValue) ||
       mLighting.SetAttribute(aIndex, aValue)) {
+    Invalidate();
     return;
   }
   switch (aIndex) {
@@ -3290,6 +3375,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aInde
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 template<typename LightType, typename LightingType>
@@ -3303,6 +3389,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aInde
     default:
       MOZ_CRASH();
   }
+  Invalidate();
 }
 
 template<typename LightType, typename LightingType>
@@ -3311,6 +3398,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::SetAttribute(uint32_t aInde
 {
   MOZ_ASSERT(aIndex == ATT_LIGHTING_COLOR);
   mColor = aColor;
+  Invalidate();
 }
 
 template<typename LightType, typename LightingType>
