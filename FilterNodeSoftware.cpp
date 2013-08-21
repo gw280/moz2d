@@ -1330,46 +1330,6 @@ FilterNodeTileSoftware::GetOutputRectInRect(const IntRect& aRect)
   return aRect;
 }
 
-template<ptrdiff_t ComponentOffset>
-static void CopyComponent(DataSourceSurface* aInput, DataSourceSurface* aTarget)
-{
-  IntSize size = aInput->GetSize();
-
-  uint8_t* sourceData = aInput->GetData();
-  uint8_t* targetData = aTarget->GetData();
-  uint32_t sourceStride = aInput->Stride();
-  uint32_t targetStride = aTarget->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      uint32_t sourceIndex = y * sourceStride + x * 4 + ComponentOffset;
-      uint32_t targetIndex = y * targetStride + x * 4 + ComponentOffset;
-      targetData[targetIndex] = sourceData[sourceIndex];
-    }
-  }
-}
-
-template<ptrdiff_t ComponentOffset>
-static void TransferComponent(DataSourceSurface* aInput,
-                              DataSourceSurface* aTarget,
-                              uint8_t aLookupTable[256])
-{
-  IntSize size = aInput->GetSize();
-
-  uint8_t* sourceData = aInput->GetData();
-  uint8_t* targetData = aTarget->GetData();
-  uint32_t sourceStride = aInput->Stride();
-  uint32_t targetStride = aTarget->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      uint32_t sourceIndex = y * sourceStride + x * 4 + ComponentOffset;
-      uint32_t targetIndex = y * targetStride + x * 4 + ComponentOffset;
-      targetData[targetIndex] = aLookupTable[sourceData[sourceIndex]];
-    }
-  }
-}
-
 FilterNodeComponentTransferSoftware::FilterNodeComponentTransferSoftware()
  : mDisableR(true)
  , mDisableG(true)
@@ -1377,36 +1337,128 @@ FilterNodeComponentTransferSoftware::FilterNodeComponentTransferSoftware()
  , mDisableA(true)
 {}
 
-template<ptrdiff_t ComponentOffset>
+void
+FilterNodeComponentTransferSoftware::SetAttribute(uint32_t aIndex,
+                                                  bool aDisable)
+{
+  switch (aIndex) {
+    case ATT_TRANSFER_DISABLE_R:
+      mDisableR = aDisable;
+      break;
+    case ATT_TRANSFER_DISABLE_G:
+      mDisableG = aDisable;
+      break;
+    case ATT_TRANSFER_DISABLE_B:
+      mDisableB = aDisable;
+      break;
+    case ATT_TRANSFER_DISABLE_A:
+      mDisableA = aDisable;
+      break;
+    default:
+      MOZ_CRASH();
+  }
+}
+
+void
+FilterNodeComponentTransferSoftware::MaybeGenerateLookupTable(ptrdiff_t aComponent,
+                                                              uint8_t aTable[256],
+                                                              bool aDisabled)
+{
+  if (!aDisabled) {
+    GenerateLookupTable(aComponent, aTable);
+  }
+}
+
+template<ptrdiff_t ComponentOffset, uint32_t BytesPerPixel, bool Disabled>
+static void TransferComponent(DataSourceSurface* aInput,
+                              DataSourceSurface* aTarget,
+                              uint8_t aLookupTable[256])
+{
+  MOZ_ASSERT(aInput->GetFormat() == aTarget->GetFormat(), "different formats");
+  IntSize size = aInput->GetSize();
+
+  uint8_t* sourceData = aInput->GetData();
+  uint8_t* targetData = aTarget->GetData();
+  uint32_t sourceStride = aInput->Stride();
+  uint32_t targetStride = aTarget->Stride();
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
+      uint32_t sourceIndex = y * sourceStride + x * BytesPerPixel + ComponentOffset;
+      uint32_t targetIndex = y * targetStride + x * BytesPerPixel + ComponentOffset;
+      if (Disabled) {
+        targetData[targetIndex] = sourceData[sourceIndex];
+      } else {
+        targetData[targetIndex] = aLookupTable[sourceData[sourceIndex]];
+      }
+    }
+  }
+}
+
+template<ptrdiff_t ComponentOffset, uint32_t BytesPerPixel>
 void
 FilterNodeComponentTransferSoftware::ApplyComponentTransfer(DataSourceSurface* aInput,
                                                             DataSourceSurface* aTarget,
+                                                            uint8_t aLookupTable[256],
                                                             bool aDisabled)
 {
   if (aDisabled) {
-    CopyComponent<ComponentOffset>(aInput, aTarget);
+    TransferComponent<ComponentOffset, BytesPerPixel, true>(aInput, aTarget, aLookupTable);
   } else {
-    uint8_t lookupTable[256];
-    GenerateLookupTable(ComponentOffset, lookupTable);
-    TransferComponent<ComponentOffset>(aInput, aTarget, lookupTable);
+    TransferComponent<ComponentOffset, BytesPerPixel, false>(aInput, aTarget, aLookupTable);
   }
+}
+
+static bool
+NeedColorChannelsForComponent(uint8_t aLookupTable[256], bool aDisabled)
+{
+  return !aDisabled && (aLookupTable[0] != 0);
 }
 
 TemporaryRef<DataSourceSurface>
 FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
 {
+  if (mDisableR && mDisableG && mDisableB && mDisableA) {
+    return GetInputDataSourceSurface(IN_TRANSFER_IN, aRect);
+  }
+
+  uint8_t lookupTableR[256], lookupTableG[256], lookupTableB[256], lookupTableA[256];
+  MaybeGenerateLookupTable(B8G8R8A8_COMPONENT_BYTEOFFSET_R, lookupTableR, mDisableR);
+  MaybeGenerateLookupTable(B8G8R8A8_COMPONENT_BYTEOFFSET_G, lookupTableG, mDisableG);
+  MaybeGenerateLookupTable(B8G8R8A8_COMPONENT_BYTEOFFSET_B, lookupTableB, mDisableB);
+  MaybeGenerateLookupTable(B8G8R8A8_COMPONENT_BYTEOFFSET_A, lookupTableA, mDisableA);
+
+  bool needColorChannels =
+    NeedColorChannelsForComponent(lookupTableR, mDisableR) ||
+    NeedColorChannelsForComponent(lookupTableG, mDisableG) ||
+    NeedColorChannelsForComponent(lookupTableB, mDisableB);
+  FormatHint pref = needColorChannels ? NEED_COLOR_CHANNELS : CAN_HANDLE_A8;
+
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_TABLE_TRANSFER_IN, aRect);
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
-  if (!input || !target) {
+    GetInputDataSourceSurface(IN_TRANSFER_IN, aRect, pref);
+  if (!input) {
     return nullptr;
   }
 
-  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_R>(input, target, mDisableR);
-  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_G>(input, target, mDisableG);
-  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_B>(input, target, mDisableB);
-  ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_A>(input, target, mDisableA);
+  SurfaceFormat format = input->GetFormat();
+  if (format == FORMAT_A8 && mDisableA) {
+    return input;
+  }
+
+  RefPtr<DataSourceSurface> target =
+    Factory::CreateDataSourceSurface(aRect.Size(), format);
+  if (!target) {
+    return nullptr;
+  }
+
+  if (format == FORMAT_A8) {
+    ApplyComponentTransfer<0,1>(input, target, lookupTableA, false);
+  } else {
+    ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_R,4>(input, target, lookupTableR, mDisableR);
+    ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_G,4>(input, target, lookupTableG, mDisableG);
+    ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_B,4>(input, target, lookupTableB, mDisableB);
+    ApplyComponentTransfer<B8G8R8A8_COMPONENT_BYTEOFFSET_A,4>(input, target, lookupTableA, mDisableA);
+  }
 
   return target;
 }
@@ -1414,37 +1466,15 @@ FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
 IntRect
 FilterNodeComponentTransferSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
-  return GetInputRectInRect(IN_COLOR_MATRIX_IN, aRect);
+  return GetInputRectInRect(IN_TRANSFER_IN, aRect);
 }
 
 int32_t
-FilterNodeTableTransferSoftware::InputIndex(uint32_t aInputEnumIndex)
+FilterNodeComponentTransferSoftware::InputIndex(uint32_t aInputEnumIndex)
 {
   switch (aInputEnumIndex) {
-    case IN_TABLE_TRANSFER_IN: return 0;
+    case IN_TRANSFER_IN: return 0;
     default: return -1;
-  }
-}
-
-void
-FilterNodeTableTransferSoftware::SetAttribute(uint32_t aIndex,
-                                              bool aDisable)
-{
-  switch (aIndex) {
-    case ATT_TABLE_TRANSFER_DISABLE_R:
-      mDisableR = aDisable;
-      break;
-    case ATT_TABLE_TRANSFER_DISABLE_G:
-      mDisableG = aDisable;
-      break;
-    case ATT_TABLE_TRANSFER_DISABLE_B:
-      mDisableB = aDisable;
-      break;
-    case ATT_TABLE_TRANSFER_DISABLE_A:
-      mDisableA = aDisable;
-      break;
-    default:
-      MOZ_CRASH();
   }
 }
 
@@ -1513,37 +1543,6 @@ FilterNodeTableTransferSoftware::GenerateLookupTable(std::vector<Float>& aTableV
     val = std::min(255, val);
     val = std::max(0, val);
     aTable[i] = val;
-  }
-}
-
-int32_t
-FilterNodeDiscreteTransferSoftware::InputIndex(uint32_t aInputEnumIndex)
-{
-  switch (aInputEnumIndex) {
-    case IN_DISCRETE_TRANSFER_IN: return 0;
-    default: return -1;
-  }
-}
-
-void
-FilterNodeDiscreteTransferSoftware::SetAttribute(uint32_t aIndex,
-                                               bool aDisable)
-{
-  switch (aIndex) {
-    case ATT_DISCRETE_TRANSFER_DISABLE_R:
-      mDisableR = aDisable;
-      break;
-    case ATT_DISCRETE_TRANSFER_DISABLE_G:
-      mDisableG = aDisable;
-      break;
-    case ATT_DISCRETE_TRANSFER_DISABLE_B:
-      mDisableB = aDisable;
-      break;
-    case ATT_DISCRETE_TRANSFER_DISABLE_A:
-      mDisableA = aDisable;
-      break;
-    default:
-      MOZ_CRASH();
   }
 }
 
@@ -1625,37 +1624,6 @@ FilterNodeLinearTransferSoftware::FilterNodeLinearTransferSoftware()
  , mInterceptA(0)
 {}
 
-int32_t
-FilterNodeLinearTransferSoftware::InputIndex(uint32_t aInputEnumIndex)
-{
-  switch (aInputEnumIndex) {
-    case IN_LINEAR_TRANSFER_IN: return 0;
-    default: return -1;
-  }
-}
-
-void
-FilterNodeLinearTransferSoftware::SetAttribute(uint32_t aIndex,
-                                               bool aDisable)
-{
-  switch (aIndex) {
-    case ATT_LINEAR_TRANSFER_DISABLE_R:
-      mDisableR = aDisable;
-      break;
-    case ATT_LINEAR_TRANSFER_DISABLE_G:
-      mDisableG = aDisable;
-      break;
-    case ATT_LINEAR_TRANSFER_DISABLE_B:
-      mDisableB = aDisable;
-      break;
-    case ATT_LINEAR_TRANSFER_DISABLE_A:
-      mDisableA = aDisable;
-      break;
-    default:
-      MOZ_CRASH();
-  }
-}
-
 void
 FilterNodeLinearTransferSoftware::SetAttribute(uint32_t aIndex,
                                                Float aValue)
@@ -1736,37 +1704,6 @@ FilterNodeGammaTransferSoftware::FilterNodeGammaTransferSoftware()
  , mExponentB(0)
  , mExponentA(0)
 {}
-
-int32_t
-FilterNodeGammaTransferSoftware::InputIndex(uint32_t aInputEnumIndex)
-{
-  switch (aInputEnumIndex) {
-    case IN_GAMMA_TRANSFER_IN: return 0;
-    default: return -1;
-  }
-}
-
-void
-FilterNodeGammaTransferSoftware::SetAttribute(uint32_t aIndex,
-                                               bool aDisable)
-{
-  switch (aIndex) {
-    case ATT_GAMMA_TRANSFER_DISABLE_R:
-      mDisableR = aDisable;
-      break;
-    case ATT_GAMMA_TRANSFER_DISABLE_G:
-      mDisableG = aDisable;
-      break;
-    case ATT_GAMMA_TRANSFER_DISABLE_B:
-      mDisableB = aDisable;
-      break;
-    case ATT_GAMMA_TRANSFER_DISABLE_A:
-      mDisableA = aDisable;
-      break;
-    default:
-      MOZ_CRASH();
-  }
-}
 
 void
 FilterNodeGammaTransferSoftware::SetAttribute(uint32_t aIndex,

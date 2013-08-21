@@ -148,19 +148,28 @@ private:
   IntRect mSourceRect;
 };
 
+/**
+ * Baseclass for the four different component transfer filters.
+ */
 class FilterNodeComponentTransferSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeComponentTransferSoftware();
 
+  virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
-  template<ptrdiff_t ComponentOffset>
+  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
+  template<ptrdiff_t ComponentOffset, uint32_t BytesPerPixel>
                             void ApplyComponentTransfer(DataSourceSurface* aInput,
                                                         DataSourceSurface* aTarget,
+                                                        uint8_t aLookupTable[256],
                                                         bool aDisabled);
+  virtual void MaybeGenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256],
+                                        bool aDisabled);
   virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) = 0;
 
   bool mDisableR;
@@ -172,11 +181,10 @@ protected:
 class FilterNodeTableTransferSoftware : public FilterNodeComponentTransferSoftware
 {
 public:
-  virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
+  using FilterNodeComponentTransferSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
@@ -191,11 +199,10 @@ private:
 class FilterNodeDiscreteTransferSoftware : public FilterNodeComponentTransferSoftware
 {
 public:
-  virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
+  using FilterNodeComponentTransferSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
@@ -211,11 +218,10 @@ class FilterNodeLinearTransferSoftware : public FilterNodeComponentTransferSoftw
 {
 public:
   FilterNodeLinearTransferSoftware();
-  virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
+  using FilterNodeComponentTransferSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
@@ -235,11 +241,10 @@ class FilterNodeGammaTransferSoftware : public FilterNodeComponentTransferSoftwa
 {
 public:
   FilterNodeGammaTransferSoftware();
-  virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
+  using FilterNodeComponentTransferSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
 
 protected:
-  virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:

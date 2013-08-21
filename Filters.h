@@ -119,84 +119,97 @@ enum TileFilterInputs
   IN_TILE_IN = 0
 };
 
+enum TransferAtts
+{
+  ATT_TRANSFER_DISABLE_R = 0,               // bool
+  ATT_TRANSFER_DISABLE_G,                   // bool
+  ATT_TRANSFER_DISABLE_B,                   // bool
+  ATT_TRANSFER_DISABLE_A                    // bool
+};
+
+enum TransferInputs
+{
+  IN_TRANSFER_IN = 0
+};
+
 enum TableTransferAtts
 {
-  ATT_TABLE_TRANSFER_TABLE_R = 0,           // Float[]
-  ATT_TABLE_TRANSFER_DISABLE_R,             // bool
+  ATT_TABLE_TRANSFER_DISABLE_R = ATT_TRANSFER_DISABLE_R,
+  ATT_TABLE_TRANSFER_DISABLE_G = ATT_TRANSFER_DISABLE_G,
+  ATT_TABLE_TRANSFER_DISABLE_B = ATT_TRANSFER_DISABLE_B,
+  ATT_TABLE_TRANSFER_DISABLE_A = ATT_TRANSFER_DISABLE_A,
+  ATT_TABLE_TRANSFER_TABLE_R,               // Float[]
   ATT_TABLE_TRANSFER_TABLE_G,               // Float[]
-  ATT_TABLE_TRANSFER_DISABLE_G,             // bool
   ATT_TABLE_TRANSFER_TABLE_B,               // Float[]
-  ATT_TABLE_TRANSFER_DISABLE_B,             // bool
-  ATT_TABLE_TRANSFER_TABLE_A,               // Float[]
-  ATT_TABLE_TRANSFER_DISABLE_A              // bool
+  ATT_TABLE_TRANSFER_TABLE_A                // Float[]
 };
 
 enum TableTransferInputs
 {
-  IN_TABLE_TRANSFER_IN = 0
+  IN_TABLE_TRANSFER_IN = IN_TRANSFER_IN
 };
 
 enum DiscreteTransferAtts
 {
-  ATT_DISCRETE_TRANSFER_TABLE_R = 0,        // Float[]
-  ATT_DISCRETE_TRANSFER_DISABLE_R,          // bool
+  ATT_DISCRETE_TRANSFER_DISABLE_R = ATT_TRANSFER_DISABLE_R,
+  ATT_DISCRETE_TRANSFER_DISABLE_G = ATT_TRANSFER_DISABLE_G,
+  ATT_DISCRETE_TRANSFER_DISABLE_B = ATT_TRANSFER_DISABLE_B,
+  ATT_DISCRETE_TRANSFER_DISABLE_A = ATT_TRANSFER_DISABLE_A,
+  ATT_DISCRETE_TRANSFER_TABLE_R,            // Float[]
   ATT_DISCRETE_TRANSFER_TABLE_G,            // Float[]
-  ATT_DISCRETE_TRANSFER_DISABLE_G,          // bool
   ATT_DISCRETE_TRANSFER_TABLE_B,            // Float[]
-  ATT_DISCRETE_TRANSFER_DISABLE_B,          // bool
-  ATT_DISCRETE_TRANSFER_TABLE_A,            // Float[]
-  ATT_DISCRETE_TRANSFER_DISABLE_A           // bool
+  ATT_DISCRETE_TRANSFER_TABLE_A             // Float[]
 };
 
 enum DiscreteTransferInputs
 {
-  IN_DISCRETE_TRANSFER_IN = 0
+  IN_DISCRETE_TRANSFER_IN = IN_TRANSFER_IN
 };
 
 enum LinearTransferAtts
 {
-  ATT_LINEAR_TRANSFER_SLOPE_R = 0,          // Float
-  ATT_LINEAR_TRANSFER_INTERCEPT_R,          // Float
-  ATT_LINEAR_TRANSFER_DISABLE_R,            // bool
+  ATT_LINEAR_TRANSFER_DISABLE_R = ATT_TRANSFER_DISABLE_R,
+  ATT_LINEAR_TRANSFER_DISABLE_G = ATT_TRANSFER_DISABLE_G,
+  ATT_LINEAR_TRANSFER_DISABLE_B = ATT_TRANSFER_DISABLE_B,
+  ATT_LINEAR_TRANSFER_DISABLE_A = ATT_TRANSFER_DISABLE_A,
+  ATT_LINEAR_TRANSFER_SLOPE_R,              // Float
   ATT_LINEAR_TRANSFER_SLOPE_G,              // Float
-  ATT_LINEAR_TRANSFER_INTERCEPT_G,          // Float
-  ATT_LINEAR_TRANSFER_DISABLE_G,            // bool
   ATT_LINEAR_TRANSFER_SLOPE_B,              // Float
-  ATT_LINEAR_TRANSFER_INTERCEPT_B,          // Float
-  ATT_LINEAR_TRANSFER_DISABLE_B,            // bool
   ATT_LINEAR_TRANSFER_SLOPE_A,              // Float
-  ATT_LINEAR_TRANSFER_INTERCEPT_A,          // Float
-  ATT_LINEAR_TRANSFER_DISABLE_A             // bool
+  ATT_LINEAR_TRANSFER_INTERCEPT_R,          // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_G,          // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_B,          // Float
+  ATT_LINEAR_TRANSFER_INTERCEPT_A           // Float
 };
 
 enum LinearTransferInputs
 {
-  IN_LINEAR_TRANSFER_IN = 0
+  IN_LINEAR_TRANSFER_IN = IN_TRANSFER_IN
 };
 
 enum GammaTransferAtts
 {
-  ATT_GAMMA_TRANSFER_AMPLITUDE_R = 0,         // Float
-  ATT_GAMMA_TRANSFER_EXPONENT_R,              // Float
-  ATT_GAMMA_TRANSFER_OFFSET_R,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_R,               // bool
+  ATT_GAMMA_TRANSFER_DISABLE_R = ATT_TRANSFER_DISABLE_R,
+  ATT_GAMMA_TRANSFER_DISABLE_G = ATT_TRANSFER_DISABLE_G,
+  ATT_GAMMA_TRANSFER_DISABLE_B = ATT_TRANSFER_DISABLE_B,
+  ATT_GAMMA_TRANSFER_DISABLE_A = ATT_TRANSFER_DISABLE_A,
+  ATT_GAMMA_TRANSFER_AMPLITUDE_R,             // Float
   ATT_GAMMA_TRANSFER_AMPLITUDE_G,             // Float
-  ATT_GAMMA_TRANSFER_EXPONENT_G,              // Float
-  ATT_GAMMA_TRANSFER_OFFSET_G,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_G,               // bool
   ATT_GAMMA_TRANSFER_AMPLITUDE_B,             // Float
-  ATT_GAMMA_TRANSFER_EXPONENT_B,              // Float
-  ATT_GAMMA_TRANSFER_OFFSET_B,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_B,               // bool
   ATT_GAMMA_TRANSFER_AMPLITUDE_A,             // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_R,              // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_G,              // Float
+  ATT_GAMMA_TRANSFER_EXPONENT_B,              // Float
   ATT_GAMMA_TRANSFER_EXPONENT_A,              // Float
-  ATT_GAMMA_TRANSFER_OFFSET_A,                // Float
-  ATT_GAMMA_TRANSFER_DISABLE_A                // bool
+  ATT_GAMMA_TRANSFER_OFFSET_R,                // Float
+  ATT_GAMMA_TRANSFER_OFFSET_G,                // Float
+  ATT_GAMMA_TRANSFER_OFFSET_B,                // Float
+  ATT_GAMMA_TRANSFER_OFFSET_A                 // Float
 };
 
 enum GammaTransferInputs
 {
-  IN_GAMMA_TRANSFER_IN = 0
+  IN_GAMMA_TRANSFER_IN = IN_TRANSFER_IN
 };
 
 enum ConvolveMatrixAtts
