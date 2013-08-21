@@ -861,8 +861,9 @@ FilterNodeBlendSoftware::SetAttribute(uint32_t aIndex, uint32_t aBlendMode)
   Invalidate();
 }
 
+template<BlendMode aBlendMode>
 static TemporaryRef<DataSourceSurface>
-ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2, uint32_t aBlendMode)
+ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
 {
   IntSize size = aInput1->GetSize();
   RefPtr<DataSourceSurface> target =
