@@ -418,7 +418,7 @@ GetDataSurfaceInRect(SourceSurface *aSurface,
     return target;
   }
 
-  if (aEdgeMode == EDGE_MODE_NONE) {
+  if (aEdgeMode == EDGE_MODE_NONE && !aSurfaceRect.Contains(aDestRect)) {
     ClearDataSourceSurface(target);
   }
 
