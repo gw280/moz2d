@@ -529,6 +529,7 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
   renderRect.RoundOut();
   IntRect renderIntRect(int32_t(renderRect.x), int32_t(renderRect.y),
                         int32_t(renderRect.width), int32_t(renderRect.height));
+  renderIntRect = renderIntRect.Intersect(GetOutputRectInRect(renderIntRect));
 #ifdef DEBUG_DUMP_SURFACES
   printf("<pre>\nRendering...\n");
 #endif
@@ -542,7 +543,7 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
   printf("</pre>\n");
 #endif
   aDrawTarget->DrawSurface(result, Rect(aDestPoint, aSourceRect.Size()),
-                           aSourceRect - renderRect.TopLeft(),
+                           aSourceRect - renderIntRect.TopLeft(),
                            DrawSurfaceOptions(), aOptions);
 }
 
