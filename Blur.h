@@ -69,11 +69,6 @@ public:
                float aSigmaX,
                float aSigmaY);
 
-  AlphaBoxBlur(const Rect& aRect,
-               int32_t aStride,
-               float aSigma)
-   : AlphaBoxBlur(aRect, aStride, aSigma, aSigma) {}
-
   ~AlphaBoxBlur();
 
   /**
