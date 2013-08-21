@@ -130,14 +130,21 @@ SVGTurbulenceRenderer<Type,Stitch>::AdjustBaseFrequencyForStitch(const IntRect &
                         AdjustForLength(mBaseFrequency.height, aTileRect.height));
 }
 
+// from xpcom/ds/nsMathUtils.h
+static int32_t
+NS_lround(double x)
+{
+  return x >= 0.0 ? int32_t(x + 0.5) : int32_t(x - 0.5);
+}
+
 template<TurbulenceType Type, bool Stitch>
 typename SVGTurbulenceRenderer<Type,Stitch>::StitchInfo
 SVGTurbulenceRenderer<Type,Stitch>::CreateStitchInfo(const IntRect &aTileRect)
 {
   StitchInfo stitch;
-  stitch.mWidth = round(aTileRect.width * mBaseFrequency.width);
+  stitch.mWidth = NS_lround(aTileRect.width * mBaseFrequency.width);
   stitch.mWrapX = int(aTileRect.x * mBaseFrequency.width + sPerlinN + stitch.mWidth);
-  stitch.mHeight = round(aTileRect.height * mBaseFrequency.height);
+  stitch.mHeight = NS_lround(aTileRect.height * mBaseFrequency.height);
   stitch.mWrapY = int(aTileRect.y * mBaseFrequency.height + sPerlinN + stitch.mHeight);
   return stitch;
 }
