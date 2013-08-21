@@ -532,7 +532,7 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
 #ifdef DEBUG_DUMP_SURFACES
   printf("<pre>\nRendering...\n");
 #endif
-  RefPtr<DataSourceSurface> result = Render(renderIntRect);
+  RefPtr<DataSourceSurface> result = GetOutput(renderIntRect);
   if (!result) {
     return;
   }
@@ -547,6 +547,51 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
 }
 
 TemporaryRef<DataSourceSurface>
+FilterNodeSoftware::GetOutput(const IntRect &aRect)
+{
+  if (aRect.IsEmpty()) {
+    return nullptr;
+  }
+
+  MOZ_ASSERT(GetOutputRectInRect(aRect).Contains(aRect));
+  if (!mCachedRect.Contains(aRect)) {
+    RequestRect(aRect);
+    mCachedOutput = Render(mRequestedRect);
+    if (!mCachedOutput) {
+      mCachedRect = IntRect();
+      mRequestedRect = IntRect();
+      return nullptr;
+    }
+    mCachedRect = mRequestedRect;
+    mRequestedRect = IntRect();
+  } else {
+    MOZ_ASSERT(mCachedOutput, "cached rect but no cached output?");
+  }
+  return GetDataSurfaceInRect(mCachedOutput, mCachedRect, aRect, EDGE_MODE_NONE);
+}
+
+void
+FilterNodeSoftware::RequestRect(const IntRect &aRect)
+{
+  mRequestedRect = mRequestedRect.Union(aRect);
+  RequestFromInputsForRect(aRect);
+}
+
+void
+FilterNodeSoftware::RequestInputRect(uint32_t aInputEnumIndex, const IntRect &aRect)
+{
+  int32_t inputIndex = InputIndex(aInputEnumIndex);
+  if (inputIndex < 0 || (uint32_t)inputIndex >= NumberOfSetInputs()) {
+    MOZ_CRASH();
+  }
+  if (mInputSurfaces[inputIndex]) {
+    return;
+  }
+  RefPtr<FilterNodeSoftware> filter = mInputFilters[inputIndex];
+  MOZ_ASSERT(filter, "missing input");
+  filter->RequestRect(filter->GetOutputRectInRect(aRect));
+}
+
 TemporaryRef<DataSourceSurface>
 ConvertToB8G8R8A8(SourceSurface* aSurface)
 {
@@ -648,9 +693,14 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     RefPtr<FilterNodeSoftware> filter = mInputFilters[inputIndex];
     MOZ_ASSERT(filter, "missing input");
     IntRect inputFilterOutput = filter->GetOutputRectInRect(aRect);
-    surface = filter->Render(inputFilterOutput);
-    surfaceRect = inputFilterOutput;
-    MOZ_ASSERT(surfaceRect.Size() == surface->GetSize());
+    // XXXmstange This is bad, we need to handle requested rects that are
+    // completely outside the input filter's output rect more gracefully than
+    // just returning nullptr.
+    if (!inputFilterOutput.IsEmpty()) {
+      surface = filter->GetOutput(inputFilterOutput);
+      surfaceRect = inputFilterOutput;
+      MOZ_ASSERT(!surface || surfaceRect.Size() == surface->GetSize());
+    }
   }
 
   if (!surface || surface->GetFormat() == FORMAT_UNKNOWN) {
@@ -1126,6 +1176,14 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
   }
 }
 
+void
+FilterNodeMorphologySoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  IntRect srcRect = aRect;
+  srcRect.Inflate(mRadii);
+  RequestInputRect(IN_MORPHOLOGY_IN, srcRect);
+}
+
 IntRect
 FilterNodeMorphologySoftware::GetOutputRectInRect(const IntRect& aRect)
 {
@@ -1231,6 +1289,12 @@ FilterNodeColorMatrixSoftware::Render(const IntRect& aRect)
   return input ? ApplyColorMatrixFilter(input, mMatrix) : nullptr;
 }
 
+void
+FilterNodeColorMatrixSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_COLOR_MATRIX_IN, aRect);
+}
+
 IntRect
 FilterNodeColorMatrixSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
@@ -1242,6 +1306,7 @@ FilterNodeFloodSoftware::SetAttribute(uint32_t aIndex, const Color &aColor)
 {
   MOZ_ASSERT(aIndex == ATT_FLOOD_COLOR);
   mColor = aColor;
+  Invalidate();
 }
 
 static uint32_t
@@ -1323,6 +1388,12 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
   TileSurface(input, target, mSourceRect.TopLeft() - aRect.TopLeft());
 
   return target;
+}
+
+void
+FilterNodeTileSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_TILE_IN, mSourceRect);
 }
 
 IntRect
@@ -1462,6 +1533,12 @@ FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
   }
 
   return target;
+}
+
+void
+FilterNodeComponentTransferSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_TRANSFER_IN, aRect);
 }
 
 IntRect
@@ -2072,6 +2149,12 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
   return target;
 }
 
+void
+FilterNodeConvolveMatrixSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_CONVOLVE_MATRIX_IN, InflatedSourceRect(aRect));
+}
+
 IntRect
 FilterNodeConvolveMatrixSoftware::InflatedSourceRect(const IntRect &aDestRect)
 {
@@ -2129,6 +2212,12 @@ TemporaryRef<DataSourceSurface>
 FilterNodeOffsetSoftware::Render(const IntRect& aRect)
 {
   return GetInputDataSourceSurface(IN_OFFSET_IN, aRect - mOffset);
+}
+
+void
+FilterNodeOffsetSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_OFFSET_IN, aRect - mOffset);
 }
 
 IntRect
@@ -2227,6 +2316,13 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
   }
 
   return target;
+}
+
+void
+FilterNodeDisplacementMapSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_DISPLACEMENT_MAP_IN, InflatedSourceOrDestRect(aRect));
+  RequestInputRect(IN_DISPLACEMENT_MAP_IN2, aRect);
 }
 
 IntRect
@@ -2419,6 +2515,13 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
   return target;
 }
 
+void
+FilterNodeArithmeticCombineSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_ARITHMETIC_COMBINE_IN, aRect);
+  RequestInputRect(IN_ARITHMETIC_COMBINE_IN2, aRect);
+}
+
 IntRect
 FilterNodeArithmeticCombineSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
@@ -2509,6 +2612,14 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
     ApplyComposition(input, dest, mOperator);
   }
   return dest;
+}
+
+void
+FilterNodeCompositeSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  for (size_t inputIndex = 0; inputIndex < NumberOfSetInputs(); inputIndex++) {
+    RequestInputRect(IN_COMPOSITE_IN_START + inputIndex, aRect);
+  }
 }
 
 IntRect
@@ -2759,6 +2870,13 @@ FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
   // Return target1, cropped to the requested rect.
   return GetDataSurfaceInRect(target1, srcRect, aRect, EDGE_MODE_NONE);
 }
+
+void
+FilterNodeBlurXYSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_GAUSSIAN_BLUR_IN, InflatedSourceOrDestRect(aRect));
+}
+
 IntRect
 FilterNodeBlurXYSoftware::InflatedSourceOrDestRect(const IntRect &aDestRect)
 {
@@ -2869,6 +2987,12 @@ FilterNodeCropSoftware::Render(const IntRect& aRect)
     return nullptr;
   }
   return GetDataSurfaceInRect(input, sourceRect, aRect, EDGE_MODE_NONE);
+}
+
+void
+FilterNodeCropSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_CROP_IN, aRect.Intersect(mCropRect));
 }
 
 IntRect
@@ -3358,6 +3482,16 @@ FilterNodeLightingSoftware<LightType, LightingType>::Render(const IntRect& aRect
     return DoRender(aRect, (int32_t)mKernelUnitLength.width, (int32_t)mKernelUnitLength.height);
   }
   return DoRender(aRect, mKernelUnitLength.width, mKernelUnitLength.height);
+}
+
+template<typename LightType, typename LightingType>
+void
+FilterNodeLightingSoftware<LightType, LightingType>::RequestFromInputsForRect(const IntRect &aRect)
+{
+  IntRect srcRect = aRect;
+  srcRect.Inflate(ceil(mKernelUnitLength.width),
+                  ceil(mKernelUnitLength.height));
+  RequestInputRect(IN_LIGHTING_IN, srcRect);
 }
 
 template<typename LightType, typename LightingType> template<typename CoordType>

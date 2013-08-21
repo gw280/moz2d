@@ -25,8 +25,6 @@ public:
             const Point &aDestPoint, const DrawOptions &aOptions);
 
   virtual FilterBackend GetBackendType() MOZ_OVERRIDE { return FILTER_BACKEND_SOFTWARE; }
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) = 0;
-  virtual IntRect GetOutputRectInRect(const IntRect& aInRect) = 0;
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) MOZ_OVERRIDE;
   virtual void SetInput(uint32_t aIndex, FilterNode *aFilter) MOZ_OVERRIDE;
 
@@ -34,6 +32,41 @@ protected:
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface, FilterNodeSoftware *aFilter);
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) { return -1; }
 
+  /**
+   * Every filter node has an output rect, which can also be infinite. The
+   * output rect can depend on the values of any set attributes and on the
+   * output rects of any input filters or surfaces.
+   * This method returns the intersection of the filter's output rect with
+   * aInRect. Filters with unconstrained output always return aInRect.
+   */
+  virtual IntRect GetOutputRectInRect(const IntRect& aInRect) = 0;
+
+  /**
+   * Return a surface with the rendered output which is of size aRect.Size().
+   * aRect is required to be a subrect of this filter's output rect; in other
+   * words, aRect == GetOutputRectInRect(aRect) must always be true.
+   * May return nullptr in error conditions or for an empty aRect.
+   * Implementations are not required to allocate a new surface and may even
+   * pass through input surfaces unchanged.
+   * Callers need to treat the returned surface as immutable.
+   */
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) = 0;
+
+  /**
+   * Call RequestRect (see below) on any input filters with the desired input
+   * rect, so that the input filter knows what to cache the next time it
+   * renders.
+   */
+  virtual void RequestFromInputsForRect(const IntRect &aRect) {}
+
+  /**
+   * This method provides a caching default implementation but can be overriden
+   * by subclasses that don't want to cache their output. Those classes should
+   * call Render(aRect) directly from here.
+   */
+  virtual TemporaryRef<DataSourceSurface> GetOutput(const IntRect &aRect);
+
+  // The following methods are non-virtual helper methods.
 
   /**
    * Format hints for GetInputDataSourceSurface. Some callers of
@@ -70,11 +103,36 @@ protected:
                               FormatHint aFormatHint = CAN_HANDLE_A8,
                               ConvolveMatrixEdgeMode aEdgeMode = EDGE_MODE_NONE);
   IntRect GetInputRectInRect(uint32_t aInputEnumIndex, const IntRect& aInRect);
+
+  /**
+   * Calls RequestRect on the specified input, if it's a filter.
+   */
+  void RequestInputRect(uint32_t aInputEnumIndex, const IntRect& aRect);
+
   size_t NumberOfSetInputs();
 
+
+  /**
+   * Called in order to let this filter know what to cache during the next
+   * GetOutput call. Expected to call RequestRect on this filter's input
+   * filters.
+   */
+  void RequestRect(const IntRect &aRect);
 private:
   std::vector<RefPtr<SourceSurface> > mInputSurfaces;
   std::vector<RefPtr<FilterNodeSoftware> > mInputFilters;
+
+  /**
+   * Stores the rect which we want to render and cache on the next call to
+   * GetOutput.
+   */
+  IntRect mRequestedRect;
+
+  /**
+   * Stores our cached output.
+   */
+  IntRect mCachedRect;
+  RefPtr<DataSourceSurface> mCachedOutput;
 };
 
 class FilterNodeBlendSoftware : public FilterNodeSoftware
@@ -82,11 +140,12 @@ class FilterNodeBlendSoftware : public FilterNodeSoftware
 public:
   FilterNodeBlendSoftware();
   virtual void SetAttribute(uint32_t aIndex, uint32_t aBlendMode) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   BlendMode mBlendMode;
@@ -98,11 +157,12 @@ public:
   FilterNodeMorphologySoftware();
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aRadii) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aOperator) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntSize mRadii;
@@ -113,11 +173,12 @@ class FilterNodeColorMatrixSoftware : public FilterNodeSoftware
 {
 public:
   virtual void SetAttribute(uint32_t aIndex, const Matrix5x4 &aMatrix) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   Matrix5x4 mMatrix;
@@ -127,6 +188,8 @@ class FilterNodeFloodSoftware : public FilterNodeSoftware
 {
 public:
   virtual void SetAttribute(uint32_t aIndex, const Color &aColor) MOZ_OVERRIDE;
+
+protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
@@ -138,11 +201,12 @@ class FilterNodeTileSoftware : public FilterNodeSoftware
 {
 public:
   virtual void SetAttribute(uint32_t aIndex, const IntRect &aSourceRect) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntRect mSourceRect;
@@ -157,10 +221,10 @@ public:
   FilterNodeComponentTransferSoftware();
 
   virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
   template<ptrdiff_t ComponentOffset, uint32_t BytesPerPixel>
@@ -275,11 +339,12 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aTarget) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aEdgeMode) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aPreserveAlpha) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   template<typename CoordType>
@@ -304,11 +369,12 @@ class FilterNodeOffsetSoftware : public FilterNodeSoftware
 {
 public:
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aOffset) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntPoint mOffset;
@@ -320,11 +386,12 @@ public:
   FilterNodeDisplacementMapSoftware();
   virtual void SetAttribute(uint32_t aIndex, Float aScale) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntRect InflatedSourceOrDestRect(const IntRect &aDestOrSourceRect);
@@ -341,10 +408,10 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Size &aSize) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aStitchable) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
 
   template<TurbulenceType aType, bool aStitchable>
@@ -363,11 +430,12 @@ class FilterNodeArithmeticCombineSoftware : public FilterNodeSoftware
 public:
   FilterNodeArithmeticCombineSoftware();
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   Float mK1;
@@ -381,11 +449,12 @@ class FilterNodeCompositeSoftware : public FilterNodeSoftware
 public:
   FilterNodeCompositeSoftware();
   virtual void SetAttribute(uint32_t aIndex, uint32_t aOperator) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   CompositeOperator mOperator;
@@ -400,6 +469,7 @@ protected:
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   IntRect InflatedSourceOrDestRect(const IntRect &aDestRect);
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
   // Implemented by subclasses.
   virtual Size StdDeviationXY() = 0;
@@ -437,11 +507,12 @@ class FilterNodeCropSoftware : public FilterNodeSoftware
 {
 public:
   virtual void SetAttribute(uint32_t aIndex, const Rect &aSourceRect) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntRect mCropRect;
@@ -449,22 +520,20 @@ private:
 
 class FilterNodePremultiplySoftware : public FilterNodeSoftware
 {
-public:
+protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
-
-protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 };
 
 class FilterNodeUnpremultiplySoftware : public FilterNodeSoftware
 {
-public:
+protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
-
-protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 };
 
 template<typename LightType, typename LightingType>
@@ -476,11 +545,12 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Size &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Color &) MOZ_OVERRIDE;
-  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
-  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
+  virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   template<typename CoordType>
