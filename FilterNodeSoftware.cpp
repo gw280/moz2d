@@ -10,6 +10,7 @@
 #include "2D.h"
 #include "Tools.h"
 #include <set>
+#include "SVGTurbulenceRenderer.h"
 
 #ifdef DEBUG_DUMP_SURFACES
 #include "gfxImageSurface.h"
@@ -2195,163 +2196,9 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue)
   }
 }
 
-void
-FilterNodeTurbulenceSoftware::InitSeed(int32_t aSeed)
-{
-  double s;
-  int i, j, k;
-  aSeed = SetupSeed(aSeed);
-  for (k = 0; k < 4; k++) {
-    for (i = 0; i < sBSize; i++) {
-      mLatticeSelector[i] = i;
-      for (j = 0; j < 2; j++) {
-        mGradient[k][i][j] =
-          (double) (((aSeed =
-                      Random(aSeed)) % (sBSize + sBSize)) - sBSize) / sBSize;
-      }
-      s = double (sqrt
-                  (mGradient[k][i][0] * mGradient[k][i][0] +
-                   mGradient[k][i][1] * mGradient[k][i][1]));
-      mGradient[k][i][0] /= s;
-      mGradient[k][i][1] /= s;
-    }
-  }
-  while (--i) {
-    k = mLatticeSelector[i];
-    mLatticeSelector[i] = mLatticeSelector[j =
-                                           (aSeed =
-                                            Random(aSeed)) % sBSize];
-    mLatticeSelector[j] = k;
-  }
-  for (i = 0; i < sBSize + 2; i++) {
-    mLatticeSelector[sBSize + i] = mLatticeSelector[i];
-    for (k = 0; k < 4; k++)
-      for (j = 0; j < 2; j++)
-        mGradient[k][sBSize + i][j] = mGradient[k][i][j];
-  }
-}
-
-#define S_CURVE(t) ( t * t * (3. - 2. * t) )
-#define LERP(t, a, b) ( a + t * (b - a) )
-double
-FilterNodeTurbulenceSoftware::Noise2(int aColorChannel, double aVec[2],
-                                     StitchInfo *aStitchInfo)
-{
-  int bx0, bx1, by0, by1, b00, b10, b01, b11;
-  double rx0, rx1, ry0, ry1, *q, sx, sy, a, b, t, u, v;
-  long i, j;
-  t = aVec[0] + sPerlinN;
-  bx0 = (int) t;
-  bx1 = bx0 + 1;
-  rx0 = t - (int) t;
-  rx1 = rx0 - 1.0f;
-  t = aVec[1] + sPerlinN;
-  by0 = (int) t;
-  by1 = by0 + 1;
-  ry0 = t - (int) t;
-  ry1 = ry0 - 1.0f;
-  // If stitching, adjust lattice points accordingly.
-  if (aStitchInfo != NULL) {
-    if (bx0 >= aStitchInfo->mWrapX)
-      bx0 -= aStitchInfo->mWidth;
-    if (bx1 >= aStitchInfo->mWrapX)
-      bx1 -= aStitchInfo->mWidth;
-    if (by0 >= aStitchInfo->mWrapY)
-      by0 -= aStitchInfo->mHeight;
-    if (by1 >= aStitchInfo->mWrapY)
-      by1 -= aStitchInfo->mHeight;
-  }
-  bx0 &= sBM;
-  bx1 &= sBM;
-  by0 &= sBM;
-  by1 &= sBM;
-  i = mLatticeSelector[bx0];
-  j = mLatticeSelector[bx1];
-  b00 = mLatticeSelector[i + by0];
-  b10 = mLatticeSelector[j + by0];
-  b01 = mLatticeSelector[i + by1];
-  b11 = mLatticeSelector[j + by1];
-  sx = double (S_CURVE(rx0));
-  sy = double (S_CURVE(ry0));
-  q = mGradient[aColorChannel][b00];
-  u = rx0 * q[0] + ry0 * q[1];
-  q = mGradient[aColorChannel][b10];
-  v = rx1 * q[0] + ry0 * q[1];
-  a = LERP(sx, u, v);
-  q = mGradient[aColorChannel][b01];
-  u = rx0 * q[0] + ry1 * q[1];
-  q = mGradient[aColorChannel][b11];
-  v = rx1 * q[0] + ry1 * q[1];
-  b = LERP(sx, u, v);
-  return LERP(sy, a, b);
-}
-#undef S_CURVE
-#undef LERP
-
-double
-FilterNodeTurbulenceSoftware::Turbulence(int aColorChannel, double* aPoint,
-                                         double aBaseFreqX, double aBaseFreqY,
-                                         int aNumOctaves, bool aFractalSum,
-                                         bool aDoStitching,
-                                         double aTileX, double aTileY,
-                                         double aTileWidth, double aTileHeight)
-{
-  StitchInfo stitch;
-  StitchInfo *stitchInfo = NULL; // Not stitching when NULL.
-  // Adjust the base frequencies if necessary for stitching.
-  if (aDoStitching) {
-    // When stitching tiled turbulence, the frequencies must be adjusted
-    // so that the tile borders will be continuous.
-    if (aBaseFreqX != 0.0) {
-      double loFreq = double (floor(aTileWidth * aBaseFreqX)) / aTileWidth;
-      double hiFreq = double (ceil(aTileWidth * aBaseFreqX)) / aTileWidth;
-      if (aBaseFreqX / loFreq < hiFreq / aBaseFreqX)
-        aBaseFreqX = loFreq;
-      else
-        aBaseFreqX = hiFreq;
-    }
-    if (aBaseFreqY != 0.0) {
-      double loFreq = double (floor(aTileHeight * aBaseFreqY)) / aTileHeight;
-      double hiFreq = double (ceil(aTileHeight * aBaseFreqY)) / aTileHeight;
-      if (aBaseFreqY / loFreq < hiFreq / aBaseFreqY)
-        aBaseFreqY = loFreq;
-      else
-        aBaseFreqY = hiFreq;
-    }
-    // Set up initial stitch values.
-    stitchInfo = &stitch;
-    stitch.mWidth = int (aTileWidth * aBaseFreqX + 0.5f);
-    stitch.mWrapX = int (aTileX * aBaseFreqX + sPerlinN + stitch.mWidth);
-    stitch.mHeight = int (aTileHeight * aBaseFreqY + 0.5f);
-    stitch.mWrapY = int (aTileY * aBaseFreqY + sPerlinN + stitch.mHeight);
-  }
-  double sum = 0.0f;
-  double vec[2];
-  vec[0] = aPoint[0] * aBaseFreqX;
-  vec[1] = aPoint[1] * aBaseFreqY;
-  double ratio = 1;
-  for (int octave = 0; octave < aNumOctaves; octave++) {
-    if (aFractalSum)
-      sum += double (Noise2(aColorChannel, vec, stitchInfo) / ratio);
-    else
-      sum += double (fabs(Noise2(aColorChannel, vec, stitchInfo)) / ratio);
-    vec[0] *= 2;
-    vec[1] *= 2;
-    ratio *= 2;
-    if (stitchInfo != NULL) {
-      // Update stitch values. Subtracting sPerlinN before the multiplication
-      // and adding it afterward simplifies to subtracting it once.
-      stitch.mWidth *= 2;
-      stitch.mWrapX = 2 * stitch.mWrapX - sPerlinN;
-      stitch.mHeight *= 2;
-      stitch.mWrapY = 2 * stitch.mWrapY - sPerlinN;
-    }
-  }
-  return sum;
-}
-
+template<TurbulenceType aType, bool aStitchable>
 TemporaryRef<DataSourceSurface>
-FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
+FilterNodeTurbulenceSoftware::DoRender(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
@@ -2362,70 +2209,35 @@ FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  IntRect rect = aRect;
+  SVGTurbulenceRenderer<aType,aStitchable> renderer(mBaseFrequency, mSeed, mNumOctaves, aRect);
 
-  float fX = mBaseFrequency.width;
-  float fY = mBaseFrequency.height;
-  int32_t octaves = mNumOctaves;
-  TurbulenceType type = mType;
-  bool stitch = mStitchable;
-
-  InitSeed(mSeed);
-
-  // XXXroc this makes absolutely no sense to me.
-  float filterX = 0;
-  float filterY = 0;
-  float filterWidth = rect.width;
-  float filterHeight = rect.height;
-
-  bool doStitch = stitch;
-  if (doStitch) {
-    float lowFreq, hiFreq;
-
-    lowFreq = floor(filterWidth * fX) / filterWidth;
-    hiFreq = ceil(filterWidth * fX) / filterWidth;
-    if (fX / lowFreq < hiFreq / fX)
-      fX = lowFreq;
-    else
-      fX = hiFreq;
-
-    lowFreq = floor(filterHeight * fY) / filterHeight;
-    hiFreq = ceil(filterHeight * fY) / filterHeight;
-    if (fY / lowFreq < hiFreq / fY)
-      fY = lowFreq;
-    else
-      fY = hiFreq;
-  }
-  for (int32_t y = 0; y < rect.height; y++) {
-    for (int32_t x = 0; x < rect.width; x++) {
+  for (int32_t y = 0; y < aRect.height; y++) {
+    for (int32_t x = 0; x < aRect.width; x++) {
       int32_t targIndex = y * stride + x * 4;
-      double point[2];
-      point[0] = filterX + (filterWidth * x) / (rect.width - 1);
-      point[1] = filterY + (filterHeight * y) / (rect.height - 1);
-
-      float col[4];
-      if (type == TURBULENCE_TYPE_TURBULENCE) {
-        for (int i = 0; i < 4; i++)
-          col[i] = Turbulence(i, point, fX, fY, octaves, false,
-                              doStitch, filterX, filterY, filterWidth, filterHeight) * 255;
-      } else {
-        for (int i = 0; i < 4; i++)
-          col[i] = (Turbulence(i, point, fX, fY, octaves, true,
-                               doStitch, filterX, filterY, filterWidth, filterHeight) * 255 + 255) / 2;
-      }
-      for (int i = 0; i < 4; i++) {
-        col[i] = clamped(col[i], 0.f, 255.f);
-      }
-
-      uint8_t a = uint8_t(col[3]);
-      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] = FastDivideBy255<uint8_t>(unsigned(col[0]) * a);
-      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] = FastDivideBy255<uint8_t>(unsigned(col[1]) * a);
-      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] = FastDivideBy255<uint8_t>(unsigned(col[2]) * a);
-      targetData[targIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = a;
+      Color c = renderer.ColorAtPoint(aRect.TopLeft() + IntPoint(x, y));
+      *(uint32_t*)(targetData + targIndex) = ColorToBGRA(c);
     }
   }
 
   return target;
+}
+
+TemporaryRef<DataSourceSurface>
+FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
+{
+  switch (mType) {
+    case TURBULENCE_TYPE_TURBULENCE:
+      if (mStitchable) {
+        return DoRender<TURBULENCE_TYPE_TURBULENCE, true>(aRect);
+      }
+      return DoRender<TURBULENCE_TYPE_TURBULENCE, false>(aRect);
+    case TURBULENCE_TYPE_FRACTAL_NOISE:
+      if (mStitchable) {
+        return DoRender<TURBULENCE_TYPE_FRACTAL_NOISE, true>(aRect);
+      }
+      return DoRender<TURBULENCE_TYPE_FRACTAL_NOISE, false>(aRect);
+  }
+  return nullptr;
 }
 
 IntRect
