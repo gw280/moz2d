@@ -40,8 +40,10 @@ class FilterNodeSoftware : public FilterNode,
 public:
   virtual ~FilterNodeSoftware();
 
+  // Factory method, intended to be called from DrawTarget*::CreateFilter.
   static TemporaryRef<FilterNode> Create(FilterType aType);
 
+  // Draw the filter, intended to be called by DrawTarget*::DrawFilter.
   void Draw(DrawTarget* aDrawTarget, const Rect &aSourceRect,
             const Point &aDestPoint, const DrawOptions &aOptions);
 
@@ -56,7 +58,15 @@ public:
   virtual void FilterInvalidated(FilterNodeSoftware* aFilter);
 
 protected:
-  virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface, FilterNodeSoftware *aFilter);
+
+  // The following methods are intended to be overriden by subclasses.
+
+  /**
+   * Translates a *FilterInputs enum value into an index for the
+   * mInputFilters / mInputSurfaces arrays. Returns -1 for invalid inputs.
+   * If somebody calls SetInput(enumValue, input) with an enumValue for which
+   * InputIndex(enumValue) is -1, we abort.
+   */
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) { return -1; }
 
   /**
@@ -129,6 +139,11 @@ protected:
     GetInputDataSourceSurface(uint32_t aInputEnumIndex, const IntRect& aRect,
                               FormatHint aFormatHint = CAN_HANDLE_A8,
                               ConvolveMatrixEdgeMode aEdgeMode = EDGE_MODE_NONE);
+
+  /**
+   * Returns the intersection of the input filter's or surface's output rect
+   * with aInRect.
+   */
   IntRect GetInputRectInRect(uint32_t aInputEnumIndex, const IntRect& aInRect);
 
   /**
@@ -136,6 +151,10 @@ protected:
    */
   void RequestInputRect(uint32_t aInputEnumIndex, const IntRect& aRect);
 
+  /**
+   * Returns the number of set input filters or surfaces. Needed for filters
+   * which can have an arbitrary number of inputs.
+   */
   size_t NumberOfSetInputs();
 
   /**
@@ -151,7 +170,20 @@ protected:
    * filters.
    */
   void RequestRect(const IntRect &aRect);
+
+  /**
+   * Set input filter and clear input surface for this input index, or set
+   * input surface and clear input filter. One of aSurface and aFilter should
+   * be null.
+   */
+  void SetInput(uint32_t aIndex, SourceSurface *aSurface,
+                FilterNodeSoftware *aFilter);
+
 private:
+  /**
+   * mInputSurfaces / mInputFilters: For each input index, either a surface or
+   * a filter is set, and the other is null.
+   */
   std::vector<RefPtr<SourceSurface> > mInputSurfaces;
   std::vector<RefPtr<FilterNodeSoftware> > mInputFilters;
 
@@ -175,6 +207,8 @@ private:
   IntRect mCachedRect;
   RefPtr<DataSourceSurface> mCachedOutput;
 };
+
+// Subclasses for specific filters.
 
 class FilterNodeBlendSoftware : public FilterNodeSoftware
 {
