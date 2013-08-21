@@ -34,8 +34,40 @@ protected:
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface, FilterNodeSoftware *aFilter);
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) { return -1; }
 
+
+  /**
+   * Format hints for GetInputDataSourceSurface. Some callers of
+   * GetInputDataSourceSurface can handle both B8G8R8A8 and A8 surfaces, these
+   * should pass CAN_HANDLE_A8 in order to avoid unnecessary conversions.
+   * Callers that can only handle B8G8R8A8 surfaces pass NEED_COLOR_CHANNELS.
+   */
+  enum FormatHint {
+    CAN_HANDLE_A8,
+    NEED_COLOR_CHANNELS
+  };
+
+  /**
+   * Returns FORMAT_B8G8R8A8 or FORMAT_A8, depending on the current surface
+   * format and the format hint.
+   */
+  SurfaceFormat DesiredFormat(SurfaceFormat aCurrentFormat,
+                              FormatHint aFormatHint);
+
+  /**
+   * Intended to be called by FilterNodeSoftware::Render implementations.
+   * Returns a surface of size aRect.Size() or nullptr in error conditions. The
+   * returned surface contains the output of the specified input filter or
+   * input surface in aRect. If aRect extends beyond the input filter's output
+   * rect (or the input surface's dimensions), the remaining area is filled
+   * according to aEdgeMode: The default, EDGE_MODE_NONE, simply pads with
+   * transparent black.
+   * If non-null, the returned surface is guaranteed to be of FORMAT_A8 or
+   * FORMAT_B8G8R8A8. If aFormatHint is NEED_COLOR_CHANNELS, the returned
+   * surface is guaranteed to be of FORMAT_B8G8R8A8 always.
+   */
   TemporaryRef<DataSourceSurface>
     GetInputDataSourceSurface(uint32_t aInputEnumIndex, const IntRect& aRect,
+                              FormatHint aFormatHint = CAN_HANDLE_A8,
                               ConvolveMatrixEdgeMode aEdgeMode = EDGE_MODE_NONE);
   IntRect GetInputRectInRect(uint32_t aInputEnumIndex, const IntRect& aInRect);
   size_t NumberOfSetInputs();

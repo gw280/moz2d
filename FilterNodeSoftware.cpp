@@ -169,6 +169,7 @@ static void
 CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
          IntRect aSrcRect, IntPoint aDestPoint)
 {
+  MOZ_ASSERT(aSrc->GetFormat() == aDest->GetFormat(), "different surface formats");
   uint8_t* sourceData = aSrc->GetData();
   uint32_t sourceStride = aSrc->Stride();
   uint8_t* destData = aDest->GetData();
@@ -177,12 +178,22 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
   sourceData += DataOffset(aSrc, aSrcRect.TopLeft());
   destData += DataOffset(aDest, aDestPoint);
 
-  for (int32_t y = 0; y < aSrcRect.height; y++) {
-    for (int32_t x = 0; x < aSrcRect.width; x++) {
-      *((int32_t*)destData + x) = *((int32_t*)sourceData + x);
+  if (BytesPerPixel(aSrc->GetFormat()) == 4) {
+    for (int32_t y = 0; y < aSrcRect.height; y++) {
+      for (int32_t x = 0; x < aSrcRect.width; x++) {
+        *((int32_t*)destData + x) = *((int32_t*)sourceData + x);
+      }
+      sourceData += sourceStride;
+      destData += destStride;
     }
-    sourceData += sourceStride;
-    destData += destStride;
+  } else if (BytesPerPixel(aSrc->GetFormat()) == 1) {
+    for (int32_t y = 0; y < aSrcRect.height; y++) {
+      for (int32_t x = 0; x < aSrcRect.width; x++) {
+        destData[x] = sourceData[x];
+      }
+      sourceData += sourceStride;
+      destData += destStride;
+    }
   }
 }
 
@@ -195,23 +206,29 @@ CloneForStride(DataSourceSurface* aSource)
   return copy;
 }
 
-static uint32_t
-ColorAtPoint(DataSourceSurface* aSurface, const IntPoint &aPoint)
-{
-  return *(uint32_t*)(aSurface->GetData() + DataOffset(aSurface, aPoint));
-}
-
 static void
-FillRectWithColor(DataSourceSurface *aSurface, const IntRect &aFillRect, uint32_t aColor)
+FillRectWithPixel(DataSourceSurface *aSurface, const IntRect &aFillRect, IntPoint aPixelPos)
 {
   uint8_t* data = aSurface->GetData();
+  uint8_t* sourcePixelData = data + DataOffset(aSurface, aPixelPos);
   int32_t stride = aSurface->Stride();
   data += DataOffset(aSurface, aFillRect.TopLeft());
-  for (int32_t y = 0; y < aFillRect.height; y++) {
-    for (int32_t x = 0; x < aFillRect.width; x++) {
-      *((uint32_t*)data + x) = aColor;
+  if (BytesPerPixel(aSurface->GetFormat()) == 4) {
+    uint32_t sourcePixel = *(uint32_t*)sourcePixelData;
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        *((uint32_t*)data + x) = sourcePixel;
+      }
+      data += stride;
     }
-    data += stride;
+  } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
+    uint8_t sourcePixel = *sourcePixelData;
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        data[x] = sourcePixel;
+      }
+      data += stride;
+    }
   }
 }
 
@@ -224,11 +241,20 @@ FillRectWithVerticallyRepeatingHorizontalStrip(DataSourceSurface *aSurface,
   int32_t stride = aSurface->Stride();
   uint8_t* sampleData = data + DataOffset(aSurface, aSampleRect.TopLeft());
   data += DataOffset(aSurface, aFillRect.TopLeft());
-  for (int32_t y = 0; y < aFillRect.height; y++) {
-    for (int32_t x = 0; x < aFillRect.width; x++) {
-      *((uint32_t*)data + x) = *((uint32_t*)sampleData + x);
+  if (BytesPerPixel(aSurface->GetFormat()) == 4) {
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        *((uint32_t*)data + x) = *((uint32_t*)sampleData + x);
+      }
+      data += stride;
     }
-    data += stride;
+  } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        data[x] = sampleData[x];
+      }
+      data += stride;
+    }
   }
 }
 
@@ -241,13 +267,24 @@ FillRectWithHorizontallyRepeatingVerticalStrip(DataSourceSurface *aSurface,
   int32_t stride = aSurface->Stride();
   uint8_t* sampleData = data + DataOffset(aSurface, aSampleRect.TopLeft());
   data += DataOffset(aSurface, aFillRect.TopLeft());
-  for (int32_t y = 0; y < aFillRect.height; y++) {
-    int32_t sampleColor = *((uint32_t*)sampleData);
-    for (int32_t x = 0; x < aFillRect.width; x++) {
-      *((uint32_t*)data + x) = sampleColor;
+  if (BytesPerPixel(aSurface->GetFormat()) == 4) {
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      int32_t sampleColor = *((uint32_t*)sampleData);
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        *((uint32_t*)data + x) = sampleColor;
+      }
+      data += stride;
+      sampleData += stride;
     }
-    data += stride;
-    sampleData += stride;
+  } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
+    for (int32_t y = 0; y < aFillRect.height; y++) {
+      int8_t sampleColor = *sampleData;
+      for (int32_t x = 0; x < aFillRect.width; x++) {
+        data[x] = sampleColor;
+      }
+      data += stride;
+      sampleData += stride;
+    }
   }
 }
 
@@ -309,7 +346,7 @@ DuplicateEdges(DataSourceSurface* aSurface, const IntRect &aFromRect)
       bool yIsMiddle = (iy == 1);
       if (!xIsMiddle && !yIsMiddle) {
         // Corner
-        FillRectWithColor(aSurface, fill, ColorAtPoint(aSurface, sampleRect.TopLeft()));
+        FillRectWithPixel(aSurface, fill, sampleRect.TopLeft());
       }
       if (xIsMiddle && !yIsMiddle) {
         // Top middle or bottom middle
@@ -369,7 +406,7 @@ GetDataSurfaceInRect(SourceSurface *aSurface,
   IntRect intersectInDestSpace = intersect - aDestRect.TopLeft();
 
   RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aDestRect.Size(), FORMAT_B8G8R8A8);
+    Factory::CreateDataSourceSurface(aDestRect.Size(), aSurface->GetFormat());
 
   if (!target || !dataSource) {
     return nullptr;
@@ -509,8 +546,90 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
 }
 
 TemporaryRef<DataSourceSurface>
+TemporaryRef<DataSourceSurface>
+ConvertToB8G8R8A8(SourceSurface* aSurface)
+{
+  IntSize size = aSurface->GetSize();
+  RefPtr<DataSourceSurface> input = aSurface->GetDataSurface();
+  RefPtr<DataSourceSurface> output =
+    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  uint8_t *inputData = input->GetData();
+  uint8_t *outputData = output->GetData();
+  int32_t inputStride = input->Stride();
+  int32_t outputStride = output->Stride();
+  switch (input->GetFormat()) {
+    case FORMAT_B8G8R8A8:
+      output = input;
+      break;
+    case FORMAT_B8G8R8X8:
+      for (int32_t y = 0; y < size.height; y++) {
+        for (int32_t x = 0; x < size.width; x++) {
+          int32_t inputIndex = y * inputStride + 4 * x;
+          int32_t outputIndex = y * outputStride + 4 * x;
+          outputData[outputIndex + 0] = inputData[inputIndex + 0];
+          outputData[outputIndex + 1] = inputData[inputIndex + 1];
+          outputData[outputIndex + 2] = inputData[inputIndex + 2];
+          outputData[outputIndex + 3] = 255;
+        }
+      }
+      break;
+    case FORMAT_R8G8B8A8:
+      for (int32_t y = 0; y < size.height; y++) {
+        for (int32_t x = 0; x < size.width; x++) {
+          int32_t inputIndex = y * inputStride + 4 * x;
+          int32_t outputIndex = y * outputStride + 4 * x;
+          outputData[outputIndex + 2] = inputData[inputIndex + 0];
+          outputData[outputIndex + 1] = inputData[inputIndex + 1];
+          outputData[outputIndex + 0] = inputData[inputIndex + 2];
+          outputData[outputIndex + 3] = inputData[inputIndex + 3];
+        }
+      }
+      break;
+    case FORMAT_R8G8B8X8:
+      for (int32_t y = 0; y < size.height; y++) {
+        for (int32_t x = 0; x < size.width; x++) {
+          int32_t inputIndex = y * inputStride + 4 * x;
+          int32_t outputIndex = y * outputStride + 4 * x;
+          outputData[outputIndex + 2] = inputData[inputIndex + 0];
+          outputData[outputIndex + 1] = inputData[inputIndex + 1];
+          outputData[outputIndex + 0] = inputData[inputIndex + 2];
+          outputData[outputIndex + 3] = 255;
+        }
+      }
+      break;
+    case FORMAT_A8:
+      for (int32_t y = 0; y < size.height; y++) {
+        for (int32_t x = 0; x < size.width; x++) {
+          int32_t inputIndex = y * inputStride + x;
+          int32_t outputIndex = y * outputStride + 4 * x;
+          outputData[outputIndex + 0] = 0;
+          outputData[outputIndex + 1] = 0;
+          outputData[outputIndex + 2] = 0;
+          outputData[outputIndex + 3] = inputData[inputIndex];
+        }
+      }
+      break;
+    default:
+      output = nullptr;
+      break;
+  }
+  return output;
+}
+
+SurfaceFormat
+FilterNodeSoftware::DesiredFormat(SurfaceFormat aCurrentFormat,
+                                  FormatHint aFormatHint)
+{
+  if (aCurrentFormat == FORMAT_A8 && aFormatHint == CAN_HANDLE_A8) {
+    return FORMAT_A8;
+  }
+  return FORMAT_B8G8R8A8;
+}
+
+TemporaryRef<DataSourceSurface>
 FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
                                               const IntRect& aRect,
+                                              FormatHint aFormatHint,
                                               ConvolveMatrixEdgeMode aEdgeMode)
 {
   int32_t inputIndex = InputIndex(aInputEnumIndex);
@@ -518,6 +637,7 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     MOZ_CRASH();
     return nullptr;
   }
+
   RefPtr<SourceSurface> surface;
   IntRect surfaceRect;
   if (mInputSurfaces[inputIndex]) {
@@ -531,12 +651,27 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     surfaceRect = inputFilterOutput;
     MOZ_ASSERT(surfaceRect.Size() == surface->GetSize());
   }
-  RefPtr<DataSourceSurface> result = GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
+
+  if (!surface || surface->GetFormat() == FORMAT_UNKNOWN) {
+    return nullptr;
+  }
+
+  SurfaceFormat currentFormat = surface->GetFormat();
+  if (DesiredFormat(currentFormat, aFormatHint) == FORMAT_B8G8R8A8 &&
+      currentFormat != FORMAT_B8G8R8A8) {
+    surface = ConvertToB8G8R8A8(surface);
+  }
+
+  RefPtr<DataSourceSurface> result =
+    GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
+
 #ifdef DEBUG_DUMP_SURFACES
   printf("input:\n");
   printf("<img src='"); DumpAsPNG(result); printf("'>\n");
 #endif
+
   MOZ_ASSERT(!result || result->GetSize() == aRect.Size(), "wrong surface size");
+
   return result;
 }
 
@@ -684,13 +819,36 @@ TemporaryRef<DataSourceSurface>
 FilterNodeBlendSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input1 =
-    GetInputDataSourceSurface(IN_BLEND_IN, aRect);
+    GetInputDataSourceSurface(IN_BLEND_IN, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> input2 =
-    GetInputDataSourceSurface(IN_BLEND_IN2, aRect);
+    GetInputDataSourceSurface(IN_BLEND_IN2, aRect, NEED_COLOR_CHANNELS);
   if (!input1 || !input2) {
     return nullptr;
   }
-  return ApplyBlendFilter(input1, input2, mBlendMode);
+
+  RefPtr<DataSourceSurface> output;
+  switch (mBlendMode) {
+    case BLEND_MODE_MULTIPLY:
+      output = ApplyBlendFilter<BLEND_MODE_MULTIPLY>(input1, input2);
+      break;
+    case BLEND_MODE_SCREEN:
+      output = ApplyBlendFilter<BLEND_MODE_SCREEN>(input1, input2);
+      break;
+    case BLEND_MODE_DARKEN:
+      output = ApplyBlendFilter<BLEND_MODE_DARKEN>(input1, input2);
+      break;
+    case BLEND_MODE_LIGHTEN:
+      output = ApplyBlendFilter<BLEND_MODE_LIGHTEN>(input1, input2);
+      break;
+  }
+  return output;
+}
+
+void
+FilterNodeBlendSoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_BLEND_IN, aRect);
+  RequestInputRect(IN_BLEND_IN2, aRect);
 }
 
 IntRect
@@ -938,7 +1096,7 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
   srcRect.Inflate(mRadii);
 
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_MORPHOLOGY_IN, srcRect);
+    GetInputDataSourceSurface(IN_MORPHOLOGY_IN, srcRect, NEED_COLOR_CHANNELS);
   if (!input) {
     return nullptr;
   }
@@ -1068,8 +1226,8 @@ TemporaryRef<DataSourceSurface>
 FilterNodeColorMatrixSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_COLOR_MATRIX_IN, aRect);
-  return ApplyColorMatrixFilter(input, mMatrix);
+    GetInputDataSourceSurface(IN_COLOR_MATRIX_IN, aRect, NEED_COLOR_CHANNELS);
+  return input ? ApplyColorMatrixFilter(input, mMatrix) : nullptr;
 }
 
 IntRect
@@ -1151,9 +1309,13 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_TILE_IN, mSourceRect);
+  if (!input) {
+    return nullptr;
+  }
+
   RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
-  if (!input || !target) {
+    Factory::CreateDataSourceSurface(aRect.Size(), input->GetFormat());
+  if (!target) {
     return nullptr;
   }
 
@@ -1923,7 +2085,7 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
 
   IntRect srcRect = InflatedSourceRect(aRect);
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, mEdgeMode);
+    GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, NEED_COLOR_CHANNELS, mEdgeMode);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
   if (!input || !target) {
@@ -2081,9 +2243,9 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
 {
   IntRect srcRect = InflatedSourceOrDestRect(aRect);
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_DISPLACEMENT_MAP_IN, srcRect);
+    GetInputDataSourceSurface(IN_DISPLACEMENT_MAP_IN, srcRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> map =
-    GetInputDataSourceSurface(IN_DISPLACEMENT_MAP_IN2, aRect);
+    GetInputDataSourceSurface(IN_DISPLACEMENT_MAP_IN2, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
   if (!input || !map || !target) {
@@ -2120,7 +2282,8 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
       Float sourceY = y +
         scaleOver255 * mapData[mapIndex + yChannel] + scaleAdjustment;
       for (int32_t i = 0; i < 4; i++) {
-        targetData[targIndex + i] = ColorComponentAtPoint(sourceData, sourceStride, sourceX, sourceY, i);
+        targetData[targIndex + i] =
+          ColorComponentAtPoint(sourceData, sourceStride, sourceX, sourceY, i);
       }
     }
   }
@@ -2279,9 +2442,9 @@ TemporaryRef<DataSourceSurface>
 FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input1 =
-    GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN, aRect);
+    GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> input2 =
-    GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN2, aRect);
+    GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN2, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
   if (!input1 || !input2 || !target) {
@@ -2392,7 +2555,7 @@ TemporaryRef<DataSourceSurface>
 FilterNodeCompositeSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> start =
-    GetInputDataSourceSurface(IN_COMPOSITE_IN_START, aRect);
+    GetInputDataSourceSurface(IN_COMPOSITE_IN_START, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> dest =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
   if (!start || !dest) {
@@ -2401,7 +2564,7 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
   CopyRect(start, dest, aRect - aRect.TopLeft(), IntPoint());
   for (size_t inputIndex = 1; inputIndex < NumberOfSetInputs(); inputIndex++) {
     RefPtr<DataSourceSurface> input =
-      GetInputDataSourceSurface(IN_COMPOSITE_IN_START + inputIndex, aRect);
+      GetInputDataSourceSurface(IN_COMPOSITE_IN_START + inputIndex, aRect, NEED_COLOR_CHANNELS);
     if (!input) {
       return nullptr;
     }
@@ -2835,6 +2998,10 @@ FilterNodeCropSoftware::GetOutputRectInRect(const IntRect& aRect)
 static TemporaryRef<DataSourceSurface>
 Premultiply(DataSourceSurface* aSurface)
 {
+  if (aSurface->GetFormat() == FORMAT_A8) {
+    return aSurface;
+  }
+
   IntSize size = aSurface->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
@@ -2899,6 +3066,10 @@ static const uint16_t sAlphaFactors[256] = {
 static TemporaryRef<DataSourceSurface>
 Unpremultiply(DataSourceSurface* aSurface)
 {
+  if (aSurface->GetFormat() == FORMAT_A8) {
+    return aSurface;
+  }
+
   IntSize size = aSurface->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
@@ -2949,7 +3120,13 @@ FilterNodePremultiplySoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_PREMULTIPLY_IN, aRect);
-  return Premultiply(input);
+  return input ? Premultiply(input) : nullptr;
+}
+
+void
+FilterNodePremultiplySoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_PREMULTIPLY_IN, aRect);
 }
 
 IntRect
@@ -2972,7 +3149,13 @@ FilterNodeUnpremultiplySoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_UNPREMULTIPLY_IN, aRect);
-  return Unpremultiply(input);
+  return input ? Unpremultiply(input) : nullptr;
+}
+
+void
+FilterNodeUnpremultiplySoftware::RequestFromInputsForRect(const IntRect &aRect)
+{
+  RequestInputRect(IN_UNPREMULTIPLY_IN, aRect);
 }
 
 IntRect
@@ -3306,7 +3489,7 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
   srcRect.Inflate(ceil(aKernelUnitLengthX),
                   ceil(aKernelUnitLengthY));
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
+    GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
   if (!input || !target) {
