@@ -288,8 +288,8 @@ SVGTurbulenceRenderer<Type,Stitch>::ColorAtPoint(const IntPoint &aPoint)
   } else {
     col = (Turbulence(0, aPoint) + vec4<double>(1,1,1,1)) / 2;
   }
-  return Color(clamped(col._1, 0.0, 1.0), clamped(col._2, 0.0, 1.0),
-               clamped(col._3, 0.0, 1.0), clamped(col._4, 0.0, 1.0));
+  return Color(clamped(col.r(), 0.0, 1.0), clamped(col.g(), 0.0, 1.0),
+               clamped(col.b(), 0.0, 1.0), clamped(col.a(), 0.0, 1.0));
 }
 
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false>;
@@ -297,5 +297,5 @@ template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true>;
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false>;
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, true>;
 
-}
-}
+} // namespace gfx
+} // namespace mozilla

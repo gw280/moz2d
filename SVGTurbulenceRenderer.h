@@ -20,21 +20,38 @@ struct vec2
   vec2(const vec2 &aOther) : _1(aOther._1), _2(aOther._2) {}
 
   template<typename S>
-  vec2(const vec2<S> &aOther) : _1(T(aOther._1)), _2(T(aOther._2)) {}
+  vec2(const vec2<S> &aOther)
+   : _1(T(aOther._1)), _2(T(aOther._2)) {}
 
-  vec2& operator=(const vec2 &aOther) { if (&aOther != this) { _1 = aOther._1; _2 = aOther._2; } return *this; }
+  vec2& operator=(const vec2 &aOther)
+  {
+    if (&aOther != this) {
+      _1 = aOther._1;
+      _2 = aOther._2;
+    }
+    return *this;
+  }
 
   template<typename S>
-  vec2& operator=(const vec2<S> &aOther) { *this = vec2<T>(aOther); return *this; }
+  vec2& operator=(const vec2<S> &aOther)
+  { *this = vec2<T>(aOther); return *this; }
 
-  vec2 operator*(T aFactor) const { return vec2(_1 * aFactor, _2 * aFactor); }
-  vec2 operator+(const vec2<T> &aOther) const { return vec2(_1 + aOther._1, _2 + aOther._2); }
-  vec2 operator/(T aFactor) const { return vec2(_1 / aFactor, _2 / aFactor); }
-  vec2 operator-(const vec2<T> &aOther) const { return vec2(_1 - aOther._1, _2 - aOther._2); }
-  vec2& operator*=(T aFactor) { *this = *this * aFactor; return *this; }
-  vec2& operator+=(const vec2<T> &aOther) { *this = *this + aOther; return *this; }
-  vec2& operator/=(T aFactor) { *this = *this / aFactor; return *this; }
-  vec2& operator-=(const vec2<T> &aOther) { *this = *this - aOther; return *this; }
+  vec2 operator*(T aFactor) const
+  { return vec2(_1 * aFactor, _2 * aFactor); }
+  vec2 operator+(const vec2<T> &aOther) const
+  { return vec2(_1 + aOther._1, _2 + aOther._2); }
+  vec2 operator/(T aFactor) const
+  { return vec2(_1 / aFactor, _2 / aFactor); }
+  vec2 operator-(const vec2<T> &aOther) const
+  { return vec2(_1 - aOther._1, _2 - aOther._2); }
+  vec2& operator*=(T aFactor)
+  { *this = *this * aFactor; return *this; }
+  vec2& operator+=(const vec2<T> &aOther)
+  { *this = *this + aOther; return *this; }
+  vec2& operator/=(T aFactor)
+  { *this = *this / aFactor; return *this; }
+  vec2& operator-=(const vec2<T> &aOther)
+  { *this = *this - aOther; return *this; }
 
   T& x() { return _1; }
   T& y() { return _2; }
@@ -56,34 +73,51 @@ struct vec4
   vec4() : _1(0), _2(0), _3(0), _4(0) {}
   vec4(T a) : _1(a), _2(a), _3(a), _4(a) {}
   vec4(T a1, T a2, T a3, T a4) : _1(a1), _2(a2), _3(a3), _4(a4) {}
-  vec4(const vec4 &aOther) : _1(aOther._1), _2(aOther._2), _3(aOther._3), _4(aOther._4) {}
+  vec4(const vec4 &aOther)
+   : _1(aOther._1), _2(aOther._2), _3(aOther._3), _4(aOther._4) {}
+
+  // Allow implicit conversion from vec4<double> to vec4<int32_t>, for example.
+  template<typename S>
+  vec4(const vec4<S> &aOther)
+   : _1(T(aOther._1)), _2(T(aOther._2)), _3(T(aOther._3)), _4(T(aOther._4)) {}
+
+  vec4& operator=(const vec4 &aOther)
+  {
+    if (&aOther != this) {
+      _1 = aOther._1;
+      _2 = aOther._2;
+      _3 = aOther._3;
+      _4 = aOther._4;
+    }
+    return *this;
+  }
 
   template<typename S>
-  vec4(const vec4<S> &aOther) : _1(T(aOther._1)), _2(T(aOther._2)), _3(T(aOther._3)), _4(T(aOther._4)) {}
+  vec4& operator=(const vec4<S> &aOther)
+  { *this = vec4<T>(aOther); return *this; }
 
-  vec4& operator=(const vec4 &aOther) { if (&aOther != this) { _1 = aOther._1; _2 = aOther._2; _3 = aOther._3; _4 = aOther._4; } return *this; }
-
-  template<typename S>
-  vec4& operator=(const vec4<S> &aOther) { *this = vec4<T>(aOther); return *this; }
-
-  vec4 operator*(T aFactor) const { return vec4(_1 * aFactor, _2 * aFactor, _3 * aFactor, _4 * aFactor); }
-  vec4 operator+(const vec4<T> &aOther) const { return vec4(_1 + aOther._1, _2 + aOther._2, _3 + aOther._3, _4 + aOther._4); }
-  vec4 operator/(T aFactor) const { return vec4(_1 / aFactor, _2 / aFactor, _3 / aFactor, _4 / aFactor); }
-  vec4 operator-(const vec4<T> &aOther) const { return vec4(_1 - aOther._1, _2 - aOther._2, _3 - aOther._3, _4 - aOther._4); }
+  vec4 operator*(T aFactor) const
+  { return vec4(_1 * aFactor, _2 * aFactor, _3 * aFactor, _4 * aFactor); }
+  vec4 operator+(const vec4<T> &aOther) const
+  { return vec4(_1 + aOther._1, _2 + aOther._2, _3 + aOther._3, _4 + aOther._4); }
+  vec4 operator/(T aFactor) const
+  { return vec4(_1 / aFactor, _2 / aFactor, _3 / aFactor, _4 / aFactor); }
+  vec4 operator-(const vec4<T> &aOther) const
+  { return vec4(_1 - aOther._1, _2 - aOther._2, _3 - aOther._3, _4 - aOther._4); }
 
   vec4& operator*=(T aFactor) { *this = *this * aFactor; return *this; }
   vec4& operator+=(const vec4<T> &aOther) { *this = *this + aOther; return *this; }
   vec4& operator/=(T aFactor) { *this = *this / aFactor; return *this; }
   vec4& operator-=(const vec4<T> &aOther) { *this = *this - aOther; return *this; }
 
-  T& ua() { return _1; }
-  T& va() { return _2; }
-  T& ub() { return _3; }
-  T& vb() { return _4; }
-  const T& ua() const { return _1; }
-  const T& va() const { return _2; }
-  const T& ub() const { return _3; }
-  const T& vb() const { return _4; }
+  T& r() { return _1; }
+  T& g() { return _2; }
+  T& b() { return _3; }
+  T& a() { return _4; }
+  const T& r() const { return _1; }
+  const T& g() const { return _2; }
+  const T& b() const { return _3; }
+  const T& a() const { return _4; }
 
   T _1;
   T _2;
