@@ -3,8 +3,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef _MOZILLA_GFX_FILTERNODE_CAIRO_H_
-#define _MOZILLA_GFX_FILTERNODE_CAIRO_H_
+#ifndef _MOZILLA_GFX_FILTERNODESOFTWARE_H_
+#define _MOZILLA_GFX_FILTERNODESOFTWARE_H_
 
 #include "Filters.h"
 #include <vector>
@@ -643,4 +643,4 @@ private:
 }
 }
 
-#endif // _MOZILLA_GFX_FILTERNODE_CAIRO_H_
+#endif // _MOZILLA_GFX_FILTERNODESOFTWARE_H_
