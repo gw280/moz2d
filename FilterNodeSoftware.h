@@ -30,7 +30,7 @@ public:
 };
 
 /**
- * This is base class for the software (i.e. pure CPU, non-accelerated)
+ * This is the base class for the software (i.e. pure CPU, non-accelerated)
  * FilterNode implementation. The software implementation is backend-agnostic,
  * so it can be used as a fallback for all DrawTarget implementations.
  */
