@@ -1006,7 +1006,7 @@ TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
-  uint32_t expected = RGBAPixelFromColor(aColor);
+  uint32_t expected = BGRAPixelFromColor(aColor);
 
   for (int y = 0; y < DT_HEIGHT; y++) {
     for (int x = 0; x < DT_WIDTH; x++) {
@@ -1040,7 +1040,7 @@ TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Colo
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
-  uint32_t expected = RGBAPixelFromColor(aColor);
+  uint32_t expected = BGRAPixelFromColor(aColor);
   uint32_t rawActual = colVal[aPoint.y * (mDataSnapshot->Stride() / 4) + aPoint.x];
 
   if (rawActual != expected) {
@@ -1065,8 +1065,15 @@ TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Colo
 }
 
 uint32_t
-TestDrawTargetBase::RGBAPixelFromColor(const Color &aColor)
+TestDrawTargetBase::BGRAPixelFromColor(const Color &aColor)
 {
-  return uint8_t((aColor.b * 255) + 0.5f) | uint8_t((aColor.g * 255) + 0.5f) << 8 |
-         uint8_t((aColor.r * 255) + 0.5f) << 16 | uint8_t((aColor.a * 255) + 0.5f) << 24;
+  union {
+    uint32_t color;
+    uint8_t components[4];
+  };
+  components[2] = uint8_t(aColor.r * aColor.a * 255.0f + 0.5f);
+  components[1] = uint8_t(aColor.g * aColor.a * 255.0f + 0.5f);
+  components[0] = uint8_t(aColor.b * aColor.a * 255.0f + 0.5f);
+  components[3] = uint8_t(aColor.a * 255.0f + 0.5f);
+  return color;
 }

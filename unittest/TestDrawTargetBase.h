@@ -66,7 +66,7 @@ protected:
   void VerifyPixel(const mozilla::gfx::IntPoint &aPoint,
                    const mozilla::gfx::Color &aColor);
   
-  uint32_t RGBAPixelFromColor(const mozilla::gfx::Color &aColor);
+  uint32_t BGRAPixelFromColor(const mozilla::gfx::Color &aColor);
   
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
   mozilla::RefPtr<mozilla::gfx::DataSourceSurface> mDataSnapshot;
