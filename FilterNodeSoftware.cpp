@@ -12,6 +12,7 @@
 #include "Blur.h"
 #include <set>
 #include "SVGTurbulenceRenderer.h"
+#include "SIMD.h"
 
 #ifdef DEBUG_DUMP_SURFACES
 #include "gfxImageSurface.h"
@@ -1305,6 +1306,34 @@ ClampToNonZero(int32_t a)
   return a * (a >= 0);
 }
 
+template<typename m128i_t>
+static m128i_t
+ColorMatrixMultiply(m128i_t p, m128i_t rows_bg, m128i_t rows_ra, m128i_t bias)
+{
+  // int16_t p[8] == { b, g, r, a, b, g, r, a }.
+  // int16_t rows_bg[8] == { bB, bG, bR, bA, gB, gG, gR, gA }.
+  // int16_t rows_ra[8] == { rB, rG, rR, rA, aB, aG, aR, aA }.
+  // int32_t bias[4] == { _B, _G, _R, _A }.
+
+  m128i_t sum = bias;
+
+  // int16_t bg[8] = { b, g, b, g, b, g, b, g };
+  m128i_t bg = simd::ShuffleHi16<1,0,1,0>(simd::ShuffleLo16<1,0,1,0>(p));
+  // int32_t prodsum_bg[4] = { b * bB + g * gB, b * bG + g * gG, b * bR + g * gR, b * bA + g * gA }
+  m128i_t prodsum_bg = simd::MulAdd2x8x16To4x32(bg, rows_bg);
+  sum = simd::Add32(sum, prodsum_bg);
+
+  // uint16_t ra[8] = { r, a, r, a, r, a, r, a };
+  m128i_t ra = simd::ShuffleHi16<3,2,3,2>(simd::ShuffleLo16<3,2,3,2>(p));
+  // int32_t prodsum_ra[4] = { r * rB + a * aB, r * rG + a * aG, r * rR + a * aR, r * rA + a * aA }
+  m128i_t prodsum_ra = simd::MulAdd2x8x16To4x32(ra, rows_ra);
+  sum = simd::Add32(sum, prodsum_ra);
+
+  // int32_t sum[4] == { b * bB + g * gB + r * rB + a * aB + _B, ... }.
+  return sum;
+}
+
+template<typename m128i_t>
 static TemporaryRef<DataSourceSurface>
 ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
 {
@@ -1317,48 +1346,84 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
 
   uint8_t* sourceData = aInput->GetData();
   uint8_t* targetData = target->GetData();
-  uint32_t sourceStride = aInput->Stride();
-  uint32_t targetStride = target->Stride();
+  int32_t sourceStride = aInput->Stride();
+  int32_t targetStride = target->Stride();
 
-  const int32_t factor = 255 * 4;
-  const int32_t floatElementMax = INT32_MAX / (255 * factor * 5);
-  static_assert(255LL * (floatElementMax * factor) * 5 <= INT32_MAX, "badly chosen float-to-int scale");
+  const int16_t factor = 128;
+  const int16_t floatElementMax = INT16_MAX / factor; // 255
+  static_assert((floatElementMax * factor) <= INT16_MAX, "badly chosen float-to-int scale");
 
   const Float *floats = &aMatrix._11;
-  int32_t rows[5][4];
-  for (size_t rowIndex = 0; rowIndex < 5; rowIndex++) {
+  union {
+    int16_t rows_bgra[2][8];
+    m128i_t rows_bgra_v[2];
+  };
+  union {
+    int32_t rowBias[4];
+    m128i_t rowsBias_v;
+  };
+
+  ptrdiff_t componentOffsets[4] = {
+    B8G8R8A8_COMPONENT_BYTEOFFSET_R,
+    B8G8R8A8_COMPONENT_BYTEOFFSET_G,
+    B8G8R8A8_COMPONENT_BYTEOFFSET_B,
+    B8G8R8A8_COMPONENT_BYTEOFFSET_A
+  };
+
+  // { bB, bG, bR, bA, gB, gG, gR, gA }.
+  // { bB, gB, bG, gG, bR, gR, bA, gA }
+  for (size_t rowIndex = 0; rowIndex < 4; rowIndex++) {
     for (size_t colIndex = 0; colIndex < 4; colIndex++) {
       const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
       Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -floatElementMax, floatElementMax);
-      int32_t scaledIntMatrixElement = int32_t(clampedFloatMatrixElement * factor);
-      rows[rowIndex][colIndex] = scaledIntMatrixElement;
+      int16_t scaledIntMatrixElement = int16_t(clampedFloatMatrixElement * factor + 0.5);
+      int8_t bg_or_ra = componentOffsets[rowIndex] / 2;
+      int8_t g_or_a = componentOffsets[rowIndex] % 2;
+      int8_t B_or_G_or_R_or_A = componentOffsets[colIndex];
+      rows_bgra[bg_or_ra][B_or_G_or_R_or_A * 2 + g_or_a] = scaledIntMatrixElement;
     }
   }
 
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      uint32_t sourceIndex = y * sourceStride + 4 * x;
-      uint32_t targetIndex = y * targetStride + 4 * x;
+  Float biasMax = (INT32_MAX - 4 * 255 * INT16_MAX) / (factor * 255);
+  for (size_t colIndex = 0; colIndex < 4; colIndex++) {
+    size_t rowIndex = 4;
+    const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
+    Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -biasMax, biasMax);
+    int32_t scaledIntMatrixElement = int32_t(clampedFloatMatrixElement * factor * 255 + 0.5);
+    rowBias[componentOffsets[colIndex]] = scaledIntMatrixElement;
+  }
 
-      int32_t col[4];
-      for (int i = 0; i < 4; i++) {
-        col[i] =
-          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * rows[0][i] +
-          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * rows[1][i] +
-          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * rows[2][i] +
-          sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] * rows[3][i] +
-          255 *                                                       rows[4][i];
-        static_assert(factor == 255 << 2, "Please adapt the calculation in the next line for a different factor.");
-        col[i] = FastDivideBy255<int32_t>(umin(ClampToNonZero(col[i]), 255 * factor) >> 2);
-      }
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        static_cast<uint8_t>(col[0]);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        static_cast<uint8_t>(col[1]);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        static_cast<uint8_t>(col[2]);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
-        static_cast<uint8_t>(col[3]);
+  m128i_t row_bg_v = rows_bgra_v[0];
+  m128i_t row_ra_v = rows_bgra_v[1];
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x += 4) {
+      MOZ_ASSERT(sourceStride >= 4 * (x + 4), "need to be able to read 4 pixels at this position");
+      MOZ_ASSERT(targetStride >= 4 * (x + 4), "need to be able to write 4 pixels at this position");
+      int32_t sourceIndex = y * sourceStride + 4 * x;
+      int32_t targetIndex = y * targetStride + 4 * x;
+
+      // We load 4 pixels, unpack them, process them 1 pixel at a time, and
+      // finally pack and store the 4 result pixels.
+
+      m128i_t p1234 = simd::LoadFrom((m128i_t*)&sourceData[sourceIndex]);
+
+      m128i_t p1 = simd::UnpackLo8x8To8x16(simd::Splat32<0>(p1234));
+      m128i_t p2 = simd::UnpackLo8x8To8x16(simd::Splat32<1>(p1234));
+      m128i_t p3 = simd::UnpackLo8x8To8x16(simd::Splat32<2>(p1234));
+      m128i_t p4 = simd::UnpackLo8x8To8x16(simd::Splat32<3>(p1234));
+
+      m128i_t result_p1 = ColorMatrixMultiply(p1, row_bg_v, row_ra_v, rowsBias_v);
+      m128i_t result_p2 = ColorMatrixMultiply(p2, row_bg_v, row_ra_v, rowsBias_v);
+      m128i_t result_p3 = ColorMatrixMultiply(p3, row_bg_v, row_ra_v, rowsBias_v);
+      m128i_t result_p4 = ColorMatrixMultiply(p4, row_bg_v, row_ra_v, rowsBias_v);
+
+      static_assert(factor == 1 << 7, "Please adapt the calculation in the lines below for a different factor.");
+      m128i_t result_p1234 = simd::PackAndSaturate(simd::ShiftRight32(result_p1, 7),
+                                                   simd::ShiftRight32(result_p2, 7),
+                                                   simd::ShiftRight32(result_p3, 7),
+                                                   simd::ShiftRight32(result_p4, 7));
+      simd::StoreTo((m128i_t*)&targetData[targetIndex], result_p1234);
     }
   }
 
@@ -1370,7 +1435,15 @@ FilterNodeColorMatrixSoftware::Render(const IntRect& aRect)
 {
   RefPtr<DataSourceSurface> input =
     GetInputDataSourceSurface(IN_COLOR_MATRIX_IN, aRect, NEED_COLOR_CHANNELS);
-  return input ? ApplyColorMatrixFilter(input, mMatrix) : nullptr;
+  if (!input) {
+    return nullptr;
+  }
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    return ApplyColorMatrixFilter<__m128i>(input, mMatrix);
+  }
+#endif
+  return ApplyColorMatrixFilter<simd::ScalarM128i>(input, mMatrix);
 }
 
 void
