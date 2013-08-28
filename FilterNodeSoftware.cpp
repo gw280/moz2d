@@ -3337,6 +3337,71 @@ static const uint16_t sAlphaFactors[256] = {
   268, 266, 265, 264, 263, 262, 261, 260, 259, 258, 257, 256
 };
 
+template<typename m128i_t>
+static void
+DoUnpremultiplicationCalculation(const IntSize& aSize,
+                                 uint8_t* aTargetData, int32_t aTargetStride,
+                                 uint8_t* aSourceData, int32_t aSourceStride)
+{
+  for (int32_t y = 0; y < aSize.height; y++) {
+    for (int32_t x = 0; x < aSize.width; x += 4) {
+      int32_t inputIndex = y * aSourceStride + 4 * x;
+      int32_t targetIndex = y * aTargetStride + 4 * x;
+      union {
+        m128i_t p1234;
+        uint8_t u8[4][4];
+      };
+      p1234 = simd::LoadFrom((m128i_t*)&aSourceData[inputIndex]);
+      // We interpret the alpha factors as signed even though they're unsigned,
+      // because the From16 call below expects signed ints. The conversion does
+      // not lose any information, and the multiplication works as if they were
+      // unsigned (since we only take the lower 16 bits of each 32-bit result),
+      // so everything works as if the factors were unsigned all along.
+      int16_t aF1 = (int16_t)sAlphaFactors[u8[0][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
+      int16_t aF2 = (int16_t)sAlphaFactors[u8[1][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
+      int16_t aF3 = (int16_t)sAlphaFactors[u8[2][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
+      int16_t aF4 = (int16_t)sAlphaFactors[u8[3][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
+      m128i_t p12 = simd::UnpackLo8x8To8x16(p1234);
+      m128i_t p34 = simd::UnpackHi8x8To8x16(p1234);
+      m128i_t aF12 = simd::From16<m128i_t>(aF1, aF1, aF1, 1 << 8, aF2, aF2, aF2, 1 << 8);
+      m128i_t aF34 = simd::From16<m128i_t>(aF3, aF3, aF3, 1 << 8, aF4, aF4, aF4, 1 << 8);
+      p12 = simd::ShiftRight16(simd::Add16(simd::Mul16(p12, aF12), simd::From16<m128i_t>(128)), 8);
+      p34 = simd::ShiftRight16(simd::Add16(simd::Mul16(p34, aF34), simd::From16<m128i_t>(128)), 8);
+      m128i_t result = simd::PackAndSaturate(p12, p34);
+      simd::StoreTo((m128i_t*)&aTargetData[targetIndex], result);
+    }
+  }
+}
+
+template<>
+void
+DoUnpremultiplicationCalculation<simd::ScalarM128i>(
+                                 const IntSize& aSize,
+                                 uint8_t* aTargetData, int32_t aTargetStride,
+                                 uint8_t* aSourceData, int32_t aSourceStride)
+{
+  for (int32_t y = 0; y < aSize.height; y++) {
+    for (int32_t x = 0; x < aSize.width; x++) {
+      int32_t inputIndex = y * aSourceStride + 4 * x;
+      int32_t targetIndex = y * aTargetStride + 4 * x;
+      uint8_t alpha = aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      uint16_t alphaFactor = sAlphaFactors[alpha];
+      // inputColor * alphaFactor + 128 is guaranteed to fit into uint16_t
+      // because the input is premultiplied and thus inputColor <= inputAlpha.
+      // The maximum value this can attain is 65520 (which is less than 65535)
+      // for color == alpha == 244:
+      // 244 * sAlphaFactors[244] + 128 == 244 * 268 + 128 == 65520
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor + 128) >> 8;
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor + 128) >> 8;
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor + 128) >> 8;
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
+    }
+  }
+}
+
 static TemporaryRef<DataSourceSurface>
 Unpremultiply(DataSourceSurface* aSurface)
 {
@@ -3356,26 +3421,15 @@ Unpremultiply(DataSourceSurface* aSurface)
   uint8_t* targetData = target->GetData();
   int32_t targetStride = target->Stride();
 
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t inputIndex = y * inputStride + 4 * x;
-      int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint16_t alphaFactor = sAlphaFactors[alpha];
-      // inputColor * alphaFactor + 128 is guaranteed to fit into uint16_t
-      // because the input is premultiplied and thus inputColor <= inputAlpha.
-      // The maximum value this can attain is 65520 (which is less than 65535)
-      // for color == alpha == 244:
-      // 244 * sAlphaFactors[244] + 128 == 244 * 268 + 128 == 65520
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor + 128) >> 8;
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor + 128) >> 8;
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        (inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor + 128) >> 8;
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
-    }
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    DoUnpremultiplicationCalculation<__m128i>(
+      size, targetData, targetStride, inputData, inputStride);
+    return target;
   }
+#endif
+  DoUnpremultiplicationCalculation<simd::ScalarM128i>(
+    size, targetData, targetStride, inputData, inputStride);
 
   return target;
 }
