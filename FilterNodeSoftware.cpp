@@ -849,10 +849,10 @@ FilterNodeSoftware::SetInput(uint32_t aInputEnumIndex,
     MOZ_CRASH();
     return;
   }
-  if ((uint32_t)inputIndex <= mInputSurfaces.size()) {
+  if ((uint32_t)inputIndex >= mInputSurfaces.size()) {
     mInputSurfaces.resize(inputIndex + 1);
   }
-  if ((uint32_t)inputIndex <= mInputFilters.size()) {
+  if ((uint32_t)inputIndex >= mInputFilters.size()) {
     mInputFilters.resize(inputIndex + 1);
   }
   mInputSurfaces[inputIndex] = aSurface;
