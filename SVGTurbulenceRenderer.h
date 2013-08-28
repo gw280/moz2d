@@ -132,7 +132,7 @@ public:
   SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
                         int aNumOctaves, const IntRect &aTileRect);
 
-  uint32_t ColorAtPoint(const IntPoint &aPoint);
+  uint32_t ColorAtPoint(const IntPoint &aPoint) const;
 
 private:
   /* The turbulence calculation code is an adapted version of what
@@ -154,9 +154,9 @@ private:
   void AdjustBaseFrequencyForStitch(const IntRect &aTileRect);
   StitchInfo CreateStitchInfo(const IntRect &aTileRect);
   vec4<T> Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                     vec2<T> r0, vec2<T> r1);
-  vec4<T> Noise2(int aColorChannel, vec2<T> aVec);
-  vec4<T> Turbulence(int aColorChannel, const IntPoint &aPoint);
+                     vec2<T> r0, vec2<T> r1) const;
+  vec4<T> Noise2(int aColorChannel, vec2<T> aVec, const StitchInfo& aStitchInfo) const;
+  vec4<T> Turbulence(int aColorChannel, const IntPoint &aPoint) const;
 
   Size mBaseFrequency;
   int32_t mNumOctaves;

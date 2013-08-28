@@ -194,7 +194,7 @@ BiLerp(const vec2<T> &s, const vec2<S> &a, const vec2<S> &b)
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
 SVGTurbulenceRenderer<Type,Stitch,T>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                                                      vec2<T> r0, vec2<T> r1)
+                                                      vec2<T> r0, vec2<T> r1) const
 {
   static_assert(1 << (sizeof(b0.x()) * 8) <= sBSize, "mLatticeSelector is too small");
 
@@ -212,7 +212,7 @@ SVGTurbulenceRenderer<Type,Stitch,T>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec)
+SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec, const StitchInfo& aStitchInfo) const
 {
   vec2<T> t = aVec + vec2<T>(sPerlinN, sPerlinN);
   vec2<int32_t> lt = t;
@@ -222,14 +222,14 @@ SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec)
 
   // If stitching, adjust lattice points accordingly.
   if (Stitch) {
-    if (b0.x() >= mStitchInfo.mWrapX)
-      b0.x() -= mStitchInfo.mWidth;
-    if (b1.x() >= mStitchInfo.mWrapX)
-      b1.x() -= mStitchInfo.mWidth;
-    if (b0.y() >= mStitchInfo.mWrapY)
-      b0.y() -= mStitchInfo.mHeight;
-    if (b1.y() >= mStitchInfo.mWrapY)
-      b1.y() -= mStitchInfo.mHeight;
+    if (b0.x() >= aStitchInfo.mWrapX)
+      b0.x() -= aStitchInfo.mWidth;
+    if (b1.x() >= aStitchInfo.mWrapX)
+      b1.x() -= aStitchInfo.mWidth;
+    if (b0.y() >= aStitchInfo.mWrapY)
+      b0.y() -= aStitchInfo.mHeight;
+    if (b1.y() >= aStitchInfo.mWrapY)
+      b1.y() -= aStitchInfo.mHeight;
   }
 
   vec2<T> r0 = t - lt;
@@ -247,16 +247,17 @@ vabs(const vec4<T> &v)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(int aColorChannel, const IntPoint &aPoint)
+SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(int aColorChannel, const IntPoint &aPoint) const
 {
+  StitchInfo stitchInfo = mStitchInfo;
   vec4<T> sum;
   vec2<T> vec(aPoint.x * mBaseFrequency.width, aPoint.y * mBaseFrequency.height);
   T ratio = 1;
   for (int octave = 0; octave < mNumOctaves; octave++) {
     if (Type == TURBULENCE_TYPE_FRACTAL_NOISE) {
-      sum += Noise2(aColorChannel, vec) / ratio;
+      sum += Noise2(aColorChannel, vec, stitchInfo) / ratio;
     } else {
-      sum += vabs(Noise2(aColorChannel, vec)) / ratio;
+      sum += vabs(Noise2(aColorChannel, vec, stitchInfo)) / ratio;
     }
     vec *= 2;
     ratio *= 2;
@@ -264,10 +265,10 @@ SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(int aColorChannel, const IntPoi
     if (Stitch) {
       // Update stitch values. Subtracting sPerlinN before the multiplication
       // and adding it afterward simplifies to subtracting it once.
-      mStitchInfo.mWidth *= 2;
-      mStitchInfo.mWrapX = 2 * mStitchInfo.mWrapX - sPerlinN;
-      mStitchInfo.mHeight *= 2;
-      mStitchInfo.mWrapY = 2 * mStitchInfo.mWrapY - sPerlinN;
+      stitchInfo.mWidth *= 2;
+      stitchInfo.mWrapX = 2 * stitchInfo.mWrapX - sPerlinN;
+      stitchInfo.mHeight *= 2;
+      stitchInfo.mWrapY = 2 * stitchInfo.mWrapY - sPerlinN;
     }
   }
   return sum;
@@ -299,7 +300,7 @@ ColorToBGRA(const S& aColor)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 uint32_t
-SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const IntPoint &aPoint)
+SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const IntPoint &aPoint) const
 {
   vec4<T> col;
   if (Type == TURBULENCE_TYPE_TURBULENCE) {
