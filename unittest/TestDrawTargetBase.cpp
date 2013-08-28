@@ -420,29 +420,26 @@ TestDrawTargetBase::ColorMatrix()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
 
-  Matrix5x4 mat;
-  mat._52 = 127.0f / 255.0f;
-  mat._54 = 1.0f;
+  Matrix5x4 mat(-255,  1.0,  0.0, -8.0,
+                 0.0,  1.0, -6.0, -2.0,
+                 0.33, 0.0,  0.0,  5.0,
+                 25.0, 0.0,  0.0,  0.0,
+                 0.0,  0.1,  0.5,  0.1);
 
   filter->SetAttribute(0, mat);
 
-  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.099f, 0.2f, 0.3f, 1.0f)));
 
-  memset(data, 0, DT_WIDTH * DT_HEIGHT * 4);
-  {
-    RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
-
-    filter->SetInput(0, src);
-
-    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
-  }
-
-  delete [] data;
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(0, filter);
+  mDT->DrawFilter(premultiply, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, mat._52, 0, mat._54));
+  VerifyAllPixels(Color(0.1, 0.4, 0, 0.4), 1);
 }
 
 void
