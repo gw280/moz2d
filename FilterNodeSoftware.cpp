@@ -3222,6 +3222,58 @@ FilterNodeCropSoftware::GetOutputRectInRect(const IntRect& aRect)
   return GetInputRectInRect(IN_CROP_IN, aRect).Intersect(mCropRect);
 }
 
+template<typename m128i_t>
+static void
+DoPremultiplicationCalculation(const IntSize& aSize,
+                               uint8_t* aTargetData, int32_t aTargetStride,
+                               uint8_t* aSourceData, int32_t aSourceStride)
+{
+  for (int32_t y = 0; y < aSize.height; y++) {
+    for (int32_t x = 0; x < aSize.width; x += 4) {
+      int32_t inputIndex = y * aSourceStride + 4 * x;
+      int32_t targetIndex = y * aTargetStride + 4 * x;
+      m128i_t p1234 = simd::LoadFrom((m128i_t*)&aSourceData[inputIndex]);
+      m128i_t p12 = simd::UnpackLo8x8To8x16(p1234);
+      m128i_t p34 = simd::UnpackHi8x8To8x16(p1234);
+      m128i_t a12 = simd::SplatHi16<3>(simd::SplatLo16<3>(p12));
+      a12 = simd::SetComponent16<7>(simd::SetComponent16<3>(a12, 255), 255);
+      m128i_t a34 = simd::SplatHi16<3>(simd::SplatLo16<3>(p34));
+      a34 = simd::SetComponent16<7>(simd::SetComponent16<3>(a34, 255), 255);
+      m128i_t p1, p2, p3, p4;
+      simd::Mul2x2x4x16To2x4x32(p12, a12, p1, p2);
+      simd::Mul2x2x4x16To2x4x32(p34, a34, p3, p4);
+      m128i_t result = simd::PackAndSaturate(simd::FastDivideBy255(p1),
+                                             simd::FastDivideBy255(p2),
+                                             simd::FastDivideBy255(p3),
+                                             simd::FastDivideBy255(p4));
+      simd::StoreTo((m128i_t*)&aTargetData[targetIndex], result);
+    }
+  }
+}
+
+template<>
+void
+DoPremultiplicationCalculation<simd::ScalarM128i>
+                              (const IntSize& aSize,
+                               uint8_t* aTargetData, int32_t aTargetStride,
+                               uint8_t* aSourceData, int32_t aSourceStride)
+{
+  for (int32_t y = 0; y < aSize.height; y++) {
+    for (int32_t x = 0; x < aSize.width; x++) {
+      int32_t inputIndex = y * aSourceStride + 4 * x;
+      int32_t targetIndex = y * aTargetStride + 4 * x;
+      uint8_t alpha = aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
+        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alpha);
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
+        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alpha);
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
+        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alpha);
+      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
+    }
+  }
+}
+
 static TemporaryRef<DataSourceSurface>
 Premultiply(DataSourceSurface* aSurface)
 {
@@ -3241,20 +3293,15 @@ Premultiply(DataSourceSurface* aSurface)
   uint8_t* targetData = target->GetData();
   int32_t targetStride = target->Stride();
 
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t inputIndex = y * inputStride + 4 * x;
-      int32_t targetIndex = y * targetStride + 4 * x;
-      uint8_t alpha = inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alpha);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alpha);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        FastDivideBy255<uint8_t>(inputData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alpha);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
-    }
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    DoPremultiplicationCalculation<__m128i>(
+      size, targetData, targetStride, inputData, inputStride);
+    return target;
   }
+#endif
+  DoPremultiplicationCalculation<simd::ScalarM128i>(
+    size, targetData, targetStride, inputData, inputStride);
 
   return target;
 }
