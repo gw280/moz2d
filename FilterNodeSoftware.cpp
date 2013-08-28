@@ -2746,7 +2746,85 @@ FilterNodeCompositeSoftware::SetAttribute(uint32_t aIndex, uint32_t aCompositeOp
   Invalidate();
 }
 
-template<uint32_t aCompositeOperator>
+template<typename m128i_t, uint32_t aCompositeOperator>
+static m128i_t
+CompositeTwoPixels(m128i_t source, m128i_t sourceAlpha, m128i_t dest, m128i_t destAlpha)
+{
+  m128i_t x255 = simd::From16<m128i_t>(255);
+
+  switch (aCompositeOperator) {
+
+    case COMPOSITE_OPERATOR_OVER:
+    {
+      // val = dest * (255 - sourceAlpha) + source * 255;
+      m128i_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
+
+      m128i_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
+      m128i_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, x255);
+      m128i_t result1 = simd::MulAdd2x8x16To4x32(destSourceInterleaved1, rightFactor1);
+
+      m128i_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
+      m128i_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, x255);
+      m128i_t result2 = simd::MulAdd2x8x16To4x32(destSourceInterleaved2, rightFactor2);
+
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
+                                         simd::FastDivideBy255(result2));
+    }
+
+    case COMPOSITE_OPERATOR_IN:
+    {
+      // val = source * destAlpha;
+      return simd::FastDivideBy255_16(simd::Mul16(source, destAlpha));
+    }
+
+    case COMPOSITE_OPERATOR_OUT:
+    {
+      // val = source * (255 - destAlpha);
+      m128i_t prod = simd::Mul16(source, simd::Sub16(x255, destAlpha));
+      return simd::FastDivideBy255_16(prod);
+    }
+
+    case COMPOSITE_OPERATOR_ATOP:
+    {
+      // val = dest * (255 - sourceAlpha) + source * destAlpha;
+      m128i_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
+
+      m128i_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
+      m128i_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, destAlpha);
+      m128i_t result1 = simd::MulAdd2x8x16To4x32(destSourceInterleaved1, rightFactor1);
+
+      m128i_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
+      m128i_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, destAlpha);
+      m128i_t result2 = simd::MulAdd2x8x16To4x32(destSourceInterleaved2, rightFactor2);
+
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
+                                         simd::FastDivideBy255(result2));
+    }
+
+    case COMPOSITE_OPERATOR_XOR:
+    {
+      // val = dest * (255 - sourceAlpha) + source * (255 - destAlpha);
+      m128i_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
+      m128i_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
+
+      m128i_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
+      m128i_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha,
+                                                  twoFiftyFiveMinusDestAlpha);
+      m128i_t result1 = simd::MulAdd2x8x16To4x32(destSourceInterleaved1, rightFactor1);
+
+      m128i_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
+      m128i_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha,
+                                                  twoFiftyFiveMinusDestAlpha);
+      m128i_t result2 = simd::MulAdd2x8x16To4x32(destSourceInterleaved2, rightFactor2);
+
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
+                                         simd::FastDivideBy255(result2));
+    }
+
+  }
+}
+
+template<typename m128i_t, uint32_t op>
 static void
 ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
 {
@@ -2758,36 +2836,54 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
   uint32_t destStride = aDest->Stride();
 
   for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
+    for (int32_t x = 0; x < size.width; x += 4) {
       uint32_t sourceIndex = y * sourceStride + 4 * x;
       uint32_t destIndex = y * destStride + 4 * x;
-      uint32_t qa = destData[destIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      for (int32_t i = 0; i < 4; i++) {
-        uint32_t ca = destData[destIndex + i];
-        uint32_t cb = sourceData[sourceIndex + i];
-        uint32_t val;
-        switch (aCompositeOperator) {
-          case COMPOSITE_OPERATOR_OVER:
-            val = ca * (255 - qb) + cb * 255;
-            break;
-          case COMPOSITE_OPERATOR_IN:
-            val = cb * qa;
-            break;
-          case COMPOSITE_OPERATOR_OUT:
-            val = cb * (255 - qa);
-            break;
-          case COMPOSITE_OPERATOR_ATOP:
-            val = cb * qa + ca * (255 - qb);
-            break;
-          case COMPOSITE_OPERATOR_XOR:
-            val = cb * (255 - qa) + ca * (255 - qb);
-            break;
-        }
-        destData[destIndex + i] =
-          static_cast<uint8_t>(umin(FastDivideBy255<unsigned>(val), 255U));
-      }
+
+      m128i_t s1234 = simd::LoadFrom((m128i_t*)&sourceData[sourceIndex]);
+      m128i_t d1234 = simd::LoadFrom((m128i_t*)&destData[destIndex]);
+
+      m128i_t s12 = simd::UnpackLo8x8To8x16(s1234);
+      m128i_t d12 = simd::UnpackLo8x8To8x16(d1234);
+      m128i_t sa12 = simd::SplatHi16<3>(simd::SplatLo16<3>(s12));
+      m128i_t da12 = simd::SplatHi16<3>(simd::SplatLo16<3>(d12));
+      m128i_t result12 = CompositeTwoPixels<m128i_t,op>(s12, sa12, d12, da12);
+
+      m128i_t s34 = simd::UnpackHi8x8To8x16(s1234);
+      m128i_t d34 = simd::UnpackHi8x8To8x16(d1234);
+      m128i_t sa34 = simd::SplatHi16<3>(simd::SplatLo16<3>(s34));
+      m128i_t da34 = simd::SplatHi16<3>(simd::SplatLo16<3>(d34));
+      m128i_t result34 = CompositeTwoPixels<m128i_t,op>(s34, sa34, d34, da34);
+
+      m128i_t result1234 = simd::PackAndSaturate(result12, result34);
+      simd::StoreTo((m128i_t*)&destData[destIndex], result1234);
     }
+  }
+}
+
+template<typename m128i_t>
+static void
+ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest,
+                 CompositeOperator aOperator)
+{
+  switch (aOperator) {
+    case COMPOSITE_OPERATOR_OVER:
+      ApplyComposition<m128i_t, COMPOSITE_OPERATOR_OVER>(aSource, aDest);
+      break;
+    case COMPOSITE_OPERATOR_IN:
+      ApplyComposition<m128i_t, COMPOSITE_OPERATOR_IN>(aSource, aDest);
+      break;
+    case COMPOSITE_OPERATOR_OUT:
+      ApplyComposition<m128i_t, COMPOSITE_OPERATOR_OUT>(aSource, aDest);
+      break;
+    case COMPOSITE_OPERATOR_ATOP:
+      ApplyComposition<m128i_t, COMPOSITE_OPERATOR_ATOP>(aSource, aDest);
+      break;
+    case COMPOSITE_OPERATOR_XOR:
+      ApplyComposition<m128i_t, COMPOSITE_OPERATOR_XOR>(aSource, aDest);
+      break;
+    default:
+      MOZ_CRASH();
   }
 }
 
@@ -2808,25 +2904,13 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
     if (!input) {
       return nullptr;
     }
-    switch (mOperator) {
-      case COMPOSITE_OPERATOR_OVER:
-        ApplyComposition<COMPOSITE_OPERATOR_OVER>(input, dest);
-        break;
-      case COMPOSITE_OPERATOR_IN:
-        ApplyComposition<COMPOSITE_OPERATOR_IN>(input, dest);
-        break;
-      case COMPOSITE_OPERATOR_OUT:
-        ApplyComposition<COMPOSITE_OPERATOR_OUT>(input, dest);
-        break;
-      case COMPOSITE_OPERATOR_ATOP:
-        ApplyComposition<COMPOSITE_OPERATOR_ATOP>(input, dest);
-        break;
-      case COMPOSITE_OPERATOR_XOR:
-        ApplyComposition<COMPOSITE_OPERATOR_XOR>(input, dest);
-        break;
-      default:
-        MOZ_CRASH();
+#ifdef COMPILE_WITH_SSE2
+    if (Factory::HasSSE2()) {
+      ApplyComposition<__m128i>(input, dest, mOperator);
+      continue;
     }
+#endif
+    ApplyComposition<simd::ScalarM128i>(input, dest, mOperator);
   }
   return dest;
 }

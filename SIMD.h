@@ -48,6 +48,9 @@ template<typename m128i_t>
 m128i_t Add32(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
+m128i_t Sub16(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
 m128i_t Mul16(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
@@ -61,10 +64,19 @@ template<int8_t aIndex, typename m128i_t>
 inline m128i_t Splat32(m128i_t aM);
 
 template<typename m128i_t>
+inline m128i_t InterleaveLo16(m128i_t m1, m128i_t m2);
+
+template<typename m128i_t>
+inline m128i_t InterleaveHi16(m128i_t m1, m128i_t m2);
+
+template<typename m128i_t>
 m128i_t UnpackLo8x8To8x16(m128i_t m);
 
 template<typename m128i_t>
 m128i_t UnpackHi8x8To8x16(m128i_t m);
+
+template<typename m128i_t>
+inline m128i_t PackAndSaturate32To16(m128i_t m1, m128i_t m2);
 
 template<typename m128i_t>
 m128i_t PackAndSaturate(m128i_t m1, m128i_t m2, m128i_t m3, m128i_t m4);
@@ -152,13 +164,12 @@ ScalarM128i Add16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 }
 
 template<>
-ScalarM128i Mul16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+ScalarM128i Sub16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 {
-  // We only want the lower 16 bits of each 32-bit result.
-  return From16<ScalarM128i>(aM1.i16[0] * aM2.i16[0], aM1.i16[1] * aM2.i16[1],
-                             aM1.i16[2] * aM2.i16[2], aM1.i16[3] * aM2.i16[3],
-                             aM1.i16[4] * aM2.i16[4], aM1.i16[5] * aM2.i16[5],
-                             aM1.i16[6] * aM2.i16[6], aM1.i16[7] * aM2.i16[7]);
+  return From16<ScalarM128i>(aM1.i16[0] - aM2.i16[0], aM1.i16[1] - aM2.i16[1],
+                             aM1.i16[2] - aM2.i16[2], aM1.i16[3] - aM2.i16[3],
+                             aM1.i16[4] - aM2.i16[4], aM1.i16[5] - aM2.i16[5],
+                             aM1.i16[6] - aM2.i16[6], aM1.i16[7] - aM2.i16[7]);
 }
 
 template<>
@@ -166,6 +177,16 @@ ScalarM128i Add32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 {
   return From32<ScalarM128i>(aM1.i32[0] + aM2.i32[0], aM1.i32[1] + aM2.i32[1],
                              aM1.i32[2] + aM2.i32[2], aM1.i32[3] + aM2.i32[3]);
+}
+
+template<>
+ScalarM128i Mul16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  // We only want the lower 16 bits of each 32-bit result.
+  return From16<ScalarM128i>(aM1.i16[0] * aM2.i16[0], aM1.i16[1] * aM2.i16[1],
+                             aM1.i16[2] * aM2.i16[2], aM1.i16[3] * aM2.i16[3],
+                             aM1.i16[4] * aM2.i16[4], aM1.i16[5] * aM2.i16[5],
+                             aM1.i16[6] * aM2.i16[6], aM1.i16[7] * aM2.i16[7]);
 }
 
 template<>
@@ -266,6 +287,22 @@ inline ScalarM128i SplatHi16(ScalarM128i aM)
 }
 
 template<>
+inline ScalarM128i
+InterleaveLo16<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  return From16<ScalarM128i>(m1.i16[0], m2.i16[0], m1.i16[1], m2.i16[1],
+                             m1.i16[2], m2.i16[2], m1.i16[3], m2.i16[3]);
+}
+
+template<>
+inline ScalarM128i
+InterleaveHi16<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  return From16<ScalarM128i>(m1.i16[4], m2.i16[4], m1.i16[5], m2.i16[5],
+                             m1.i16[6], m2.i16[6], m1.i16[7], m2.i16[7]);
+}
+
+template<>
 ScalarM128i
 UnpackLo8x8To8x16<ScalarM128i>(ScalarM128i aM)
 {
@@ -294,6 +331,29 @@ UnpackHi8x8To8x16<ScalarM128i>(ScalarM128i aM)
   m.i16[5] = aM.u8[8+5];
   m.i16[6] = aM.u8[8+6];
   m.i16[7] = aM.u8[8+7];
+  return m;
+}
+
+template<typename T>
+static int16_t
+SaturateTo16(T a)
+{
+  return int16_t(a >= INT16_MIN ? (a <= INT16_MAX ? a : INT16_MAX) : INT16_MIN);
+}
+
+template<>
+ScalarM128i
+PackAndSaturate32To16<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  ScalarM128i m;
+  m.i16[0] = SaturateTo16(m1.i32[0]);
+  m.i16[1] = SaturateTo16(m1.i32[1]);
+  m.i16[2] = SaturateTo16(m1.i32[2]);
+  m.i16[3] = SaturateTo16(m1.i32[3]);
+  m.i16[4] = SaturateTo16(m2.i32[0]);
+  m.i16[5] = SaturateTo16(m2.i32[1]);
+  m.i16[6] = SaturateTo16(m2.i32[2]);
+  m.i16[7] = SaturateTo16(m2.i32[3]);
   return m;
 }
 
@@ -373,7 +433,20 @@ static B FastDivideBy255(A v)
   return ((v << 8) + v + 255) >> 16;
 }
 
-static ScalarM128i
+inline ScalarM128i
+FastDivideBy255_16(ScalarM128i m)
+{
+  return From16<ScalarM128i>(FastDivideBy255<uint16_t>(uint16_t(m.i16[0])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[1])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[2])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[3])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[4])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[5])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[6])),
+                             FastDivideBy255<uint16_t>(uint16_t(m.i16[7])));
+}
+
+inline ScalarM128i
 FastDivideBy255(ScalarM128i m)
 {
   return From32<ScalarM128i>(FastDivideBy255<int32_t>(m.i32[0]),
@@ -436,6 +509,12 @@ template<>
 __m128i Add32<__m128i>(__m128i aM1, __m128i aM2)
 {
   return _mm_add_epi32(aM1, aM2);
+}
+
+template<>
+__m128i Sub16<__m128i>(__m128i aM1, __m128i aM2)
+{
+  return _mm_sub_epi16(aM1, aM2);
 }
 
 template<>
@@ -529,6 +608,25 @@ UnpackHi8x8To8x16<__m128i>(__m128i m)
   return _mm_unpackhi_epi8(m, zero);
 }
 
+__m128i
+InterleaveLo16(__m128i m1, __m128i m2)
+{
+  return _mm_unpacklo_epi16(m1, m2);
+}
+
+__m128i
+InterleaveHi16(__m128i m1, __m128i m2)
+{
+  return _mm_unpackhi_epi16(m1, m2);
+}
+
+template<>
+inline __m128i
+PackAndSaturate32To16<__m128i>(__m128i m1, __m128i m2)
+{
+  return _mm_packs_epi32(m1, m2);
+}
+
 template<>
 __m128i
 PackAndSaturate<__m128i>(__m128i m1, __m128i m2, __m128i m3, __m128i m4)
@@ -556,7 +654,7 @@ SetComponent16(__m128i aM, int32_t aValue)
   return _mm_insert_epi16(aM, aValue, aIndex);
 }
 
-static __m128i
+inline __m128i
 FastDivideBy255(__m128i m)
 {
   // v = m << 8
@@ -567,8 +665,17 @@ FastDivideBy255(__m128i m)
   return _mm_srai_epi32(v, 16);
 }
 
+inline __m128i
+FastDivideBy255_16(__m128i m)
+{
+  __m128i zero = _mm_set1_epi16(0);
+  __m128i lo = _mm_unpacklo_epi16(m, zero);
+  __m128i hi = _mm_unpackhi_epi16(m, zero);
+  return _mm_packs_epi32(FastDivideBy255(lo), FastDivideBy255(hi));
+}
+
 template<typename m128i_t>
-static void
+inline void
 print__m128i(const char* name, m128i_t m)
 {
   union {
