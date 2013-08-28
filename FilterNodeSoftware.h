@@ -134,6 +134,7 @@ protected:
    * If non-null, the returned surface is guaranteed to be of FORMAT_A8 or
    * FORMAT_B8G8R8A8. If aFormatHint is NEED_COLOR_CHANNELS, the returned
    * surface is guaranteed to be of FORMAT_B8G8R8A8 always.
+   * Each pixel row of the returned surface is guaranteed to be 16-byte aligned.
    */
   TemporaryRef<DataSourceSurface>
     GetInputDataSourceSurface(uint32_t aInputEnumIndex, const IntRect& aRect,

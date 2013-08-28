@@ -206,7 +206,7 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
 }
 
 TemporaryRef<DataSourceSurface>
-CloneForStride(DataSourceSurface* aSource)
+CloneAligned(DataSourceSurface* aSource)
 {
   RefPtr<DataSourceSurface> copy =
     Factory::CreateDataSourceSurface(aSource->GetSize(), FORMAT_B8G8R8A8);
@@ -735,6 +735,12 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
 
   RefPtr<DataSourceSurface> result =
     GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
+
+  if (result->Stride() != GetAlignedStride<16>(result->Stride()) ||
+      reinterpret_cast<uintptr_t>(result->GetData()) % 16 != 0) {
+    // Align unaligned surface.
+    result = CloneAligned(result);
+  }
 
 #ifdef DEBUG_DUMP_SURFACES
   printf("input:\n");
