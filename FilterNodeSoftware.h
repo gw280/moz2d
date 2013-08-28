@@ -302,14 +302,9 @@ protected:
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
-  template<ptrdiff_t ComponentOffset, uint32_t BytesPerPixel>
-                            void ApplyComponentTransfer(DataSourceSurface* aInput,
-                                                        DataSourceSurface* aTarget,
-                                                        uint8_t aLookupTable[256],
-                                                        bool aDisabled);
-  virtual void MaybeGenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256],
-                                        bool aDisabled);
-  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) = 0;
+  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTables[4][256],
+                                   bool aDisabled);
+  virtual void FillLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) = 0;
 
   bool mDisableR;
   bool mDisableG;
@@ -324,10 +319,10 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
 
 protected:
-  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
+  virtual void FillLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
-  void GenerateLookupTable(std::vector<Float>& aTableValues, uint8_t aTable[256]);
+  void FillLookupTableImpl(std::vector<Float>& aTableValues, uint8_t aTable[256]);
 
   std::vector<Float> mTableR;
   std::vector<Float> mTableG;
@@ -342,10 +337,10 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
 
 protected:
-  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
+  virtual void FillLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
-  void GenerateLookupTable(std::vector<Float>& aTableValues, uint8_t aTable[256]);
+  void FillLookupTableImpl(std::vector<Float>& aTableValues, uint8_t aTable[256]);
 
   std::vector<Float> mTableR;
   std::vector<Float> mTableG;
@@ -361,10 +356,10 @@ public:
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
 
 protected:
-  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
+  virtual void FillLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
-  void GenerateLookupTable(Float aSlope, Float aIntercept, uint8_t aTable[256]);
+  void FillLookupTableImpl(Float aSlope, Float aIntercept, uint8_t aTable[256]);
 
   Float mSlopeR;
   Float mSlopeG;
@@ -384,10 +379,10 @@ public:
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
 
 protected:
-  virtual void GenerateLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
+  virtual void FillLookupTable(ptrdiff_t aComponent, uint8_t aTable[256]) MOZ_OVERRIDE;
 
 private:
-  void GenerateLookupTable(Float aAmplitude, Float aExponent, Float aOffset, uint8_t aTable[256]);
+  void FillLookupTableImpl(Float aAmplitude, Float aExponent, Float aOffset, uint8_t aTable[256]);
 
   Float mAmplitudeR;
   Float mAmplitudeG;
