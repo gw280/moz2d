@@ -1660,7 +1660,7 @@ static void TransferComponents(DataSourceSurface* aInput,
     for (int32_t x = 0; x < size.width; x++) {
       uint32_t sourceIndex = y * sourceStride + x * BytesPerPixel;
       uint32_t targetIndex = y * targetStride + x * BytesPerPixel;
-      for (int32_t i = 0; i < BytesPerPixel; i++) {
+      for (uint32_t i = 0; i < BytesPerPixel; i++) {
         targetData[targetIndex + i] = aLookupTables[i][sourceData[sourceIndex + i]];
       }
     }
