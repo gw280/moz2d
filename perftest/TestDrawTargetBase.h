@@ -55,6 +55,12 @@ public:
   void DrawShadow10x10LargeRadius();
   void DrawShadow200x200LargeRadius();
   void DrawMorphologyFilter100x100Radius40();
+  void DrawTurbulence500x500();
+  void CreateRandom200();
+  void Premultiply200x200x1000();
+  void Unpremultiply200x200x1000();
+  void ComponentTransfer200x200x1000();
+  void ColorMatrix200x200x1000();
 
 protected:
   FlushFunc mFlush;
@@ -66,8 +72,9 @@ protected:
   }
 
   void FillSquare(int aSize, int aRepeat, mozilla::gfx::CompositionOp aOp = mozilla::gfx::OP_OVER);
-  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, mozilla::gfx::SurfaceFormat aFormat);
+  mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, mozilla::gfx::SurfaceFormat aFormat, bool aLeaveUninitialized = true);
   mozilla::TemporaryRef<mozilla::gfx::GradientStops> CreateSimpleGradientStops();
 
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
+  mozilla::RefPtr<mozilla::gfx::SourceSurface> mRandom200;
 };
