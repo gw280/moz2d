@@ -1002,7 +1002,8 @@ TestDrawTargetBase::RefreshSnapshot()
 }
 
 void
-TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
+TestDrawTargetBase::VerifyAllPixels(const Color &aColor,
+                                    uint8_t aTolerance)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
@@ -1012,31 +1013,37 @@ TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
     for (int x = 0; x < DT_WIDTH; x++) {
       if (colVal[y * (mDataSnapshot->Stride() / 4) + x] != expected) {
         stringstream message;
-        uint32_t rawActual = colVal[y * (mDataSnapshot->Stride() / 4) + x];
-        uint32_t actb = rawActual & 0xFF;
-        uint32_t actg = (rawActual & 0xFF00) >> 8;
-        uint32_t actr = (rawActual & 0xFF0000) >> 16;
-        uint32_t acta = (rawActual & 0xFF000000) >> 24;
-        uint32_t expb = expected & 0xFF;
-        uint32_t expg = (expected & 0xFF00) >> 8;
-        uint32_t expr = (expected & 0xFF0000) >> 16;
-        uint32_t expa = (expected & 0xFF000000) >> 24;
+        int32_t rawActual = colVal[y * (mDataSnapshot->Stride() / 4) + x];
+        int32_t actb = rawActual & 0xFF;
+        int32_t actg = (rawActual & 0xFF00) >> 8;
+        int32_t actr = (rawActual & 0xFF0000) >> 16;
+        int32_t acta = (rawActual & 0xFF000000) >> 24;
+        int32_t expb = expected & 0xFF;
+        int32_t expg = (expected & 0xFF00) >> 8;
+        int32_t expr = (expected & 0xFF0000) >> 16;
+        int32_t expa = (expected & 0xFF000000) >> 24;
 
-        message << "Verify Pixel (" << x << "x" << y << ") Failed."
-          " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
-          " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
+        if (abs(actb - expb) > aTolerance ||
+            abs(actg - expg) > aTolerance ||
+            abs(actr - expr) > aTolerance ||
+            abs(acta - expa) > aTolerance) {
+          message << "Verify Pixel (" << x << "x" << y << ") Failed."
+            " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
+            " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
 
-        LogMessage(message.str());
-        LogMessage("VerifyAllPixels Failed\n");
-        mTestFailed = true;
-        return;
+          LogMessage(message.str());
+          LogMessage("VerifyAllPixels Failed\n");
+          mTestFailed = true;
+          return;
+        }
       }
     }
   }
 }
 
 void
-TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Color &aColor)
+TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Color &aColor,
+                                uint8_t aTolerance)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
@@ -1045,22 +1052,27 @@ TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Colo
 
   if (rawActual != expected) {
     stringstream message;
-    uint32_t actb = rawActual & 0xFF;
-    uint32_t actg = (rawActual & 0xFF00) >> 8;
-    uint32_t actr = (rawActual & 0xFF0000) >> 16;
-    uint32_t acta = (rawActual & 0xFF000000) >> 24;
-    uint32_t expb = expected & 0xFF;
-    uint32_t expg = (expected & 0xFF00) >> 8;
-    uint32_t expr = (expected & 0xFF0000) >> 16;
-    uint32_t expa = (expected & 0xFF000000) >> 24;
+    int32_t actb = rawActual & 0xFF;
+    int32_t actg = (rawActual & 0xFF00) >> 8;
+    int32_t actr = (rawActual & 0xFF0000) >> 16;
+    int32_t acta = (rawActual & 0xFF000000) >> 24;
+    int32_t expb = expected & 0xFF;
+    int32_t expg = (expected & 0xFF00) >> 8;
+    int32_t expr = (expected & 0xFF0000) >> 16;
+    int32_t expa = (expected & 0xFF000000) >> 24;
 
-    message << "Verify Pixel (" << aPoint.x << "x" << aPoint.y << ") Failed."
-      " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
-      " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
+    if (abs(actb - expb) > aTolerance ||
+        abs(actg - expg) > aTolerance ||
+        abs(actr - expr) > aTolerance ||
+        abs(acta - expa) > aTolerance) {
+      message << "Verify Pixel (" << aPoint.x << "x" << aPoint.y << ") Failed."
+        " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
+        " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
 
-    LogMessage(message.str());
-    mTestFailed = true;
-    return;
+      LogMessage(message.str());
+      mTestFailed = true;
+      return;
+    }
   }
 }
 

@@ -62,9 +62,11 @@ protected:
   
   void RefreshSnapshot();
   
-  void VerifyAllPixels(const mozilla::gfx::Color &aColor);
+  void VerifyAllPixels(const mozilla::gfx::Color &aColor,
+                       uint8_t aTolerance = 0);
   void VerifyPixel(const mozilla::gfx::IntPoint &aPoint,
-                   const mozilla::gfx::Color &aColor);
+                   const mozilla::gfx::Color &aColor,
+                   uint8_t aTolerance = 0);
   
   uint32_t BGRAPixelFromColor(const mozilla::gfx::Color &aColor);
   
