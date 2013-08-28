@@ -2525,13 +2525,13 @@ FilterNodeTurbulenceSoftware::DoRender(const IntRect& aRect)
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  SVGTurbulenceRenderer<aType,aStitchable> renderer(mBaseFrequency, mSeed, mNumOctaves, aRect);
+  SVGTurbulenceRenderer<aType,aStitchable,double> renderer(mBaseFrequency, mSeed, mNumOctaves, aRect);
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
       int32_t targIndex = y * stride + x * 4;
-      Color c = renderer.ColorAtPoint(aRect.TopLeft() + IntPoint(x, y));
-      *(uint32_t*)(targetData + targIndex) = ColorToBGRA(c);
+      *(uint32_t*)(targetData + targIndex) =
+        renderer.ColorAtPoint(aRect.TopLeft() + IntPoint(x, y));
     }
   }
 

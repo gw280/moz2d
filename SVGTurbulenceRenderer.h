@@ -76,7 +76,7 @@ struct vec4
   vec4(const vec4 &aOther)
    : _1(aOther._1), _2(aOther._2), _3(aOther._3), _4(aOther._4) {}
 
-  // Allow implicit conversion from vec4<double> to vec4<int32_t>, for example.
+  // Allow implicit conversion from vec4<T> to vec4<int32_t>, for example.
   template<typename S>
   vec4(const vec4<S> &aOther)
    : _1(T(aOther._1)), _2(T(aOther._2)), _3(T(aOther._3)), _4(T(aOther._4)) {}
@@ -125,14 +125,14 @@ struct vec4
   T _4;
 };
 
-template<TurbulenceType Type, bool Stitch>
+template<TurbulenceType Type, bool Stitch, typename T>
 class SVGTurbulenceRenderer
 {
 public:
   SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
                         int aNumOctaves, const IntRect &aTileRect);
 
-  Color ColorAtPoint(const IntPoint &aPoint);
+  uint32_t ColorAtPoint(const IntPoint &aPoint);
 
 private:
   /* The turbulence calculation code is an adapted version of what
@@ -153,10 +153,10 @@ private:
   void InitFromSeed(int32_t aSeed);
   void AdjustBaseFrequencyForStitch(const IntRect &aTileRect);
   StitchInfo CreateStitchInfo(const IntRect &aTileRect);
-  vec4<double> Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                     vec2<double> r0, vec2<double> r1);
-  vec4<double> Noise2(int aColorChannel, vec2<double> aVec);
-  vec4<double> Turbulence(int aColorChannel, const IntPoint &aPoint);
+  vec4<T> Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
+                     vec2<T> r0, vec2<T> r1);
+  vec4<T> Noise2(int aColorChannel, vec2<T> aVec);
+  vec4<T> Turbulence(int aColorChannel, const IntPoint &aPoint);
 
   Size mBaseFrequency;
   int32_t mNumOctaves;
@@ -164,7 +164,7 @@ private:
   bool mStitchable;
   TurbulenceType mType;
   int32_t mLatticeSelector[sBSize];
-  vec2<vec4<double> > mGradient[sBSize];
+  vec2<vec4<T> > mGradient[sBSize];
 };
 
 } // namespace gfx

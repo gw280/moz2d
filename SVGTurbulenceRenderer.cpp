@@ -52,9 +52,9 @@ private:
 
 } // unnamed namespace
 
-template<TurbulenceType Type, bool Stitch>
-SVGTurbulenceRenderer<Type,Stitch>::SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
-                                             int aNumOctaves, const IntRect &aTileRect)
+template<TurbulenceType Type, bool Stitch, typename T>
+SVGTurbulenceRenderer<Type,Stitch,T>::SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
+                                                            int aNumOctaves, const IntRect &aTileRect)
  : mBaseFrequency(aBaseFrequency)
  , mNumOctaves(aNumOctaves)
 {
@@ -72,27 +72,27 @@ Swap(int32_t& a, int32_t& b) {
   b = c;
 }
 
-template<TurbulenceType Type, bool Stitch>
+template<TurbulenceType Type, bool Stitch, typename T>
 void
-SVGTurbulenceRenderer<Type,Stitch>::InitFromSeed(int32_t aSeed)
+SVGTurbulenceRenderer<Type,Stitch,T>::InitFromSeed(int32_t aSeed)
 {
   RandomNumberSource rand(aSeed);
 
-  vec2<double> gradient[4][sBSize];
+  vec2<T> gradient[4][sBSize];
   for (int32_t k = 0; k < 4; k++) {
     for (int32_t i = 0; i < sBSize; i++) {
-      double a = double((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
-      double b = double((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
-      double s = sqrt(a * a + b * b);
+      T a = T((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
+      T b = T((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
+      T s = sqrt(a * a + b * b);
       gradient[k][i].x() = a / s;
       gradient[k][i].y() = b / s;
     }
   }
 
   for (int32_t i = 0; i < sBSize; i++) {
-    mGradient[i].x() = vec4<double>(gradient[0][i].x(), gradient[1][i].x(),
+    mGradient[i].x() = vec4<T>(gradient[0][i].x(), gradient[1][i].x(),
                                     gradient[2][i].x(), gradient[3][i].x());
-    mGradient[i].y() = vec4<double>(gradient[0][i].y(), gradient[1][i].y(),
+    mGradient[i].y() = vec4<T>(gradient[0][i].y(), gradient[1][i].y(),
                                     gradient[2][i].y(), gradient[3][i].y());
   }
 
@@ -122,24 +122,25 @@ AdjustForLength(float aFreq, float aLength)
   return hiFreq;
 }
 
-template<TurbulenceType Type, bool Stitch>
+template<TurbulenceType Type, bool Stitch, typename T>
 void
-SVGTurbulenceRenderer<Type,Stitch>::AdjustBaseFrequencyForStitch(const IntRect &aTileRect)
+SVGTurbulenceRenderer<Type,Stitch,T>::AdjustBaseFrequencyForStitch(const IntRect &aTileRect)
 {
   mBaseFrequency = Size(AdjustForLength(mBaseFrequency.width, aTileRect.width),
                         AdjustForLength(mBaseFrequency.height, aTileRect.height));
 }
 
 // from xpcom/ds/nsMathUtils.h
+template<typename T>
 static int32_t
-NS_lround(double x)
+NS_lround(T x)
 {
-  return x >= 0.0 ? int32_t(x + 0.5) : int32_t(x - 0.5);
+  return x >= 0.0f ? int32_t(x + 0.5f) : int32_t(x - 0.5f);
 }
 
-template<TurbulenceType Type, bool Stitch>
-typename SVGTurbulenceRenderer<Type,Stitch>::StitchInfo
-SVGTurbulenceRenderer<Type,Stitch>::CreateStitchInfo(const IntRect &aTileRect)
+template<TurbulenceType Type, bool Stitch, typename T>
+typename SVGTurbulenceRenderer<Type,Stitch,T>::StitchInfo
+SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const IntRect &aTileRect)
 {
   StitchInfo stitch;
   stitch.mWidth = NS_lround(aTileRect.width * mBaseFrequency.width);
@@ -149,69 +150,71 @@ SVGTurbulenceRenderer<Type,Stitch>::CreateStitchInfo(const IntRect &aTileRect)
   return stitch;
 }
 
-template<typename T>
-static vec2<T>
-Mix(double ux, double vx, double y,
-    const vec2<T> &qu,
-    const vec2<T> &qv)
+template<typename T, typename S>
+static vec2<S>
+Mix(T ux, T vx, T y,
+    const vec2<S> &qu,
+    const vec2<S> &qv)
 {
-  T u = qu.x() * ux + qu.y() * y;
-  T v = qv.x() * vx + qv.y() * y;
-  return vec2<T>(u, v);
-}
-
-static double
-SCurve(double t)
-{
-  return t * t * (3. - 2. * t);
-}
-
-static vec2<double>
-SCurve(const vec2<double> &t)
-{
-  return vec2<double>(SCurve(t.x()), SCurve(t.y()));
+  S u = qu.x() * ux + qu.y() * y;
+  S v = qv.x() * vx + qv.y() * y;
+  return vec2<S>(u, v);
 }
 
 template<typename T>
 static T
-Lerp(double t, T a, T b)
+SCurve(T t)
+{
+  return t * t * (3 - 2 * t);
+}
+
+template<typename T>
+static vec2<T>
+SCurve(const vec2<T> &t)
+{
+  return vec2<T>(SCurve(t.x()), SCurve(t.y()));
+}
+
+template<typename T, typename S>
+static S
+Lerp(T t, S a, S b)
 {
   return a + (b - a) * t;
 }
 
-template<typename T>
-static T
-BiLerp(const vec2<double> &s, const vec2<T> &a, const vec2<T> &b)
+template<typename T, typename S>
+static S
+BiLerp(const vec2<T> &s, const vec2<S> &a, const vec2<S> &b)
 {
-  const T xa = Lerp(s.x(), a.u(), a.v());
-  const T xb = Lerp(s.x(), b.u(), b.v());
+  const S xa = Lerp(s.x(), a.u(), a.v());
+  const S xb = Lerp(s.x(), b.u(), b.v());
   return Lerp(s.y(), xa, xb);
 }
 
-template<TurbulenceType Type, bool Stitch>
-vec4<double>
-SVGTurbulenceRenderer<Type,Stitch>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                                                      vec2<double> r0, vec2<double> r1)
+template<TurbulenceType Type, bool Stitch, typename T>
+vec4<T>
+SVGTurbulenceRenderer<Type,Stitch,T>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
+                                                      vec2<T> r0, vec2<T> r1)
 {
   static_assert(1 << (sizeof(b0.x()) * 8) <= sBSize, "mLatticeSelector is too small");
 
   int32_t i = mLatticeSelector[b0.x()];
   int32_t j = mLatticeSelector[b1.x()];
 
-  vec2<vec4<double> > qua = mGradient[mLatticeSelector[i + b0.y()]];
-  vec2<vec4<double> > qva = mGradient[mLatticeSelector[j + b0.y()]];
-  vec2<vec4<double> > qub = mGradient[mLatticeSelector[i + b1.y()]];
-  vec2<vec4<double> > qvb = mGradient[mLatticeSelector[j + b1.y()]];
+  vec2<vec4<T> > qua = mGradient[mLatticeSelector[i + b0.y()]];
+  vec2<vec4<T> > qva = mGradient[mLatticeSelector[j + b0.y()]];
+  vec2<vec4<T> > qub = mGradient[mLatticeSelector[i + b1.y()]];
+  vec2<vec4<T> > qvb = mGradient[mLatticeSelector[j + b1.y()]];
   return BiLerp(SCurve(r0),
                 Mix(r0.x(), r1.x(), r0.y(), qua, qva),
                 Mix(r0.x(), r1.x(), r1.y(), qub, qvb));
 }
 
-template<TurbulenceType Type, bool Stitch>
-vec4<double>
-SVGTurbulenceRenderer<Type,Stitch>::Noise2(int aColorChannel, vec2<double> aVec)
+template<TurbulenceType Type, bool Stitch, typename T>
+vec4<T>
+SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec)
 {
-  vec2<double> t = aVec + vec2<double>(sPerlinN, sPerlinN);
+  vec2<T> t = aVec + vec2<T>(sPerlinN, sPerlinN);
   vec2<int32_t> lt = t;
 
   vec2<int32_t> b0 = lt;
@@ -229,25 +232,26 @@ SVGTurbulenceRenderer<Type,Stitch>::Noise2(int aColorChannel, vec2<double> aVec)
       b1.y() -= mStitchInfo.mHeight;
   }
 
-  vec2<double> r0 = t - lt;
-  vec2<double> r1 = r0 - vec2<double>(1.0f, 1.0f);
+  vec2<T> r0 = t - lt;
+  vec2<T> r1 = r0 - vec2<T>(1, 1);
 
   return Interpolate(b0, b1, r0, r1);
 }
 
-static vec4<double>
-vabs(const vec4<double> &v)
+template<typename T>
+static vec4<T>
+vabs(const vec4<T> &v)
 {
-  return vec4<double>(fabs(v._1), fabs(v._2), fabs(v._3), fabs(v._4));
+  return vec4<T>(fabs(v._1), fabs(v._2), fabs(v._3), fabs(v._4));
 }
 
-template<TurbulenceType Type, bool Stitch>
-vec4<double>
-SVGTurbulenceRenderer<Type,Stitch>::Turbulence(int aColorChannel, const IntPoint &aPoint)
+template<TurbulenceType Type, bool Stitch, typename T>
+vec4<T>
+SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(int aColorChannel, const IntPoint &aPoint)
 {
-  vec4<double> sum;
-  vec2<double> vec(aPoint.x * mBaseFrequency.width, aPoint.y * mBaseFrequency.height);
-  double ratio = 1;
+  vec4<T> sum;
+  vec2<T> vec(aPoint.x * mBaseFrequency.width, aPoint.y * mBaseFrequency.height);
+  T ratio = 1;
   for (int octave = 0; octave < mNumOctaves; octave++) {
     if (Type == TURBULENCE_TYPE_FRACTAL_NOISE) {
       sum += Noise2(aColorChannel, vec) / ratio;
@@ -278,24 +282,43 @@ clamped(const T& a, const T& min, const T& max)
   return std::min(std::max(a, min), max);
 }
 
-template<TurbulenceType Type, bool Stitch>
-Color
-SVGTurbulenceRenderer<Type,Stitch>::ColorAtPoint(const IntPoint &aPoint)
+template<typename S>
+static uint32_t
+ColorToBGRA(const S& aColor)
 {
-  vec4<double> col;
+  union {
+    uint32_t color;
+    uint8_t components[4];
+  };
+  components[2] = uint8_t(aColor.r() * aColor.a() * 255.0f + 0.5f);
+  components[1] = uint8_t(aColor.g() * aColor.a() * 255.0f + 0.5f);
+  components[0] = uint8_t(aColor.b() * aColor.a() * 255.0f + 0.5f);
+  components[3] = uint8_t(aColor.a() * 255.0f + 0.5f);
+  return color;
+}
+
+template<TurbulenceType Type, bool Stitch, typename T>
+uint32_t
+SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const IntPoint &aPoint)
+{
+  vec4<T> col;
   if (Type == TURBULENCE_TYPE_TURBULENCE) {
     col = Turbulence(0, aPoint);
   } else {
-    col = (Turbulence(0, aPoint) + vec4<double>(1,1,1,1)) / 2;
+    col = (Turbulence(0, aPoint) + vec4<T>(1,1,1,1)) / 2;
   }
-  return Color(clamped(col.r(), 0.0, 1.0), clamped(col.g(), 0.0, 1.0),
-               clamped(col.b(), 0.0, 1.0), clamped(col.a(), 0.0, 1.0));
+  return ColorToBGRA(vec4<T>(clamped<T>(col.r(), 0, 1), clamped<T>(col.g(), 0, 1),
+                             clamped<T>(col.b(), 0, 1), clamped<T>(col.a(), 0, 1)));
 }
 
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, true>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false, double>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true, double>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false, double>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, true, double>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false, float>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true, float>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false, float>;
+template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, true, float>;
 
 } // namespace gfx
 } // namespace mozilla
