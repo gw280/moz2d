@@ -452,8 +452,26 @@ TestDrawTargetBase::Blend()
   filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
 
   uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
-  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
-    data[i] = 0xff008000;
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i += 16) {
+    data[i  ] = 0xff008000;
+    data[i+1] = 0xff800080;
+    data[i+2] = 0xff0040a0;
+    data[i+3] = 0xff204080;
+
+    data[i+4] = 0x80000000;
+    data[i+5] = 0xa0000000;
+    data[i+6] = 0x20000000;
+    data[i+7] = 0x40000000;
+
+    data[i+8  ] = 0xff008000;
+    data[i+8+2] = 0xff800080;
+    data[i+8+5] = 0xff0040a0;
+    data[i+8+6] = 0xff204080;
+
+    data[i+8+1] = 0x80000000;
+    data[i+8+3] = 0xa0000000;
+    data[i+8+4] = 0x20000000;
+    data[i+8+7] = 0x40000000;
   }
 
   {
@@ -472,7 +490,27 @@ TestDrawTargetBase::Blend()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.25f, 0, 1.0f));
+  VerifyPixel(IntPoint(0, 0), Color(0, 0.25f, 0, 1.0f));
+  VerifyPixel(IntPoint(1, 0), Color(0.25f, 0, 0.25, 1.0f));
+  VerifyPixel(IntPoint(2, 0), Color(0, 0.0625f, 0.393f, 1.0f));
+  VerifyPixel(IntPoint(3, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+
+  // alphablending: Float alpha = 1 - (1 - destAlpha) * (1 - sourceAlpha);
+  VerifyPixel(IntPoint(4, 0), Color(0, 0, 0, 0.75f));
+  VerifyPixel(IntPoint(5, 0), Color(0, 0, 0, 0.860f));
+  VerifyPixel(IntPoint(6, 0), Color(0, 0, 0, 0.233f));
+  VerifyPixel(IntPoint(7, 0), Color(0, 0, 0, 0.437f));
+
+  // XXX need testcases with two different inputs
+  VerifyPixel(IntPoint(8+0, 0), Color(0, 0.25f, 0, 1.0f));
+  VerifyPixel(IntPoint(8+2, 0), Color(0.25f, 0, 0.25, 1.0f));
+  VerifyPixel(IntPoint(8+5, 0), Color(0, 0.0625f, 0.393f, 1.0f));
+  VerifyPixel(IntPoint(8+6, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+
+  VerifyPixel(IntPoint(8+1, 0), Color(0, 0, 0, 0.75f));
+  VerifyPixel(IntPoint(8+3, 0), Color(0, 0, 0, 0.860f));
+  VerifyPixel(IntPoint(8+4, 0), Color(0, 0, 0, 0.233f));
+  VerifyPixel(IntPoint(8+7, 0), Color(0, 0, 0, 0.437f));
 }
 
 void
