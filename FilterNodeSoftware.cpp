@@ -210,7 +210,7 @@ TemporaryRef<DataSourceSurface>
 CloneAligned(DataSourceSurface* aSource)
 {
   RefPtr<DataSourceSurface> copy =
-    Factory::CreateDataSourceSurface(aSource->GetSize(), FORMAT_B8G8R8A8);
+    Factory::CreateDataSourceSurface(aSource->GetSize(), aSource->GetFormat());
   CopyRect(aSource, copy, IntRect(IntPoint(), aSource->GetSize()), IntPoint());
   return copy;
 }
@@ -613,6 +613,7 @@ FilterNodeSoftware::RequestInputRect(uint32_t aInputEnumIndex, const IntRect &aR
   filter->RequestRect(filter->GetOutputRectInRect(aRect));
 }
 
+template<typename m128i_t>
 TemporaryRef<DataSourceSurface>
 ConvertToB8G8R8A8(SourceSurface* aSurface)
 {
@@ -666,13 +667,26 @@ ConvertToB8G8R8A8(SourceSurface* aSurface)
       break;
     case FORMAT_A8:
       for (int32_t y = 0; y < size.height; y++) {
-        for (int32_t x = 0; x < size.width; x++) {
+        for (int32_t x = 0; x < size.width; x += 16) {
           int32_t inputIndex = y * inputStride + x;
           int32_t outputIndex = y * outputStride + 4 * x;
-          outputData[outputIndex + 0] = 0;
-          outputData[outputIndex + 1] = 0;
-          outputData[outputIndex + 2] = 0;
-          outputData[outputIndex + 3] = inputData[inputIndex];
+          m128i_t alpha16x8 = simd::LoadFrom<m128i_t>((m128i_t*)&inputData[inputIndex]);
+          m128i_t alphaLo8x16 = simd::UnpackLo8x8To8x16(alpha16x8);
+          m128i_t alphaHi8x16 = simd::UnpackHi8x8To8x16(alpha16x8);
+          m128i_t alphaLoLo4x32 = simd::UnpackLo8x8To8x16(alphaLo8x16);
+          m128i_t alphaLoHi4x32 = simd::UnpackHi8x8To8x16(alphaLo8x16);
+          m128i_t alphaHiLo4x32 = simd::UnpackLo8x8To8x16(alphaHi8x16);
+          m128i_t alphaHiHi4x32 = simd::UnpackHi8x8To8x16(alphaHi8x16);
+          simd::StoreTo((m128i_t*)&outputData[outputIndex], alphaLoLo4x32);
+          if (outputStride > (x + 4) * 4) {
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+16], alphaLoHi4x32);
+          }
+          if (outputStride > (x + 8) * 4) {
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+32], alphaHiLo4x32);
+          }
+          if (outputStride > (x + 12) * 4) {
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+48], alphaHiHi4x32);
+          }
         }
       }
       break;
@@ -728,12 +742,6 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     return nullptr;
   }
 
-  SurfaceFormat currentFormat = surface->GetFormat();
-  if (DesiredFormat(currentFormat, aFormatHint) == FORMAT_B8G8R8A8 &&
-      currentFormat != FORMAT_B8G8R8A8) {
-    surface = ConvertToB8G8R8A8(surface);
-  }
-
   RefPtr<DataSourceSurface> result =
     GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
 
@@ -741,6 +749,18 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
       reinterpret_cast<uintptr_t>(result->GetData()) % 16 != 0) {
     // Align unaligned surface.
     result = CloneAligned(result);
+  }
+
+  SurfaceFormat currentFormat = result->GetFormat();
+  if (DesiredFormat(currentFormat, aFormatHint) == FORMAT_B8G8R8A8 &&
+      currentFormat != FORMAT_B8G8R8A8) {
+    if (Factory::HasSSE2()) {
+#ifdef COMPILE_WITH_SSE2
+      result = ConvertToB8G8R8A8<__m128i>(result);
+#endif
+    } else {
+      result = ConvertToB8G8R8A8<simd::ScalarM128i>(result);
+    }
   }
 
 #ifdef DEBUG_DUMP_SURFACES
