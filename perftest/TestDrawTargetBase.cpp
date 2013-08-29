@@ -56,6 +56,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, ComponentTransfer200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, ColorMatrix200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Composite200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Blend200x200x1000);
 
   mGroup = GROUP_DRAWTARGETS;
 }
@@ -553,6 +554,29 @@ TestDrawTargetBase::Composite200x200x1000()
     filter->SetInput(IN_COMPOSITE_IN_START, surf);
     filter->SetInput(IN_COMPOSITE_IN_START + 1, surf);
     filter->SetInput(IN_COMPOSITE_IN_START + 2, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Blend200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+    filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
+    filter->SetInput(IN_BLEND_IN, surf);
+    filter->SetInput(IN_BLEND_IN2, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
   }
 

@@ -62,6 +62,7 @@ public:
   void ComponentTransfer200x200x1000();
   void ColorMatrix200x200x1000();
   void Composite200x200x1000();
+  void Blend200x200x1000();
 
 protected:
   FlushFunc mFlush;
