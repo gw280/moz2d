@@ -888,9 +888,179 @@ FilterNodeBlendSoftware::SetAttribute(uint32_t aIndex, uint32_t aBlendMode)
   Invalidate();
 }
 
+template<typename m128i_t, uint32_t aBlendMode>
+static void
+BlendTwoComponentsOfFourPixels(m128i_t source, m128i_t sourceAlpha,
+                               m128i_t dest, m128i_t destAlpha,
+                               m128i_t& blendedComponent1, m128i_t& blendedComponent2)
+{
+  m128i_t x255 = simd::From16<m128i_t>(255);
+
+  switch (aBlendMode) {
+
+    case BLEND_MODE_MULTIPLY:
+    {
+      // val = ((255 - destAlpha) * source + (255 - sourceAlpha + source) * dest);
+      m128i_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
+      m128i_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
+      m128i_t twoFiftyFiveMinusSourceAlphaPlusSource = simd::Add16(twoFiftyFiveMinusSourceAlpha, source);
+
+      m128i_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
+      m128i_t leftFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
+      blendedComponent1 = simd::MulAdd2x8x16To4x32(sourceInterleavedWithDest1, leftFactor1);
+      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
+
+      m128i_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
+      m128i_t leftFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
+      blendedComponent2 = simd::MulAdd2x8x16To4x32(sourceInterleavedWithDest2, leftFactor2);
+      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
+
+      break;
+    }
+
+    case BLEND_MODE_SCREEN:
+    {
+      // val = 255 * (source + dest) + (0 - dest) * source;
+      m128i_t sourcePlusDest = simd::Add16(source, dest);
+      m128i_t zeroMinusDest = simd::Sub16(simd::From16<m128i_t>(0), dest);
+
+      m128i_t twoFiftyFiveInterleavedWithZeroMinusDest1 = simd::InterleaveLo16(x255, zeroMinusDest);
+      m128i_t sourcePlusDestInterleavedWithSource1 = simd::InterleaveLo16(sourcePlusDest, source);
+      blendedComponent1 = simd::MulAdd2x8x16To4x32(twoFiftyFiveInterleavedWithZeroMinusDest1, sourcePlusDestInterleavedWithSource1);
+      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
+
+      m128i_t twoFiftyFiveInterleavedWithZeroMinusDest2 = simd::InterleaveHi16(x255, zeroMinusDest);
+      m128i_t sourcePlusDestInterleavedWithSource2 = simd::InterleaveHi16(sourcePlusDest, source);
+      blendedComponent2 = simd::MulAdd2x8x16To4x32(twoFiftyFiveInterleavedWithZeroMinusDest2, sourcePlusDestInterleavedWithSource2);
+      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
+
+      break;
+    }
+
+    case BLEND_MODE_DARKEN:
+    case BLEND_MODE_LIGHTEN:
+    {
+      // Darken:
+      // val = min((255 - destAlpha) * source + 255                 * dest,
+      //           255               * source + (255 - sourceAlpha) * dest);
+      //
+      // Lighten:
+      // val = max((255 - destAlpha) * source + 255                 * dest,
+      //           255               * source + (255 - sourceAlpha) * dest);
+
+      m128i_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
+      m128i_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
+
+      m128i_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, x255);
+      m128i_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1 = simd::InterleaveLo16(x255, twoFiftyFiveMinusSourceAlpha);
+      m128i_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
+      m128i_t product1_1 = simd::MulAdd2x8x16To4x32(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1, sourceInterleavedWithDest1);
+      m128i_t product1_2 = simd::MulAdd2x8x16To4x32(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1, sourceInterleavedWithDest1);
+      blendedComponent1 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product1_1, product1_2) : simd::Max32(product1_1, product1_2);
+      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
+
+      m128i_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, x255);
+      m128i_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2 = simd::InterleaveHi16(x255, twoFiftyFiveMinusSourceAlpha);
+      m128i_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
+      m128i_t product2_1 = simd::MulAdd2x8x16To4x32(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2, sourceInterleavedWithDest2);
+      m128i_t product2_2 = simd::MulAdd2x8x16To4x32(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2, sourceInterleavedWithDest2);
+      blendedComponent2 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product2_1, product2_2) : simd::Max32(product2_1, product2_2);
+      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
+
+      break;
+    }
+
+  }
+}
+
+template<typename m128i_t>
+static m128i_t
+BlendAlphaOfFourPixels(m128i_t s_rrrraaaa1234, m128i_t d_rrrraaaa1234)
+{
+  // uint32_t alpha = 255 * 255 + (destAlpha - 255) * (255 - sourceAlpha);
+  m128i_t destAlpha = simd::InterleaveHi16(d_rrrraaaa1234, simd::From16<m128i_t>(2 * 255));
+  m128i_t sourceAlpha = simd::InterleaveHi16(s_rrrraaaa1234, simd::From16<m128i_t>(0));
+  m128i_t f1 = simd::Sub16(destAlpha, simd::From16<m128i_t>(255));
+  m128i_t f2 = simd::Sub16(simd::From16<m128i_t>(255), sourceAlpha);
+  return simd::FastDivideBy255(simd::MulAdd2x8x16To4x32(f1, f2));
+}
+
+template<typename m128i_t>
+static void
+UnpackAndShuffleComponents(m128i_t bgrabgrabgrabgra1234,
+                           m128i_t& bbbbgggg1234, m128i_t& rrrraaaa1234)
+{
+  m128i_t bgrabgra12 = simd::UnpackLo8x8To8x16(bgrabgrabgrabgra1234);
+  m128i_t bgrabgra34 = simd::UnpackHi8x8To8x16(bgrabgrabgrabgra1234);
+  m128i_t bbggrraa13 = simd::InterleaveLo16(bgrabgra12, bgrabgra34);
+  m128i_t bbggrraa24 = simd::InterleaveHi16(bgrabgra12, bgrabgra34);
+  bbbbgggg1234 = simd::InterleaveLo16(bbggrraa13, bbggrraa24);
+  rrrraaaa1234 = simd::InterleaveHi16(bbggrraa13, bbggrraa24);
+}
+
+template<typename m128i_t>
+static m128i_t
+ShuffleAndPackComponents(m128i_t bbbb1234, m128i_t gggg1234,
+                         m128i_t rrrr1234, m128i_t aaaa1234)
+{
+  m128i_t bbbbgggg1234 = simd::PackAndSaturate32To16(bbbb1234, gggg1234);
+  m128i_t rrrraaaa1234 = simd::PackAndSaturate32To16(rrrr1234, aaaa1234);
+  m128i_t brbrbrbr1234 = simd::InterleaveLo16(bbbbgggg1234, rrrraaaa1234);
+  m128i_t gagagaga1234 = simd::InterleaveHi16(bbbbgggg1234, rrrraaaa1234);
+  m128i_t bgrabgra12 = simd::InterleaveLo16(brbrbrbr1234, gagagaga1234);
+  m128i_t bgrabgra34 = simd::InterleaveHi16(brbrbrbr1234, gagagaga1234);
+  return simd::PackAndSaturate16To8(bgrabgra12, bgrabgra34);
+}
+
+template<typename m128i_t, BlendMode mode>
+static TemporaryRef<DataSourceSurface>
+ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
+{
+  IntSize size = aInput1->GetSize();
+  RefPtr<DataSourceSurface> target =
+    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
+
+  uint8_t* source1Data = aInput1->GetData();
+  uint8_t* source2Data = aInput2->GetData();
+  uint8_t* targetData = target->GetData();
+  int32_t targetStride = target->Stride();
+  int32_t source1Stride = aInput1->Stride();
+  int32_t source2Stride = aInput2->Stride();
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x += 4) {
+      int32_t targetIndex = y * targetStride + 4 * x;
+      int32_t source1Index = y * source1Stride + 4 * x;
+      int32_t source2Index = y * source2Stride + 4 * x;
+
+      m128i_t s1234 = simd::LoadFrom((m128i_t*)&source2Data[source2Index]);
+      m128i_t d1234 = simd::LoadFrom((m128i_t*)&source1Data[source1Index]);
+
+      m128i_t s_bbbbgggg1234, s_rrrraaaa1234;
+      m128i_t d_bbbbgggg1234, d_rrrraaaa1234;
+      UnpackAndShuffleComponents(s1234, s_bbbbgggg1234, s_rrrraaaa1234);
+      UnpackAndShuffleComponents(d1234, d_bbbbgggg1234, d_rrrraaaa1234);
+      m128i_t s_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(s_rrrraaaa1234);
+      m128i_t d_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(d_rrrraaaa1234);
+      m128i_t blendedB, blendedG, blendedR, blendedA;
+      BlendTwoComponentsOfFourPixels<m128i_t,mode>(s_bbbbgggg1234, s_aaaaaaaa1234, d_bbbbgggg1234, d_aaaaaaaa1234, blendedB, blendedG);
+      BlendTwoComponentsOfFourPixels<m128i_t,mode>(s_rrrraaaa1234, s_aaaaaaaa1234, d_rrrraaaa1234, d_aaaaaaaa1234, blendedR, blendedA);
+      blendedA = BlendAlphaOfFourPixels(s_rrrraaaa1234, d_rrrraaaa1234);
+
+      m128i_t result1234 = ShuffleAndPackComponents(blendedB, blendedG, blendedR, blendedA);
+      simd::StoreTo((m128i_t*)&targetData[targetIndex], result1234);
+    }
+  }
+
+  return target;
+}
+
 template<BlendMode aBlendMode>
 static TemporaryRef<DataSourceSurface>
-ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
+ApplyBlending_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
 {
   IntSize size = aInput1->GetSize();
   RefPtr<DataSourceSurface> target =
@@ -948,6 +1118,39 @@ ApplyBlendFilter(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
   return target;
 }
 
+template<typename m128i_t>
+static TemporaryRef<DataSourceSurface>
+ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
+                      BlendMode aBlendMode)
+{
+  switch (aBlendMode) {
+    case BLEND_MODE_MULTIPLY:
+      return ApplyBlending_SIMD<m128i_t, BLEND_MODE_MULTIPLY>(aInput1, aInput2);
+    case BLEND_MODE_SCREEN:
+      return ApplyBlending_SIMD<m128i_t, BLEND_MODE_SCREEN>(aInput1, aInput2);
+    case BLEND_MODE_DARKEN:
+      return ApplyBlending_SIMD<m128i_t, BLEND_MODE_DARKEN>(aInput1, aInput2);
+    case BLEND_MODE_LIGHTEN:
+      return ApplyBlending_SIMD<m128i_t, BLEND_MODE_LIGHTEN>(aInput1, aInput2);
+  }
+}
+
+static TemporaryRef<DataSourceSurface>
+ApplyBlending_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
+                        BlendMode aBlendMode)
+{
+  switch (aBlendMode) {
+    case BLEND_MODE_MULTIPLY:
+      return ApplyBlending_Scalar<BLEND_MODE_MULTIPLY>(aInput1, aInput2);
+    case BLEND_MODE_SCREEN:
+      return ApplyBlending_Scalar<BLEND_MODE_SCREEN>(aInput1, aInput2);
+    case BLEND_MODE_DARKEN:
+      return ApplyBlending_Scalar<BLEND_MODE_DARKEN>(aInput1, aInput2);
+    case BLEND_MODE_LIGHTEN:
+      return ApplyBlending_Scalar<BLEND_MODE_LIGHTEN>(aInput1, aInput2);
+  }
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeBlendSoftware::Render(const IntRect& aRect)
 {
@@ -959,22 +1162,12 @@ FilterNodeBlendSoftware::Render(const IntRect& aRect)
     return nullptr;
   }
 
-  RefPtr<DataSourceSurface> output;
-  switch (mBlendMode) {
-    case BLEND_MODE_MULTIPLY:
-      output = ApplyBlendFilter<BLEND_MODE_MULTIPLY>(input1, input2);
-      break;
-    case BLEND_MODE_SCREEN:
-      output = ApplyBlendFilter<BLEND_MODE_SCREEN>(input1, input2);
-      break;
-    case BLEND_MODE_DARKEN:
-      output = ApplyBlendFilter<BLEND_MODE_DARKEN>(input1, input2);
-      break;
-    case BLEND_MODE_LIGHTEN:
-      output = ApplyBlendFilter<BLEND_MODE_LIGHTEN>(input1, input2);
-      break;
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    return ApplyBlending_SIMD<__m128i>(input1, input2, mBlendMode);
   }
-  return output;
+#endif
+  return ApplyBlending_Scalar(input1, input2, mBlendMode);
 }
 
 void
@@ -1419,10 +1612,10 @@ ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
       m128i_t result_p4 = ColorMatrixMultiply(p4, row_bg_v, row_ra_v, rowsBias_v);
 
       static_assert(factor == 1 << 7, "Please adapt the calculation in the lines below for a different factor.");
-      m128i_t result_p1234 = simd::PackAndSaturate(simd::ShiftRight32(result_p1, 7),
-                                                   simd::ShiftRight32(result_p2, 7),
-                                                   simd::ShiftRight32(result_p3, 7),
-                                                   simd::ShiftRight32(result_p4, 7));
+      m128i_t result_p1234 = simd::PackAndSaturate32To8(simd::ShiftRight32(result_p1, 7),
+                                                        simd::ShiftRight32(result_p2, 7),
+                                                        simd::ShiftRight32(result_p3, 7),
+                                                        simd::ShiftRight32(result_p4, 7));
       simd::StoreTo((m128i_t*)&targetData[targetIndex], result_p1234);
     }
   }
@@ -2855,7 +3048,7 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
       m128i_t da34 = simd::SplatHi16<3>(simd::SplatLo16<3>(d34));
       m128i_t result34 = CompositeTwoPixels<m128i_t,op>(s34, sa34, d34, da34);
 
-      m128i_t result1234 = simd::PackAndSaturate(result12, result34);
+      m128i_t result1234 = simd::PackAndSaturate16To8(result12, result34);
       simd::StoreTo((m128i_t*)&destData[destIndex], result1234);
     }
   }
@@ -3326,10 +3519,10 @@ DoPremultiplicationCalculation(const IntSize& aSize,
       m128i_t p1, p2, p3, p4;
       simd::Mul2x2x4x16To2x4x32(p12, a12, p1, p2);
       simd::Mul2x2x4x16To2x4x32(p34, a34, p3, p4);
-      m128i_t result = simd::PackAndSaturate(simd::FastDivideBy255(p1),
-                                             simd::FastDivideBy255(p2),
-                                             simd::FastDivideBy255(p3),
-                                             simd::FastDivideBy255(p4));
+      m128i_t result = simd::PackAndSaturate32To8(simd::FastDivideBy255(p1),
+                                                  simd::FastDivideBy255(p2),
+                                                  simd::FastDivideBy255(p3),
+                                                  simd::FastDivideBy255(p4));
       simd::StoreTo((m128i_t*)&aTargetData[targetIndex], result);
     }
   }
@@ -3451,7 +3644,7 @@ DoUnpremultiplicationCalculation(const IntSize& aSize,
       m128i_t aF34 = simd::From16<m128i_t>(aF3, aF3, aF3, 1 << 8, aF4, aF4, aF4, 1 << 8);
       p12 = simd::ShiftRight16(simd::Add16(simd::Mul16(p12, aF12), simd::From16<m128i_t>(128)), 8);
       p34 = simd::ShiftRight16(simd::Add16(simd::Mul16(p34, aF34), simd::From16<m128i_t>(128)), 8);
-      m128i_t result = simd::PackAndSaturate(p12, p34);
+      m128i_t result = simd::PackAndSaturate16To8(p12, p34);
       simd::StoreTo((m128i_t*)&aTargetData[targetIndex], result);
     }
   }

@@ -36,6 +36,9 @@ template<typename m128i_t>
 m128i_t From32(int32_t a, int32_t b, int32_t c, int32_t d);
 
 template<typename m128i_t>
+m128i_t From32(int32_t a);
+
+template<typename m128i_t>
 m128i_t ShiftRight16(m128i_t aM, int32_t aNumberOfBits);
 
 template<typename m128i_t>
@@ -51,6 +54,15 @@ template<typename m128i_t>
 m128i_t Sub16(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
+m128i_t Sub32(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
+m128i_t Min32(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
+m128i_t Max32(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
 m128i_t Mul16(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
@@ -59,6 +71,15 @@ void Mul2x2x4x16To2x4x32(m128i_t aFactorsA1B1, m128i_t aFactorsA2B2,
 
 template<typename m128i_t>
 m128i_t MulAdd2x8x16To4x32(m128i_t aFactorsA, m128i_t aFactorsB);
+
+template<typename m128i_t>
+m128i_t Or(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
+m128i_t And(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
+m128i_t AndNot(m128i_t aM1, m128i_t aM2);
 
 template<int8_t aIndex, typename m128i_t>
 inline m128i_t Splat32(m128i_t aM);
@@ -79,10 +100,10 @@ template<typename m128i_t>
 inline m128i_t PackAndSaturate32To16(m128i_t m1, m128i_t m2);
 
 template<typename m128i_t>
-m128i_t PackAndSaturate(m128i_t m1, m128i_t m2, m128i_t m3, m128i_t m4);
+m128i_t PackAndSaturate32To8(m128i_t m1, m128i_t m2, m128i_t m3, m128i_t m4);
 
 template<typename m128i_t>
-m128i_t PackAndSaturate(m128i_t m1, m128i_t m2);
+m128i_t PackAndSaturate16To8(m128i_t m1, m128i_t m2);
 
 
 // Scalar
@@ -139,6 +160,12 @@ ScalarM128i From32<ScalarM128i>(int32_t a, int32_t b, int32_t c, int32_t d)
 }
 
 template<>
+ScalarM128i From32<ScalarM128i>(int32_t a)
+{
+  return From32<ScalarM128i>(a, a, a, a);
+}
+
+template<>
 ScalarM128i ShiftRight16<ScalarM128i>(ScalarM128i aM, int32_t aNumberOfBits)
 {
   return From16<ScalarM128i>(uint16_t(aM.i16[0]) >> aNumberOfBits, uint16_t(aM.i16[1]) >> aNumberOfBits,
@@ -164,6 +191,13 @@ ScalarM128i Add16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 }
 
 template<>
+ScalarM128i Add32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(aM1.i32[0] + aM2.i32[0], aM1.i32[1] + aM2.i32[1],
+                             aM1.i32[2] + aM2.i32[2], aM1.i32[3] + aM2.i32[3]);
+}
+
+template<>
 ScalarM128i Sub16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 {
   return From16<ScalarM128i>(aM1.i16[0] - aM2.i16[0], aM1.i16[1] - aM2.i16[1],
@@ -173,10 +207,36 @@ ScalarM128i Sub16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 }
 
 template<>
-ScalarM128i Add32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+ScalarM128i Sub32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
 {
-  return From32<ScalarM128i>(aM1.i32[0] + aM2.i32[0], aM1.i32[1] + aM2.i32[1],
-                             aM1.i32[2] + aM2.i32[2], aM1.i32[3] + aM2.i32[3]);
+  return From32<ScalarM128i>(aM1.i32[0] - aM2.i32[0], aM1.i32[1] - aM2.i32[1],
+                             aM1.i32[2] - aM2.i32[2], aM1.i32[3] - aM2.i32[3]);
+}
+
+static int32_t
+umin(int32_t a, int32_t b)
+{
+  return a - ((a - b) & -(a > b));
+}
+
+static int32_t
+umax(int32_t a, int32_t b)
+{
+  return a - ((a - b) & -(a < b));
+}
+
+template<>
+ScalarM128i Min32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(umin(aM1.i32[0], aM2.i32[0]), umin(aM1.i32[1], aM2.i32[1]),
+                             umin(aM1.i32[2], aM2.i32[2]), umin(aM1.i32[3], aM2.i32[3]));
+}
+
+template<>
+ScalarM128i Max32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(umax(aM1.i32[0], aM2.i32[0]), umax(aM1.i32[1], aM2.i32[1]),
+                             umax(aM1.i32[2], aM2.i32[2]), umax(aM1.i32[3], aM2.i32[3]));
 }
 
 template<>
@@ -222,12 +282,48 @@ void AssertIndex()
                 "Invalid splat index");
 }
 
+template<>
+inline ScalarM128i Or<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(aM1.i32[0] | aM2.i32[0], aM1.i32[1] | aM2.i32[1],
+                             aM1.i32[2] | aM2.i32[2], aM1.i32[3] | aM2.i32[3]);
+}
+
+template<>
+inline ScalarM128i And<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(aM1.i32[0] & aM2.i32[0], aM1.i32[1] & aM2.i32[1],
+                             aM1.i32[2] & aM2.i32[2], aM1.i32[3] & aM2.i32[3]);
+}
+
+template<>
+inline ScalarM128i AndNot<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From32<ScalarM128i>(~aM1.i32[0] & aM2.i32[0], ~aM1.i32[1] & aM2.i32[1],
+                             ~aM1.i32[2] & aM2.i32[2], ~aM1.i32[3] & aM2.i32[3]);
+}
+
 template<int8_t aIndex>
 inline ScalarM128i Splat32(ScalarM128i aM)
 {
   AssertIndex<aIndex>();
   return From32<ScalarM128i>(aM.i32[aIndex], aM.i32[aIndex],
                              aM.i32[aIndex], aM.i32[aIndex]);
+}
+
+template<int8_t i0, int8_t i1, int8_t i2, int8_t i3>
+inline ScalarM128i Shuffle32(ScalarM128i aM)
+{
+  AssertIndex<i0>();
+  AssertIndex<i1>();
+  AssertIndex<i2>();
+  AssertIndex<i3>();
+  ScalarM128i m = aM;
+  m.i32[0] = aM.i32[i3];
+  m.i32[1] = aM.i32[i2];
+  m.i32[2] = aM.i32[i1];
+  m.i32[3] = aM.i32[i0];
+  return m;
 }
 
 template<int8_t i0, int8_t i1, int8_t i2, int8_t i3>
@@ -366,7 +462,7 @@ SaturateTo8(T a)
 
 template<>
 ScalarM128i
-PackAndSaturate<ScalarM128i>(ScalarM128i m1, ScalarM128i m2, ScalarM128i m3, ScalarM128i m4)
+PackAndSaturate32To8<ScalarM128i>(ScalarM128i m1, ScalarM128i m2, ScalarM128i m3, ScalarM128i m4)
 {
   ScalarM128i m;
   m.u8[0]  = SaturateTo8(m1.i32[0]);
@@ -390,7 +486,7 @@ PackAndSaturate<ScalarM128i>(ScalarM128i m1, ScalarM128i m2, ScalarM128i m3, Sca
 
 template<>
 ScalarM128i
-PackAndSaturate<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+PackAndSaturate16To8<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
 {
   ScalarM128i m;
   m.u8[0]  = SaturateTo8(m1.i16[0]);
@@ -488,6 +584,12 @@ template<>
 __m128i From32<__m128i>(int32_t a, int32_t b, int32_t c, int32_t d); // XXX
 
 template<>
+__m128i From32<__m128i>(int32_t a)
+{
+  return _mm_set1_epi32(a);
+}
+
+template<>
 __m128i ShiftRight16<__m128i>(__m128i aM, int32_t aNumberOfBits)
 {
   return _mm_srli_epi16(aM, aNumberOfBits);
@@ -515,6 +617,28 @@ template<>
 __m128i Sub16<__m128i>(__m128i aM1, __m128i aM2)
 {
   return _mm_sub_epi16(aM1, aM2);
+}
+
+template<>
+__m128i Sub32<__m128i>(__m128i aM1, __m128i aM2)
+{
+  return _mm_sub_epi32(aM1, aM2);
+}
+
+template<>
+__m128i Min32<__m128i>(__m128i aM1, __m128i aM2)
+{
+  __m128i m1_minus_m2 = _mm_sub_epi32(aM1, aM2);
+  __m128i m1_greater_than_m2 = _mm_cmpgt_epi32(aM1, aM2);
+  return _mm_sub_epi32(aM1, _mm_and_si128(m1_minus_m2, m1_greater_than_m2));
+}
+
+template<>
+__m128i Max32<__m128i>(__m128i aM1, __m128i aM2)
+{
+  __m128i m1_minus_m2 = _mm_sub_epi32(aM1, aM2);
+  __m128i m2_greater_than_m1 = _mm_cmpgt_epi32(aM2, aM1);
+  return _mm_sub_epi32(aM1, _mm_and_si128(m1_minus_m2, m2_greater_than_m1));
 }
 
 template<>
@@ -570,6 +694,24 @@ inline __m128i ShuffleHi16(__m128i aM)
   AssertIndex<i2>();
   AssertIndex<i3>();
   return _mm_shufflehi_epi16(aM, _MM_SHUFFLE(i0, i1, i2, i3));
+}
+
+template<>
+__m128i Or<__m128i>(__m128i aM1, __m128i aM2)
+{
+  return _mm_or_si128(aM1, aM2);
+}
+
+template<>
+__m128i And<__m128i>(__m128i aM1, __m128i aM2)
+{
+  return _mm_and_si128(aM1, aM2);
+}
+
+template<>
+__m128i AndNot<__m128i>(__m128i aM1, __m128i aM2)
+{
+  return _mm_andnot_si128(aM1, aM2);
 }
 
 template<int8_t aIndex>
@@ -629,7 +771,7 @@ PackAndSaturate32To16<__m128i>(__m128i m1, __m128i m2)
 
 template<>
 __m128i
-PackAndSaturate<__m128i>(__m128i m1, __m128i m2, __m128i m3, __m128i m4)
+PackAndSaturate32To8<__m128i>(__m128i m1, __m128i m2, __m128i m3, __m128i m4)
 {
   // Pack into 8 16bit signed integers (saturating).
   __m128i m12 = _mm_packs_epi32(m1, m2);
@@ -641,7 +783,7 @@ PackAndSaturate<__m128i>(__m128i m1, __m128i m2, __m128i m3, __m128i m4)
 
 template<>
 __m128i
-PackAndSaturate<__m128i>(__m128i m1, __m128i m2)
+PackAndSaturate16To8<__m128i>(__m128i m1, __m128i m2)
 {
   // Pack into 16 8bit unsigned integers (saturating).
   return _mm_packus_epi16(m1, m2);
