@@ -125,6 +125,13 @@ struct vec4
   T _4;
 };
 
+struct StitchInfo {
+  int mWidth;     // How much to subtract to wrap for stitching.
+  int mHeight;
+  int mWrapX;     // Minimum value to wrap.
+  int mWrapY;
+};
+
 template<TurbulenceType Type, bool Stitch, typename T>
 class SVGTurbulenceRenderer
 {
@@ -142,19 +149,9 @@ private:
 
   const static int sBSize = 0x100;
   const static int sPerlinN = 0x1000;
-
-  struct StitchInfo {
-    int mWidth;     // How much to subtract to wrap for stitching.
-    int mHeight;
-    int mWrapX;     // Minimum value to wrap.
-    int mWrapY;
-  };
-
   void InitFromSeed(int32_t aSeed);
   void AdjustBaseFrequencyForStitch(const IntRect &aTileRect);
   StitchInfo CreateStitchInfo(const IntRect &aTileRect);
-  vec4<T> Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                     vec2<T> r0, vec2<T> r1) const;
   vec4<T> Noise2(int aColorChannel, vec2<T> aVec, const StitchInfo& aStitchInfo) const;
   vec4<T> Turbulence(int aColorChannel, const IntPoint &aPoint) const;
 

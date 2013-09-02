@@ -137,25 +137,23 @@ NS_lround(T x)
 }
 
 template<TurbulenceType Type, bool Stitch, typename T>
-typename SVGTurbulenceRenderer<Type,Stitch,T>::StitchInfo
+StitchInfo
 SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const IntRect &aTileRect)
 {
   StitchInfo stitch;
   stitch.mWidth = NS_lround(aTileRect.width * mBaseFrequency.width);
-  stitch.mWrapX = int(aTileRect.x * mBaseFrequency.width + sPerlinN + stitch.mWidth);
+  stitch.mWrapX = int(aTileRect.XMost() * mBaseFrequency.width) + sPerlinN;
   stitch.mHeight = NS_lround(aTileRect.height * mBaseFrequency.height);
-  stitch.mWrapY = int(aTileRect.y * mBaseFrequency.height + sPerlinN + stitch.mHeight);
+  stitch.mWrapY = int(aTileRect.YMost() * mBaseFrequency.height) + sPerlinN;
   return stitch;
 }
 
 template<typename T, typename S>
 static vec2<S>
-Mix(T ux, T vx, T y,
-    const vec2<S> &qu,
-    const vec2<S> &qv)
-{
-  S u = qu.x() * ux + qu.y() * y;
-  S v = qv.x() * vx + qv.y() * y;
+Mix(T tx, T ty, const vec2<S> &qu, const vec2<S> &qv)
+ {
+  S u = qu.x() * tx       + qu.y() * ty;
+  S v = qv.x() * (tx - 1) + qv.y() * ty;
   return vec2<S>(u, v);
 }
 
@@ -189,51 +187,58 @@ BiLerp(const vec2<T> &s, const vec2<S> &a, const vec2<S> &b)
   return Lerp(s.y(), xa, xb);
 }
 
-template<TurbulenceType Type, bool Stitch, typename T>
-vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t> b1,
-                                                      vec2<T> r0, vec2<T> r1) const
+template<typename T, typename S>
+static inline vec4<T>
+Interpolate(vec2<T> r, vec2<S> qua, vec2<S> qub, vec2<S> qva, vec2<S> qvb)
 {
-  static_assert(1 << (sizeof(b0.x()) * 8) <= sBSize, "mLatticeSelector is too small");
+  return BiLerp(SCurve(r),
+                Mix(r.x(), r.y(), qua, qva),
+                Mix(r.x(), r.y() - 1, qub, qvb));
+}
 
-  uint8_t i = mLatticeSelector[b0.x()];
-  uint8_t j = mLatticeSelector[b1.x()];
-
-  vec2<vec4<T> > qua = mGradient[uint8_t(i + b0.y())];
-  vec2<vec4<T> > qva = mGradient[uint8_t(j + b0.y())];
-  vec2<vec4<T> > qub = mGradient[uint8_t(i + b1.y())];
-  vec2<vec4<T> > qvb = mGradient[uint8_t(j + b1.y())];
-  return BiLerp(SCurve(r0),
-                Mix(r0.x(), r1.x(), r0.y(), qua, qva),
-                Mix(r0.x(), r1.x(), r1.y(), qub, qvb));
+template<bool Stitch>
+static void
+AdjustLatticePointsForStitch(vec2<int32_t>& aLatticePointTopLeft,
+                             vec2<int32_t>& aLatticePointBottomRight,
+                             const StitchInfo& aStitchInfo)
+{
+  // If stitching, adjust lattice points accordingly.
+  if (Stitch) {
+    if (aLatticePointTopLeft.x() >= aStitchInfo.mWrapX) {
+      aLatticePointTopLeft.x() -= aStitchInfo.mWidth;
+    }
+    if (aLatticePointBottomRight.x() >= aStitchInfo.mWrapX) {
+      aLatticePointBottomRight.x() -= aStitchInfo.mWidth;
+    }
+    if (aLatticePointTopLeft.y() >= aStitchInfo.mWrapY) {
+      aLatticePointTopLeft.y() -= aStitchInfo.mHeight;
+    }
+    if (aLatticePointBottomRight.y() >= aStitchInfo.mWrapY) {
+      aLatticePointBottomRight.y() -= aStitchInfo.mHeight;
+    }
+  }
 }
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
 SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec, const StitchInfo& aStitchInfo) const
 {
-  vec2<T> t = aVec + vec2<T>(sPerlinN, sPerlinN);
-  vec2<int32_t> lt = t;
+  vec2<T> nearestLatticePoint(floor(aVec.x()), floor(aVec.y()));
+  vec2<T> fractionalOffset = aVec - nearestLatticePoint;
 
-  vec2<int32_t> b0 = lt;
-  vec2<int32_t> b1 = lt + vec2<int32_t>(1, 1);
+  vec2<int32_t> b0 = nearestLatticePoint + vec2<int32_t>(sPerlinN, sPerlinN);
+  vec2<int32_t> b1 = b0 + vec2<int32_t>(1, 1);
 
-  // If stitching, adjust lattice points accordingly.
-  if (Stitch) {
-    if (b0.x() >= aStitchInfo.mWrapX)
-      b0.x() -= aStitchInfo.mWidth;
-    if (b1.x() >= aStitchInfo.mWrapX)
-      b1.x() -= aStitchInfo.mWidth;
-    if (b0.y() >= aStitchInfo.mWrapY)
-      b0.y() -= aStitchInfo.mHeight;
-    if (b1.y() >= aStitchInfo.mWrapY)
-      b1.y() -= aStitchInfo.mHeight;
-  }
+  AdjustLatticePointsForStitch<Stitch>(b0, b1, aStitchInfo);
 
-  vec2<T> r0 = t - lt;
-  vec2<T> r1 = r0 - vec2<T>(1, 1);
+  uint8_t i = mLatticeSelector[uint8_t(b0.x())];
+  uint8_t j = mLatticeSelector[uint8_t(b1.x())];
 
-  return Interpolate(b0, b1, r0, r1);
+  vec2<vec4<T> > qua = mGradient[uint8_t(i + b0.y())];
+  vec2<vec4<T> > qub = mGradient[uint8_t(i + b1.y())];
+  vec2<vec4<T> > qva = mGradient[uint8_t(j + b0.y())];
+  vec2<vec4<T> > qvb = mGradient[uint8_t(j + b1.y())];
+  return Interpolate(fractionalOffset, qua, qub, qva, qvb);
 }
 
 template<typename T>
