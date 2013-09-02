@@ -3146,131 +3146,6 @@ FilterNodeCompositeSoftware::GetOutputRectInRect(const IntRect& aRect)
   return rect;
 }
 
-
-/**
- * We want to speed up 1/N integer divisions --- integer division is
- * often rather slow.
- * We know that our input numerators V are constrained to be <= 255*N,
- * so the result of dividing by N always fits in 8 bits.
- * So we can try approximating the division V/N as V*K/(2^24) (integer
- * division, 32-bit multiply). Dividing by 2^24 is a simple shift so it's
- * fast. The main problem is choosing a value for K; this function returns
- * K's value.
- *
- * If the result is correct for the extrema, V=0 and V=255*N, then we'll
- * be in good shape since both the original function and our approximation
- * are linear. V=0 always gives 0 in both cases, no problem there.
- * For V=255*N, let's choose the largest K that doesn't cause overflow
- * and ensure that it gives the right answer. The constraints are
- *     (1)   255*N*K < 2^32
- * and (2)   255*N*K >= 255*(2^24)
- *
- * From (1) we find the best value of K is floor((2^32 - 1)/(255*N)).
- * (2) tells us when this will be valid:
- *    N*floor((2^32 - 1)/(255*N)) >= 2^24
- * Now, floor(X) > X - 1, so (2) holds if
- *    N*((2^32 - 1)/(255*N) - 1) >= 2^24
- *         (2^32 - 1)/255 - 2^24 >= N
- *                             N <= 65793
- *
- * If all that math confuses you, this should convince you:
- * > perl -e 'for($N=1;(255*$N*int(0xFFFFFFFF/(255*$N)))>>24==255;++$N){}print"$N\n"'
- * 66052
- *
- * So this is fine for all reasonable values of N. For larger values of N
- * we may as well just use the same approximation and accept the fact that
- * the output channel values will be a little low.
- */
-static uint32_t ComputeScaledDivisor(uint32_t aDivisor)
-{
-  return UINT32_MAX/(255*aDivisor);
-}
-
-static void
-BoxBlur(const uint8_t *aInput, uint8_t *aOutput,
-        int32_t aStrideMinor, int32_t aStartMinor, int32_t aEndMinor,
-        int32_t aLeftLobe, int32_t aRightLobe)
-{
-  int32_t boxSize = aLeftLobe + aRightLobe + 1;
-  int32_t scaledDivisor = ComputeScaledDivisor(boxSize);
-  int32_t sums[4] = {0, 0, 0, 0};
-
-  for (int32_t i=0; i < boxSize; i++) {
-    int32_t pos = aStartMinor - aLeftLobe + i;
-    pos = std::max(pos, aStartMinor);
-    pos = std::min(pos, aEndMinor - 1);
-#define SUM(j)     sums[j] += aInput[aStrideMinor*pos + j];
-    SUM(0); SUM(1); SUM(2); SUM(3);
-#undef SUM
-  }
-
-  aOutput += aStrideMinor*aStartMinor;
-  if (aStartMinor + int32_t(boxSize) <= aEndMinor) {
-    const uint8_t *lastInput = aInput + aStartMinor*aStrideMinor;
-    const uint8_t *nextInput = aInput + (aStartMinor + aRightLobe + 1)*aStrideMinor;
-#define OUTPUT(j)     aOutput[j] = (sums[j]*scaledDivisor) >> 24;
-#define SUM(j)        sums[j] += nextInput[j] - lastInput[j];
-    // process pixels in B, G, R, A order because that's 0, 1, 2, 3 for x86
-#define OUTPUT_PIXEL() \
-        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
-        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
-        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_R); \
-        OUTPUT(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
-#define SUM_PIXEL() \
-        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B); \
-        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G); \
-        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R); \
-        SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
-    for (int32_t minor = aStartMinor;
-         minor < aStartMinor + aLeftLobe;
-         minor++) {
-      OUTPUT_PIXEL();
-      SUM_PIXEL();
-      nextInput += aStrideMinor;
-      aOutput += aStrideMinor;
-    }
-    for (int32_t minor = aStartMinor + aLeftLobe;
-         minor < aEndMinor - aRightLobe - 1;
-         minor++) {
-      OUTPUT_PIXEL();
-      SUM_PIXEL();
-      lastInput += aStrideMinor;
-      nextInput += aStrideMinor;
-      aOutput += aStrideMinor;
-    }
-    // nextInput is now aInput + aEndMinor*aStrideMinor. Set it back to
-    // aInput + (aEndMinor - 1)*aStrideMinor so we read the last pixel in every
-    // iteration of the next loop.
-    nextInput -= aStrideMinor;
-    for (int32_t minor = aEndMinor - aRightLobe - 1; minor < aEndMinor; minor++) {
-      OUTPUT_PIXEL();
-      SUM_PIXEL();
-      lastInput += aStrideMinor;
-      aOutput += aStrideMinor;
-#undef SUM_PIXEL
-#undef SUM
-    }
-  } else {
-    for (int32_t minor = aStartMinor; minor < aEndMinor; minor++) {
-      int32_t tmp = minor - aLeftLobe;
-      int32_t last = std::max(tmp, aStartMinor);
-      int32_t next = std::min(tmp + int32_t(boxSize), aEndMinor - 1);
-
-      OUTPUT_PIXEL();
-#define SUM(j)     sums[j] += aInput[aStrideMinor*next + j] - \
-                              aInput[aStrideMinor*last + j];
-      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_B);
-      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_G);
-      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_R);
-      SUM(B8G8R8A8_COMPONENT_BYTEOFFSET_A);
-      aOutput += aStrideMinor;
-#undef SUM
-#undef OUTPUT_PIXEL
-#undef OUTPUT
-    }
-  }
-}
-
 static uint32_t
 GetBlurBoxSize(double aStdDev)
 {
@@ -3299,6 +3174,156 @@ FilterNodeBlurXYSoftware::InputIndex(uint32_t aInputEnumIndex)
   }
 }
 
+static void
+SeparateColorChannels(DataSourceSurface* aSource,
+                      RefPtr<DataSourceSurface>& aChannel0,
+                      RefPtr<DataSourceSurface>& aChannel1,
+                      RefPtr<DataSourceSurface>& aChannel2,
+                      RefPtr<DataSourceSurface>& aChannel3)
+{
+  IntSize size = aSource->GetSize();
+  aChannel0 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
+  aChannel1 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
+  aChannel2 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
+  aChannel3 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
+  int32_t sourceStride = aSource->Stride();
+  uint8_t* sourceData = aSource->GetData();
+  int32_t channelStride = aChannel0->Stride();
+  uint8_t* channel0Data = aChannel0->GetData();
+  uint8_t* channel1Data = aChannel1->GetData();
+  uint8_t* channel2Data = aChannel2->GetData();
+  uint8_t* channel3Data = aChannel3->GetData();
+
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    for (int32_t y = 0; y < size.height; y++) {
+      for (int32_t x = 0; x < size.width; x += 16) {
+        // Process 16 pixels at a time.
+        int32_t sourceIndex = y * sourceStride + 4 * x;
+        int32_t targetIndex = y * channelStride + x;
+
+        __m128i bgrabgrabgrabgra1 = simd::From16<__m128i>(0);
+        __m128i bgrabgrabgrabgra2 = simd::From16<__m128i>(0);
+        __m128i bgrabgrabgrabgra3 = simd::From16<__m128i>(0);
+        __m128i bgrabgrabgrabgra4 = simd::From16<__m128i>(0);
+
+        bgrabgrabgrabgra1 = simd::LoadFrom<__m128i>((__m128i*)&sourceData[sourceIndex]);
+        if (4 * (x + 4) <= sourceStride) {
+          bgrabgrabgrabgra2 = simd::LoadFrom<__m128i>((__m128i*)&sourceData[sourceIndex + 4 * 4]);
+        }
+        if (4 * (x + 8) <= sourceStride) {
+          bgrabgrabgrabgra3 = simd::LoadFrom<__m128i>((__m128i*)&sourceData[sourceIndex + 4 * 8]);
+        }
+        if (4 * (x + 12) <= sourceStride) {
+          bgrabgrabgrabgra4 = simd::LoadFrom<__m128i>((__m128i*)&sourceData[sourceIndex + 4 * 12]);
+        }
+
+        __m128i bbggrraabbggrraa1 = _mm_unpacklo_epi8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
+        __m128i bbggrraabbggrraa2 = _mm_unpackhi_epi8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
+        __m128i bbggrraabbggrraa3 = _mm_unpacklo_epi8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
+        __m128i bbggrraabbggrraa4 = _mm_unpackhi_epi8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
+        __m128i bbbbggggrrrraaaa1 = _mm_unpacklo_epi8(bbggrraabbggrraa1, bbggrraabbggrraa3);
+        __m128i bbbbggggrrrraaaa2 = _mm_unpackhi_epi8(bbggrraabbggrraa1, bbggrraabbggrraa3);
+        __m128i bbbbggggrrrraaaa3 = _mm_unpacklo_epi8(bbggrraabbggrraa2, bbggrraabbggrraa4);
+        __m128i bbbbggggrrrraaaa4 = _mm_unpackhi_epi8(bbggrraabbggrraa2, bbggrraabbggrraa4);
+        __m128i bbbbbbbbgggggggg1 = _mm_unpacklo_epi8(bbbbggggrrrraaaa1, bbbbggggrrrraaaa3);
+        __m128i rrrrrrrraaaaaaaa1 = _mm_unpackhi_epi8(bbbbggggrrrraaaa1, bbbbggggrrrraaaa3);
+        __m128i bbbbbbbbgggggggg2 = _mm_unpacklo_epi8(bbbbggggrrrraaaa2, bbbbggggrrrraaaa4);
+        __m128i rrrrrrrraaaaaaaa2 = _mm_unpackhi_epi8(bbbbggggrrrraaaa2, bbbbggggrrrraaaa4);
+        __m128i bbbbbbbbbbbbbbbb = _mm_unpacklo_epi8(bbbbbbbbgggggggg1, bbbbbbbbgggggggg2);
+        __m128i gggggggggggggggg = _mm_unpackhi_epi8(bbbbbbbbgggggggg1, bbbbbbbbgggggggg2);
+        __m128i rrrrrrrrrrrrrrrr = _mm_unpacklo_epi8(rrrrrrrraaaaaaaa1, rrrrrrrraaaaaaaa2);
+        __m128i aaaaaaaaaaaaaaaa = _mm_unpackhi_epi8(rrrrrrrraaaaaaaa1, rrrrrrrraaaaaaaa2);
+
+        simd::StoreTo((__m128i*)&channel0Data[targetIndex], bbbbbbbbbbbbbbbb);
+        simd::StoreTo((__m128i*)&channel1Data[targetIndex], gggggggggggggggg);
+        simd::StoreTo((__m128i*)&channel2Data[targetIndex], rrrrrrrrrrrrrrrr);
+        simd::StoreTo((__m128i*)&channel3Data[targetIndex], aaaaaaaaaaaaaaaa);
+      }
+    }
+    return;
+  }
+#endif
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
+      int32_t sourceIndex = y * sourceStride + 4 * x;
+      int32_t targetIndex = y * channelStride + x;
+      channel0Data[targetIndex] = sourceData[sourceIndex];
+      channel1Data[targetIndex] = sourceData[sourceIndex+1];
+      channel2Data[targetIndex] = sourceData[sourceIndex+2];
+      channel3Data[targetIndex] = sourceData[sourceIndex+3];
+    }
+  }
+}
+
+static TemporaryRef<DataSourceSurface>
+CombineColorChannels(DataSourceSurface* aChannel0, DataSourceSurface* aChannel1,
+                     DataSourceSurface* aChannel2, DataSourceSurface* aChannel3)
+{
+  IntSize size = aChannel0->GetSize();
+  RefPtr<DataSourceSurface> result =
+    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  int32_t resultStride = result->Stride();
+  uint8_t* resultData = result->GetData();
+  int32_t channelStride = aChannel0->Stride();
+  uint8_t* channel0Data = aChannel0->GetData();
+  uint8_t* channel1Data = aChannel1->GetData();
+  uint8_t* channel2Data = aChannel2->GetData();
+  uint8_t* channel3Data = aChannel3->GetData();
+
+#ifdef COMPILE_WITH_SSE2
+  if (Factory::HasSSE2()) {
+    for (int32_t y = 0; y < size.height; y++) {
+      for (int32_t x = 0; x < size.width; x += 16) {
+        // Process 16 pixels at a time.
+        int32_t resultIndex = y * resultStride + 4 * x;
+        int32_t channelIndex = y * channelStride + x;
+
+        __m128i bbbbbbbbbbbbbbbb = simd::LoadFrom<__m128i>((__m128i*)&channel0Data[channelIndex]);
+        __m128i gggggggggggggggg = simd::LoadFrom<__m128i>((__m128i*)&channel1Data[channelIndex]);
+        __m128i rrrrrrrrrrrrrrrr = simd::LoadFrom<__m128i>((__m128i*)&channel2Data[channelIndex]);
+        __m128i aaaaaaaaaaaaaaaa = simd::LoadFrom<__m128i>((__m128i*)&channel3Data[channelIndex]);
+
+        __m128i brbrbrbrbrbrbrbr1 = _mm_unpacklo_epi8(bbbbbbbbbbbbbbbb, rrrrrrrrrrrrrrrr);
+        __m128i brbrbrbrbrbrbrbr2 = _mm_unpackhi_epi8(bbbbbbbbbbbbbbbb, rrrrrrrrrrrrrrrr);
+        __m128i gagagagagagagaga1 = _mm_unpacklo_epi8(gggggggggggggggg, aaaaaaaaaaaaaaaa);
+        __m128i gagagagagagagaga2 = _mm_unpackhi_epi8(gggggggggggggggg, aaaaaaaaaaaaaaaa);
+
+        __m128i bgrabgrabgrabgra1 = _mm_unpacklo_epi8(brbrbrbrbrbrbrbr1, gagagagagagagaga1);
+        __m128i bgrabgrabgrabgra2 = _mm_unpackhi_epi8(brbrbrbrbrbrbrbr1, gagagagagagagaga1);
+        __m128i bgrabgrabgrabgra3 = _mm_unpacklo_epi8(brbrbrbrbrbrbrbr2, gagagagagagagaga2);
+        __m128i bgrabgrabgrabgra4 = _mm_unpackhi_epi8(brbrbrbrbrbrbrbr2, gagagagagagagaga2);
+
+        simd::StoreTo((__m128i*)&resultData[resultIndex], bgrabgrabgrabgra1);
+        if (4 * (x + 4) <= resultStride) {
+          simd::StoreTo((__m128i*)&resultData[resultIndex + 4 * 4], bgrabgrabgrabgra2);
+        }
+        if (4 * (x + 8) <= resultStride) {
+          simd::StoreTo((__m128i*)&resultData[resultIndex + 8 * 4], bgrabgrabgrabgra3);
+        }
+        if (4 * (x + 12) <= resultStride) {
+          simd::StoreTo((__m128i*)&resultData[resultIndex + 12 * 4], bgrabgrabgrabgra4);
+        }
+      }
+    }
+    return result;
+  }
+#endif
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x++) {
+      int32_t resultIndex = y * resultStride + 4 * x;
+      int32_t channelIndex = y * channelStride + x;
+      resultData[resultIndex] = channel0Data[channelIndex];
+      resultData[resultIndex+1] = channel1Data[channelIndex];
+      resultData[resultIndex+2] = channel2Data[channelIndex];
+      resultData[resultIndex+3] = channel3Data[channelIndex];
+    }
+  }
+  return result;
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
 {
@@ -3317,72 +3342,26 @@ FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
     return nullptr;
   }
 
+  RefPtr<DataSourceSurface> target;
+  Rect r(0, 0, srcRect.width, srcRect.height);
+
   if (input->GetFormat() == FORMAT_A8) {
-    RefPtr<DataSourceSurface> target =
-      Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_A8);
+    target = Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_A8);
     CopyRect(input, target, IntRect(IntPoint(), input->GetSize()), IntPoint());
-    Rect r(0, 0, srcRect.width, srcRect.height);
     AlphaBoxBlur blur(r, target->Stride(), sigmaXY.width, sigmaXY.height);
     blur.Blur(target->GetData());
-    return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
-  }
-
-  RefPtr<DataSourceSurface> target1 =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  RefPtr<DataSourceSurface> target2 =
-    Factory::CreateDataSourceSurface(srcRect.Size(), FORMAT_B8G8R8A8);
-  if (!input || !target1 || !target2) {
-    return nullptr;
-  }
-
-  MOZ_ASSERT(target1->Stride() == target2->Stride(), "different stride!");
-
-  CopyRect(input, target1, IntRect(IntPoint(), input->GetSize()), IntPoint());
-
-  uint32_t stride = target1->Stride();
-
-  // Blur from target1 into target2.
-  if (dx == 0) {
-    // Swap target1 and target2.
-    RefPtr<DataSourceSurface> tmp = target1;
-    target1 = target2;
-    target2 = tmp;
   } else {
-    uint8_t* target1Data = target1->GetData();
-    uint8_t* target2Data = target2->GetData();
-
-    int32_t longLobe = dx/2;
-    int32_t shortLobe = (dx & 1) ? longLobe : longLobe - 1;
-    for (int32_t major = 0; major < srcRect.height; ++major) {
-      int32_t ms = major*stride;
-      BoxBlur(target1Data + ms, target2Data + ms, 4, 0, srcRect.width, longLobe, shortLobe);
-      BoxBlur(target2Data + ms, target1Data + ms, 4, 0, srcRect.width, shortLobe, longLobe);
-      BoxBlur(target1Data + ms, target2Data + ms, 4, 0, srcRect.width, longLobe, longLobe);
-    }
+    RefPtr<DataSourceSurface> channel0, channel1, channel2, channel3;
+    SeparateColorChannels(input, channel0, channel1, channel2, channel3);
+    AlphaBoxBlur blur(r, channel0->Stride(), sigmaXY.width, sigmaXY.height);
+    blur.Blur(channel0->GetData());
+    blur.Blur(channel1->GetData());
+    blur.Blur(channel2->GetData());
+    blur.Blur(channel3->GetData());
+    target = CombineColorChannels(channel0, channel1, channel2, channel3);
   }
 
-  // Blur from target2 into target1.
-  if (dy == 0) {
-    // Swap target1 and target2.
-    RefPtr<DataSourceSurface> tmp = target1;
-    target1 = target2;
-    target2 = tmp;
-  } else {
-    uint8_t* target1Data = target1->GetData();
-    uint8_t* target2Data = target2->GetData();
-
-    int32_t longLobe = dy/2;
-    int32_t shortLobe = (dy & 1) ? longLobe : longLobe - 1;
-    for (int32_t major = 0; major < srcRect.width; ++major) {
-      int32_t ms = major*4;
-      BoxBlur(target2Data + ms, target1Data + ms, stride, 0, srcRect.height, longLobe, shortLobe);
-      BoxBlur(target1Data + ms, target2Data + ms, stride, 0, srcRect.height, shortLobe, longLobe);
-      BoxBlur(target2Data + ms, target1Data + ms, stride, 0, srcRect.height, longLobe, longLobe);
-    }
-  }
-
-  // Return target1, cropped to the requested rect.
-  return GetDataSurfaceInRect(target1, srcRect, aRect, EDGE_MODE_NONE);
+  return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
 }
 
 void
