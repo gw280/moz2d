@@ -57,6 +57,12 @@ template<typename m128i_t>
 m128i_t Sub32(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
+m128i_t Min16(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
+m128i_t Max16(m128i_t aM1, m128i_t aM2);
+
+template<typename m128i_t>
 m128i_t Min32(m128i_t aM1, m128i_t aM2);
 
 template<typename m128i_t>
@@ -89,6 +95,9 @@ inline m128i_t InterleaveLo16(m128i_t m1, m128i_t m2);
 
 template<typename m128i_t>
 inline m128i_t InterleaveHi16(m128i_t m1, m128i_t m2);
+
+template<typename m128i_t>
+inline m128i_t InterleaveLo32(m128i_t m1, m128i_t m2);
 
 template<typename m128i_t>
 m128i_t UnpackLo8x8To8x16(m128i_t m);
@@ -213,16 +222,34 @@ ScalarM128i Sub32<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
                              aM1.i32[2] - aM2.i32[2], aM1.i32[3] - aM2.i32[3]);
 }
 
-static int32_t
+static MOZ_ALWAYS_INLINE int32_t
 umin(int32_t a, int32_t b)
 {
   return a - ((a - b) & -(a > b));
 }
 
-static int32_t
+static MOZ_ALWAYS_INLINE int32_t
 umax(int32_t a, int32_t b)
 {
   return a - ((a - b) & -(a < b));
+}
+
+template<>
+ScalarM128i Min16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From16<ScalarM128i>(umin(aM1.i16[0], aM2.i16[0]), umin(aM1.i16[1], aM2.i16[1]),
+                             umin(aM1.i16[2], aM2.i16[2]), umin(aM1.i16[3], aM2.i16[3]),
+                             umin(aM1.i16[4], aM2.i16[4]), umin(aM1.i16[5], aM2.i16[5]),
+                             umin(aM1.i16[6], aM2.i16[6]), umin(aM1.i16[7], aM2.i16[7]));
+}
+
+template<>
+ScalarM128i Max16<ScalarM128i>(ScalarM128i aM1, ScalarM128i aM2)
+{
+  return From16<ScalarM128i>(umax(aM1.i16[0], aM2.i16[0]), umax(aM1.i16[1], aM2.i16[1]),
+                             umax(aM1.i16[2], aM2.i16[2]), umax(aM1.i16[3], aM2.i16[3]),
+                             umax(aM1.i16[4], aM2.i16[4]), umax(aM1.i16[5], aM2.i16[5]),
+                             umax(aM1.i16[6], aM2.i16[6]), umax(aM1.i16[7], aM2.i16[7]));
 }
 
 template<>
@@ -396,6 +423,13 @@ InterleaveHi16<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
 {
   return From16<ScalarM128i>(m1.i16[4], m2.i16[4], m1.i16[5], m2.i16[5],
                              m1.i16[6], m2.i16[6], m1.i16[7], m2.i16[7]);
+}
+
+template<>
+inline ScalarM128i
+InterleaveLo32<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  return From32<ScalarM128i>(m1.i32[0], m2.i32[0], m1.i32[1], m2.i32[1]);
 }
 
 template<>
@@ -626,6 +660,22 @@ __m128i Sub32<__m128i>(__m128i aM1, __m128i aM2)
 }
 
 template<>
+__m128i Min16<__m128i>(__m128i aM1, __m128i aM2)
+{
+  __m128i m1_minus_m2 = _mm_sub_epi16(aM1, aM2);
+  __m128i m1_greater_than_m2 = _mm_cmpgt_epi16(aM1, aM2);
+  return _mm_sub_epi16(aM1, _mm_and_si128(m1_minus_m2, m1_greater_than_m2));
+}
+
+template<>
+__m128i Max16<__m128i>(__m128i aM1, __m128i aM2)
+{
+  __m128i m1_minus_m2 = _mm_sub_epi16(aM1, aM2);
+  __m128i m2_greater_than_m1 = _mm_cmpgt_epi16(aM2, aM1);
+  return _mm_sub_epi16(aM1, _mm_and_si128(m1_minus_m2, m2_greater_than_m1));
+}
+
+template<>
 __m128i Min32<__m128i>(__m128i aM1, __m128i aM2)
 {
   __m128i m1_minus_m2 = _mm_sub_epi32(aM1, aM2);
@@ -760,6 +810,12 @@ __m128i
 InterleaveHi16(__m128i m1, __m128i m2)
 {
   return _mm_unpackhi_epi16(m1, m2);
+}
+
+__m128i
+InterleaveLo32(__m128i m1, __m128i m2)
+{
+  return _mm_unpacklo_epi32(m1, m2);
 }
 
 template<>

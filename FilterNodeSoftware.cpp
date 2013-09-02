@@ -1236,111 +1236,169 @@ FilterNodeMorphologySoftware::SetAttribute(uint32_t aIndex,
   Invalidate();
 }
 
-template<MorphologyOperator Operator>
-static TemporaryRef<DataSourceSurface>
-DoMorphologyWithRepeatedKernelTraversal(const IntRect& aSourceRect,
-                                        DataSourceSurface* aInput,
-                                        const IntRect& aDestRect,
-                                        int32_t rx,
-                                        int32_t ry)
+template<MorphologyOperator Operator, typename m128i_t>
+static m128i_t
+Morph16(m128i_t a, m128i_t b)
 {
-  static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
-                Operator == MORPHOLOGY_OPERATOR_DILATE,
-                "unexpected morphology operator");
+  return Operator == MORPHOLOGY_OPERATOR_ERODE ?
+    simd::Min16(a, b) : simd::Max16(a, b);
+}
 
-  IntRect srcRect = aSourceRect - aDestRect.TopLeft();
-  IntRect destRect = aDestRect - aDestRect.TopLeft();
-#ifdef DEBUG
-  IntMargin margin = srcRect - destRect;
-  MOZ_ASSERT(margin.top >= ry && margin.right >= rx &&
-             margin.bottom >= ry && margin.left >= rx, "insufficient margin");
-#endif
+template<MorphologyOperator op, typename m128i_t>
+static void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
+                                      uint8_t* aDestData, int32_t aDestStride,
+                                      const IntRect& aDestRect, int32_t aRadius)
+{
+  int32_t kernelSize = aRadius + 1 + aRadius;
+  MOZ_ASSERT(kernelSize >= 3, "don't call this with aRadius <= 0");
+  MOZ_ASSERT(kernelSize % 4 == 1 || kernelSize % 4 == 3);
+  int32_t completeKernelSizeForFourPixels = kernelSize + 3;
+  MOZ_ASSERT(completeKernelSizeForFourPixels % 4 == 0 ||
+             completeKernelSizeForFourPixels % 4 == 2);
+  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++) {
+    int32_t kernelStartX = aDestRect.x - aRadius;
+    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4, kernelStartX += 4) {
+      int32_t sourceIndex = y * aSourceStride + 4 * kernelStartX;
+      m128i_t p1234 = simd::LoadFrom<m128i_t>((m128i_t*)&aSourceData[sourceIndex]);
+      m128i_t m12 = simd::UnpackLo8x8To8x16(p1234);
+      m128i_t m34 = simd::UnpackHi8x8To8x16(p1234);
 
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(destRect.Size(), FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
+      for (int32_t i = 4; i < completeKernelSizeForFourPixels; i += 4) {
+        m128i_t p5678 = simd::LoadFrom<m128i_t>((m128i_t*)&aSourceData[sourceIndex + 4 * i]);
+        m128i_t p4444 = simd::Splat32<3>(p1234);
+        m128i_t p4546 = simd::InterleaveLo32(p4444, p5678);
+        m128i_t p2341 = simd::Shuffle32<0,3,2,1>(p1234);
+        m128i_t p23 = simd::UnpackLo8x8To8x16(p2341);
+        m128i_t p34 = simd::UnpackHi8x8To8x16(p1234);
+        m128i_t p45 = simd::UnpackLo8x8To8x16(p4546);
+        m128i_t p56 = simd::UnpackLo8x8To8x16(p5678);
+        m12 = Morph16<op,m128i_t>(m12, p23);
+        m12 = Morph16<op,m128i_t>(m12, p34);
+        m34 = Morph16<op,m128i_t>(m34, p45);
+        m34 = Morph16<op,m128i_t>(m34, p56);
+        if (completeKernelSizeForFourPixels % 4 == 0) {
+          m128i_t p6785 = simd::Shuffle32<0,3,2,1>(p5678);
+          m128i_t p67 = simd::UnpackLo8x8To8x16(p6785);
+          m128i_t p78 = simd::UnpackHi8x8To8x16(p5678);
+          m12 = Morph16<op,m128i_t>(m12, p45);
+          m12 = Morph16<op,m128i_t>(m12, p56);
+          m34 = Morph16<op,m128i_t>(m34, p67);
+          m34 = Morph16<op,m128i_t>(m34, p78);
+        }
+        p1234 = p5678;
+      }
+
+      m128i_t m1234 = simd::PackAndSaturate16To8(m12, m34);
+      int32_t destIndex = y * aDestStride + 4 * x;
+      simd::StoreTo((m128i_t*)&aDestData[destIndex], m1234);
+    }
   }
+}
 
-  uint8_t* sourceData = aInput->GetData();
-  int32_t sourceStride = aInput->Stride();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-
-  IntPoint offset = destRect.TopLeft() - srcRect.TopLeft();
-  sourceData += DataOffset(aInput, offset);
-
-  // Scan the kernel for each pixel to determine max/min RGBA values.
-  int32_t startY = destRect.y - ry;
-  int32_t endY = destRect.y + ry;
-  for (int32_t y = destRect.y; y < destRect.YMost(); y++, startY++, endY++) {
-    int32_t startX = destRect.x - rx;
-    int32_t endX = destRect.x + rx;
-    for (int32_t x = destRect.x; x < destRect.XMost(); x++, startX++, endX++) {
+template<MorphologyOperator Operator>
+static void ApplyMorphologyHorizontal_Scalar(uint8_t* aSourceData, int32_t aSourceStride,
+                                             uint8_t* aDestData, int32_t aDestStride,
+                                             const IntRect& aDestRect, int32_t aRadius)
+{
+  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++) {
+    int32_t startX = aDestRect.x - aRadius;
+    int32_t endX = aDestRect.x + aRadius;
+    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x++, startX++, endX++) {
+      int32_t sourceIndex = y * aSourceStride + 4 * startX;
       uint8_t u[4];
       for (size_t i = 0; i < 4; i++) {
-        u[i] = Operator == MORPHOLOGY_OPERATOR_ERODE ? 255 : 0;
+        u[i] = aSourceData[sourceIndex + i];
       }
-      for (int32_t iy = startY; iy <= endY; iy++) {
-        for (int32_t ix = startX; ix <= endX; ix++) {
-          int32_t sourceIndex = iy * sourceStride + 4 * ix;
-          for (size_t i = 0; i < 4; i++) {
-            if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-              u[i] = umin(u[i], sourceData[sourceIndex + i]);
-            } else {
-              u[i] = umax(u[i], sourceData[sourceIndex + i]);
-            }
+      sourceIndex += 4;
+      for (int32_t ix = startX + 1; ix <= endX; ix++, sourceIndex += 4) {
+        for (size_t i = 0; i < 4; i++) {
+          if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
+            u[i] = umin(u[i], aSourceData[sourceIndex + i]);
+          } else {
+            u[i] = umax(u[i], aSourceData[sourceIndex + i]);
           }
         }
       }
 
-      int32_t targIndex = y * targetStride + 4 * x;
+      int32_t destIndex = y * aDestStride + 4 * x;
       for (size_t i = 0; i < 4; i++) {
-        targetData[targIndex+i] = u[i];
+        aDestData[destIndex+i] = u[i];
       }
     }
   }
-
-  return target;
 }
 
-// Calculates, in constant time, the lowest value between 0 and 255
-// for which aValueCounts[value] != 0.
-static uint8_t
-FindMinNonZero(uint32_t aValueCounts[256])
+template<MorphologyOperator Operator, typename m128i_t>
+static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
+                                         uint8_t* aDestData, int32_t aDestStride,
+                                         const IntRect& aDestRect, int32_t aRadius)
 {
-  bool found = false;
-  uint8_t foundValue = 0;
-  for (int32_t value = 0; value < 256; value++) {
-    bool valueCountIsNonZero = aValueCounts[value];
-    foundValue += !found * valueCountIsNonZero * value;
-    found = found || valueCountIsNonZero;
+  int32_t startY = aDestRect.y - aRadius;
+  int32_t endY = aDestRect.y + aRadius;
+  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++, startY++, endY++) {
+    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4) {
+      int32_t sourceIndex = startY * aSourceStride + 4 * x;
+      m128i_t u = simd::LoadFrom<m128i_t>((m128i_t*)&aSourceData[sourceIndex]);
+      m128i_t u_lo = simd::UnpackLo8x8To8x16(u);
+      m128i_t u_hi = simd::UnpackHi8x8To8x16(u);
+      sourceIndex += aSourceStride;
+      for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
+        m128i_t u2 = simd::LoadFrom<m128i_t>((m128i_t*)&aSourceData[sourceIndex]);
+        m128i_t u2_lo = simd::UnpackLo8x8To8x16(u2);
+        m128i_t u2_hi = simd::UnpackHi8x8To8x16(u2);
+        if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
+          u_lo = simd::Min16(u_lo, u2_lo);
+          u_hi = simd::Min16(u_hi, u2_hi);
+        } else {
+          u_lo = simd::Max16(u_lo, u2_lo);
+          u_hi = simd::Max16(u_hi, u2_hi);
+        }
+      }
+
+      u = simd::PackAndSaturate16To8(u_lo, u_hi);
+      int32_t destIndex = y * aDestStride + 4 * x;
+      simd::StoreTo((m128i_t*)&aDestData[destIndex], u);
+    }
   }
-  return foundValue;
 }
 
-// Calculates, in constant time, the highest value between 0 and 255
-// for which aValueCounts[value] != 0.
-static uint8_t
-FindMaxNonZero(uint32_t aValueCounts[256])
+template<MorphologyOperator Operator>
+static void ApplyMorphologyVertical_Scalar(uint8_t* aSourceData, int32_t aSourceStride,
+                                           uint8_t* aDestData, int32_t aDestStride,
+                                           const IntRect& aDestRect, int32_t aRadius)
 {
-  bool found = false;
-  uint8_t foundValue = 0;
-  for (int32_t value = 255; value >= 0; value--) {
-    bool valueCountIsNonZero = aValueCounts[value];
-    foundValue += !found * valueCountIsNonZero * value;
-    found = found || valueCountIsNonZero;
+  int32_t startY = aDestRect.y - aRadius;
+  int32_t endY = aDestRect.y + aRadius;
+  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++, startY++, endY++) {
+    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4) {
+      int32_t sourceIndex = startY * aSourceStride + 4 * x;
+      uint8_t u[4];
+      for (size_t i = 0; i < 4; i++) {
+        u[i] = aSourceData[sourceIndex + i];
+      }
+      sourceIndex += aSourceStride;
+      for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
+        for (size_t i = 0; i < 4; i++) {
+          if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
+            u[i] = umin(u[i], aSourceData[sourceIndex + i]);
+          } else {
+            u[i] = umax(u[i], aSourceData[sourceIndex + i]);
+          }
+        }
+      }
+
+      int32_t destIndex = y * aDestStride + 4 * x;
+      for (size_t i = 0; i < 4; i++) {
+        aDestData[destIndex+i] = u[i];
+      }
+    }
   }
-  return foundValue;
 }
 
 template<MorphologyOperator Operator>
 static TemporaryRef<DataSourceSurface>
-DoMorphologyWithCachedKernel(const IntRect& aSourceRect,
-                             DataSourceSurface* aInput,
-                             const IntRect& aDestRect,
-                             int32_t rx,
-                             int32_t ry)
+ApplyMorphology(const IntRect& aSourceRect, DataSourceSurface* aInput,
+                const IntRect& aDestRect, int32_t rx, int32_t ry)
 {
   static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
                 Operator == MORPHOLOGY_OPERATOR_DILATE,
@@ -1348,93 +1406,69 @@ DoMorphologyWithCachedKernel(const IntRect& aSourceRect,
 
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
+  IntRect tmpRect(destRect.x, srcRect.y, destRect.width, srcRect.height);
 #ifdef DEBUG
   IntMargin margin = srcRect - destRect;
   MOZ_ASSERT(margin.top >= ry && margin.right >= rx &&
              margin.bottom >= ry && margin.left >= rx, "insufficient margin");
 #endif
 
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(destRect.Size(), FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* sourceData = aInput->GetData();
-  int32_t sourceStride = aInput->Stride();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-
-  IntPoint offset = destRect.TopLeft() - srcRect.TopLeft();
-  sourceData += DataOffset(aInput, offset);
-
-  int32_t kernelStartY = destRect.y - ry;
-  int32_t kernelEndY = destRect.y + ry;
-
-  for (int32_t y = destRect.y; y < destRect.YMost(); y++, kernelStartY++, kernelEndY++) {
-
-    int32_t kernelStartX = destRect.x - rx;
-    int32_t kernelEndX = destRect.x + rx;
-
-    // For target pixel (x,y) the kernel spans
-    // [kernelStartX, kernelEndX] x [kernelStartY, kernelEndY].
-
-    // valueCounts[i][value] is the number of occurrences of value
-    // in the kernel for component i.
-    uint32_t valueCounts[4][256];
-
-    // Initialize to zero.
-    for (int32_t i = 0; i < 4; i++) {
-      for (int32_t c = 0; c < 256; c++) {
-        valueCounts[i][c] = 0;
-      }
+  RefPtr<DataSourceSurface> tmp;
+  if (rx == 0) {
+    tmp = aInput;
+  } else {
+    tmp = Factory::CreateDataSourceSurface(tmpRect.Size(), FORMAT_B8G8R8A8);
+    if (!tmp) {
+      return nullptr;
     }
 
-    // For each target pixel row, traverse the whole kernel once for the
-    // first target pixel in the row. Later, when moving through the row,
-    // only the columns which enter and exit the kernel will be processed.
-    for (int32_t ky = kernelStartY; ky <= kernelEndY; ky++) {
-      for (int32_t kx = kernelStartX; kx <= kernelEndX; kx++) {
-        for (int32_t i = 0; i < 4; i++) {
-          uint8_t valueToAdd = sourceData[ky * sourceStride + 4 * kx + i];
-          valueCounts[i][valueToAdd]++;
-        }
-      }
-    }
+    int32_t sourceStride = aInput->Stride();
+    uint8_t* sourceData = aInput->GetData();
+    sourceData += DataOffset(aInput, destRect.TopLeft() - srcRect.TopLeft());
 
-    for (int32_t x = destRect.x; x < destRect.XMost(); x++, kernelStartX++, kernelEndX++) {
+    int32_t tmpStride = tmp->Stride();
+    uint8_t* tmpData = tmp->GetData();
+    tmpData += DataOffset(tmp, destRect.TopLeft() - tmpRect.TopLeft());
 
-      int32_t targIndex = y * targetStride + 4 * x;
-
-      // Calculate the values for the four components of the target pixel.
-      for (size_t i = 0; i < 4; i++) {
-        if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-          targetData[targIndex+i] = FindMinNonZero(valueCounts[i]);
-        } else {
-          targetData[targIndex+i] = FindMaxNonZero(valueCounts[i]);
-        }
-      }
-
-      // For subsequent pixels in this row, only process the values at the
-      // left and right edges of the kernel.
-      if (x + 1 < destRect.XMost()) {
-        for (int32_t ky = kernelStartY; ky <= kernelEndY; ky++) {
-          for (int32_t i = 0; i < 4; i++) {
-            // Add the new value from column kernelEndX + 1, which is entering the kernel.
-            uint8_t valueToAdd = sourceData[ky * sourceStride + 4 * (kernelEndX + 1) + i];
-            valueCounts[i][valueToAdd]++;
-
-            // Remove the old value from column kernelStartX, which is leaving the kernel.
-            uint8_t valueToRemove = sourceData[ky * sourceStride + 4 * kernelStartX + i];
-            valueCounts[i][valueToRemove]--;
-          }
-        }
-      }
-
+    if (Factory::HasSSE2()) {
+#ifdef COMPILE_WITH_SSE2
+      ApplyMorphologyHorizontal_SIMD<Operator,__m128i>(
+        sourceData, sourceStride, tmpData, tmpStride, tmpRect, rx);
+#endif
+    } else {
+      ApplyMorphologyHorizontal_Scalar<Operator>(
+        sourceData, sourceStride, tmpData, tmpStride, tmpRect, rx);
     }
   }
 
-  return target;
+  RefPtr<DataSourceSurface> dest;
+  if (ry == 0) {
+    dest = tmp;
+  } else {
+    dest = Factory::CreateDataSourceSurface(destRect.Size(), FORMAT_B8G8R8A8);
+    if (!dest) {
+      return nullptr;
+    }
+
+    int32_t tmpStride = tmp->Stride();
+    uint8_t* tmpData = tmp->GetData();
+    tmpData += DataOffset(tmp, destRect.TopLeft() - tmpRect.TopLeft());
+
+    int32_t destStride = dest->Stride();
+    uint8_t* destData = dest->GetData();
+
+    if (Factory::HasSSE2()) {
+#ifdef COMPILE_WITH_SSE2
+      ApplyMorphologyVertical_SIMD<Operator,__m128i>(
+        tmpData, tmpStride, destData, destStride, destRect, ry);
+ #endif
+    } else {
+      ApplyMorphologyVertical_Scalar<Operator>(
+        tmpData, tmpStride, destData, destStride, destRect, ry);
+    }
+  }
+
+  return dest;
 }
 
 TemporaryRef<DataSourceSurface>
@@ -1456,20 +1490,10 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
     return input;
   }
 
-  int32_t kernelSize = (2 * rx + 1) * (2 * ry + 1);
-
-  if (kernelSize < 80) {
-    if (mOperator == MORPHOLOGY_OPERATOR_ERODE) {
-      return DoMorphologyWithRepeatedKernelTraversal<MORPHOLOGY_OPERATOR_ERODE>(srcRect, input, aRect, rx, ry);
-    } else {
-      return DoMorphologyWithRepeatedKernelTraversal<MORPHOLOGY_OPERATOR_DILATE>(srcRect, input, aRect, rx, ry);
-    }
+  if (mOperator == MORPHOLOGY_OPERATOR_ERODE) {
+    return ApplyMorphology<MORPHOLOGY_OPERATOR_ERODE>(srcRect, input, aRect, rx, ry);
   } else {
-    if (mOperator == MORPHOLOGY_OPERATOR_ERODE) {
-      return DoMorphologyWithCachedKernel<MORPHOLOGY_OPERATOR_ERODE>(srcRect, input, aRect, rx, ry);
-    } else {
-      return DoMorphologyWithCachedKernel<MORPHOLOGY_OPERATOR_DILATE>(srcRect, input, aRect, rx, ry);
-    }
+    return ApplyMorphology<MORPHOLOGY_OPERATOR_DILATE>(srcRect, input, aRect, rx, ry);
   }
 }
 
