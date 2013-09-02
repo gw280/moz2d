@@ -1025,7 +1025,7 @@ TestDrawTargetBase::GaussianBlur()
   RefreshSnapshot();
 
   // XXX - Find a more solid test for this.
-  VerifyPixel(IntPoint(250, 250), Color(0, 0.5f, 0, 1.0f));
+  VerifyPixel(IntPoint(250, 250), Color(0, 0.5f, 0, 1.0f), 3);
   VerifyPixel(IntPoint(0, 0), Color(0, 0, 0, 0));
 }
 
