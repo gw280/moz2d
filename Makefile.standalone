@@ -41,7 +41,6 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   Matrix.cpp \
   PathRecording.cpp \
   RecordedEvent.cpp \
-  Rect.cpp \
   Scale.cpp \
   ScaledFontBase.cpp \
   SourceSurfaceRawData.cpp \
