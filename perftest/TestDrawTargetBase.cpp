@@ -48,7 +48,6 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200SmallRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
-  REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter100x100Radius40);
   REGISTER_TEST(TestDrawTargetBase, CreateRandom200);
   REGISTER_TEST(TestDrawTargetBase, DrawTurbulence500x500);
   REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter200x200x100Radius40);
