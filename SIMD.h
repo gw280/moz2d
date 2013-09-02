@@ -661,7 +661,7 @@ template<>
 __m128i
 LoadFrom<__m128i>(const __m128i* aSource)
 {
-  return _mm_loadu_si128(aSource);
+  return _mm_load_si128(aSource);
 }
 
 template<>
