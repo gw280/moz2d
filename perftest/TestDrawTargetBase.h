@@ -64,6 +64,7 @@ public:
   void Composite200x200x1000();
   void CompositeA8Single200x200x1000();
   void Blend200x200x1000();
+  void Blur500x500x50();
 
 protected:
   FlushFunc mFlush;

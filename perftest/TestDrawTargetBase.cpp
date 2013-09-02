@@ -58,6 +58,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, Composite200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, CompositeA8Single200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Blend200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Blur500x500x50);
 
   mGroup = GROUP_DRAWTARGETS;
 }
@@ -603,6 +604,30 @@ TestDrawTargetBase::Blend200x200x1000()
     filter->SetInput(IN_BLEND_IN, surf);
     filter->SetInput(IN_BLEND_IN2, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Blur500x500x50()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> tile = mDT->CreateFilter(FILTER_TILE);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, mRandom200);
+  tile->SetAttribute(ATT_TILE_SOURCE_RECT, IntRect(0, 0, 200, 200));
+  tile->SetInput(IN_TILE_IN, premultiply);
+  dt->DrawFilter(tile, Rect(0, 0, 500, 500), Point());
+  RefPtr<SourceSurface> surf = dt->Snapshot();
+
+  for (int i = 0; i < 50; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+    filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 40.0f);
+    filter->SetInput(IN_GAUSSIAN_BLUR_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
   }
 
   Flush();
