@@ -51,6 +51,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter100x100Radius40);
   REGISTER_TEST(TestDrawTargetBase, CreateRandom200);
   REGISTER_TEST(TestDrawTargetBase, DrawTurbulence500x500);
+  REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter200x200x100Radius40);
   REGISTER_TEST(TestDrawTargetBase, Premultiply200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Unpremultiply200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, ComponentTransfer200x200x1000);
@@ -408,23 +409,9 @@ TestDrawTargetBase::DrawShadow200x200LargeRadius()
 }
 
 void
-TestDrawTargetBase::DrawMorphologyFilter100x100Radius40()
+TestDrawTargetBase::CreateRandom200()
 {
-  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
-
-  filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(40, 40));
-  filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
-
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(100, 100), FORMAT_B8G8R8A8);
-  dt->FillRect(Rect(40, 40, 20, 20), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
-
-  RefPtr<SourceSurface> src = dt->Snapshot();
-  filter->SetInput(0, src);
-
-  mDT->DrawFilter(filter, Rect(0, 0, 100, 100), Point());
-  Flush();
+  mRandom200 = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8, false);
 }
 
 void
@@ -447,9 +434,21 @@ TestDrawTargetBase::DrawTurbulence500x500()
 }
 
 void
-TestDrawTargetBase::CreateRandom200()
+TestDrawTargetBase::DrawMorphologyFilter200x200x100Radius40()
 {
-  mRandom200 = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8, false);
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> src = mRandom200;
+
+  for (int32_t i = 0; i < 100; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+    filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(40, 40));
+    filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
+    filter->SetInput(0, src);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
 }
 
 void
