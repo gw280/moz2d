@@ -163,7 +163,7 @@ private:
   StitchInfo mStitchInfo;
   bool mStitchable;
   TurbulenceType mType;
-  int32_t mLatticeSelector[sBSize];
+  uint8_t mLatticeSelector[sBSize];
   vec2<vec4<T> > mGradient[sBSize];
 };
 

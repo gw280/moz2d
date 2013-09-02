@@ -65,9 +65,10 @@ SVGTurbulenceRenderer<Type,Stitch,T>::SVGTurbulenceRenderer(const Size &aBaseFre
   }
 }
 
+template<typename T>
 static void
-Swap(int32_t& a, int32_t& b) {
-  int32_t c = a;
+Swap(T& a, T& b) {
+  T c = a;
   a = b;
   b = c;
 }
@@ -90,13 +91,6 @@ SVGTurbulenceRenderer<Type,Stitch,T>::InitFromSeed(int32_t aSeed)
   }
 
   for (int32_t i = 0; i < sBSize; i++) {
-    mGradient[i].x() = vec4<T>(gradient[0][i].x(), gradient[1][i].x(),
-                                    gradient[2][i].x(), gradient[3][i].x());
-    mGradient[i].y() = vec4<T>(gradient[0][i].y(), gradient[1][i].y(),
-                                    gradient[2][i].y(), gradient[3][i].y());
-  }
-
-  for (int32_t i = 0; i < sBSize; i++) {
     mLatticeSelector[i] = i;
   }
   for (int32_t i1 = sBSize - 1; i1 > 0; i1--) {
@@ -104,8 +98,12 @@ SVGTurbulenceRenderer<Type,Stitch,T>::InitFromSeed(int32_t aSeed)
     Swap(mLatticeSelector[i1], mLatticeSelector[i2]);
   }
 
-  for (int32_t i = 0; i < sBSize + 2; i++) {
-    mLatticeSelector[sBSize + i] = mLatticeSelector[i];
+  for (int32_t i = 0; i < sBSize; i++) {
+    uint8_t j = mLatticeSelector[i];
+    mGradient[i].x() = vec4<T>(gradient[0][j].x(), gradient[1][j].x(),
+                               gradient[2][j].x(), gradient[3][j].x());
+    mGradient[i].y() = vec4<T>(gradient[0][j].y(), gradient[1][j].y(),
+                               gradient[2][j].y(), gradient[3][j].y());
   }
 }
 
@@ -198,13 +196,13 @@ SVGTurbulenceRenderer<Type,Stitch,T>::Interpolate(vec2<uint8_t> b0, vec2<uint8_t
 {
   static_assert(1 << (sizeof(b0.x()) * 8) <= sBSize, "mLatticeSelector is too small");
 
-  int32_t i = mLatticeSelector[b0.x()];
-  int32_t j = mLatticeSelector[b1.x()];
+  uint8_t i = mLatticeSelector[b0.x()];
+  uint8_t j = mLatticeSelector[b1.x()];
 
-  vec2<vec4<T> > qua = mGradient[mLatticeSelector[i + b0.y()]];
-  vec2<vec4<T> > qva = mGradient[mLatticeSelector[j + b0.y()]];
-  vec2<vec4<T> > qub = mGradient[mLatticeSelector[i + b1.y()]];
-  vec2<vec4<T> > qvb = mGradient[mLatticeSelector[j + b1.y()]];
+  vec2<vec4<T> > qua = mGradient[uint8_t(i + b0.y())];
+  vec2<vec4<T> > qva = mGradient[uint8_t(j + b0.y())];
+  vec2<vec4<T> > qub = mGradient[uint8_t(i + b1.y())];
+  vec2<vec4<T> > qvb = mGradient[uint8_t(j + b1.y())];
   return BiLerp(SCurve(r0),
                 Mix(r0.x(), r1.x(), r0.y(), qua, qva),
                 Mix(r0.x(), r1.x(), r1.y(), qub, qvb));
