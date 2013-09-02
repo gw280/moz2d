@@ -1251,7 +1251,7 @@ DoMorphologyWithRepeatedKernelTraversal(const IntRect& aSourceRect,
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
 #ifdef DEBUG
-  Margin margin = srcRect - destRect;
+  IntMargin margin = srcRect - destRect;
   MOZ_ASSERT(margin.top >= ry && margin.right >= rx &&
              margin.bottom >= ry && margin.left >= rx, "insufficient margin");
 #endif
@@ -1349,7 +1349,7 @@ DoMorphologyWithCachedKernel(const IntRect& aSourceRect,
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
 #ifdef DEBUG
-  Margin margin = srcRect - destRect;
+  IntMargin margin = srcRect - destRect;
   MOZ_ASSERT(margin.top >= ry && margin.right >= rx &&
              margin.bottom >= ry && margin.left >= rx, "insufficient margin");
 #endif
@@ -2562,7 +2562,7 @@ FilterNodeConvolveMatrixSoftware::RequestFromInputsForRect(const IntRect &aRect)
 IntRect
 FilterNodeConvolveMatrixSoftware::InflatedSourceRect(const IntRect &aDestRect)
 {
-  Margin margin;
+  IntMargin margin;
   margin.left = ceil(mTarget.x * mKernelUnitLength.width);
   margin.top = ceil(mTarget.y * mKernelUnitLength.height);
   margin.right = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width);
@@ -2576,7 +2576,7 @@ FilterNodeConvolveMatrixSoftware::InflatedSourceRect(const IntRect &aDestRect)
 IntRect
 FilterNodeConvolveMatrixSoftware::InflatedDestRect(const IntRect &aSourceRect)
 {
-  Margin margin;
+  IntMargin margin;
   margin.left = ceil((mKernelSize.width - mTarget.x - 1) * mKernelUnitLength.width);
   margin.top = ceil((mKernelSize.height - mTarget.y - 1) * mKernelUnitLength.height);
   margin.right = ceil(mTarget.x * mKernelUnitLength.width);
