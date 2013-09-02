@@ -78,7 +78,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;WGL_WGLEXT_PROTOTYPES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -100,7 +100,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;WGL_WGLEXT_PROTOTYPES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -123,7 +123,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;WGL_WGLEXT_PROTOTYPES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -139,7 +139,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;WGL_WGLEXT_PROTOTYPES;GL_GLEXT_PROTOTYPES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -191,6 +191,8 @@
     <ClInclude Include="nvpr\Paint.h" />
     <ClInclude Include="nvpr\ShaderProgram.h" />
     <ClInclude Include="nvpr\ShadowShaders.h" />
+    <ClInclude Include="nvpr\WGL.h" />
+    <ClInclude Include="nvpr\WGLDefs.h" />
     <ClInclude Include="PathBuilderNVpr.h" />
     <ClInclude Include="PathCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

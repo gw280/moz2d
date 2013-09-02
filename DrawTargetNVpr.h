@@ -28,9 +28,9 @@ class DXTextureInteropNVpr;
 
 namespace nvpr {
 class ScissorClip;
-class Paint;
 class PlanesClip;
 class StencilClip;
+struct Paint;
 }
 
 class DrawTargetNVpr
@@ -182,7 +182,7 @@ private:
   void ApplyPaint(const nvpr::Paint& aPaint);
 
   void ApplyDrawOptions(CompositionOp aCompositionOp,
-                        AntialiasMode aAntialiasMode, Snapping aSnapping);
+                        AntialiasMode aAntialiasMode);
 
   void MarkChanged();
 

@@ -78,13 +78,6 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   gl->MakeCurrent();
 
-  if (!gl->HasExtension(GL::EXT_direct_state_access)
-      || !gl->HasExtension(GL::NV_path_rendering)
-      || !gl->HasExtension(GL::EXT_framebuffer_multisample)
-      || !gl->HasExtension(GL::EXT_framebuffer_blit)) {
-    return;
-  }
-
   if (max(mSize.width, mSize.height) > gl->MaxRenderbufferSize()
       || max(mSize.width, mSize.height) > gl->MaxTextureSize()) {
     return;
@@ -271,8 +264,7 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   Rect textureRect = aSourceRect;
   textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
@@ -290,6 +282,7 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
   gl->SetVertexArray(vertices);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -329,7 +322,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   gl->DisableScissorTest();
   gl->DisableClipPlanes();
   gl->DisableStencilTest();
-  gl->DisableBlending();
+  gl->SetBlendMode(OP_SOURCE);
   gl->SetColorWriteMask(mHasAlpha ? GL::WRITE_ALPHA : GL::WRITE_RED);
 
   gl->SetShaderProgram(horizontalConvolutionShader);
@@ -342,7 +335,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   // Step 2: Use the horizontal convolution to draw the shadow.
   Validate(FRAMEBUFFER | CLIPPING | COLOR_WRITE_MASK);
-  ApplyDrawOptions(aOperator, AA_DEFAULT, SNAP_NONE);
+  ApplyDrawOptions(aOperator, AA_DEFAULT);
 
   gl->SetShaderProgram(shadowShader);
 
@@ -355,6 +348,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
                           GL::LEAVE_UNCHANGED);
   }
   gl->Rectf(0, 0, 1, 1);
+  gl->BlendBarrier();
 
   // Step 3: Draw the surface on top of its shadow.
   gl->SetTransformToIdentity();
@@ -374,6 +368,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   gl->SetVertexArray(vertices);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -456,10 +451,10 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   gl->Rectf(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height);
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -521,8 +516,7 @@ DrawTargetNVpr::Stroke(const Path* aPath,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   gl->CoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
 
@@ -556,8 +550,7 @@ DrawTargetNVpr::Fill(const Path* aPath,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   gl->CoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
 
@@ -626,11 +619,11 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   gl->Rectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
             maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -657,8 +650,7 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   Matrix inverse = GetTransform();
   inverse.Invert();
@@ -666,6 +658,7 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
   Point bottomRight = inverse * Point(mSize.width, mSize.height);
 
   gl->Rectf(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y);
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -698,8 +691,7 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
-  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode,
-                   aOptions.mSnapping);
+  ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
   const GLfloat maskCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
   gl->DisableTexCoordArray(PaintShader::PAINT_UNIT);
@@ -712,6 +704,7 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
   gl->SetVertexArray(vertices);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
+  gl->BlendBarrier();
 
   MarkChanged();
 }
@@ -950,65 +943,16 @@ DrawTargetNVpr::ApplyPaint(const Paint& aPaint)
 
 void
 DrawTargetNVpr::ApplyDrawOptions(CompositionOp aCompositionOp,
-                                 AntialiasMode aAntialiasMode,
-                                 Snapping aSnapping)
+                                 AntialiasMode aAntialiasMode)
 {
   MOZ_ASSERT(gl->IsCurrent());
 
-  switch (aCompositionOp) {
-    case OP_MULTIPLY:
-    case OP_SCREEN:
-    case OP_OVERLAY:
-    case OP_DARKEN:
-    case OP_LIGHTEN:
-    case OP_COLOR_DODGE:
-    case OP_COLOR_BURN:
-    case OP_HARD_LIGHT:
-    case OP_SOFT_LIGHT:
-    case OP_DIFFERENCE:
-    case OP_EXCLUSION:
-    case OP_HUE:
-    case OP_SATURATION:
-    case OP_COLOR:
-    case OP_LUMINOSITY:
-    default:
-      // TODO: Use NV_blend_equation_advanced
-      MOZ_ASSERT(!"Unsupported composition operation");
-    case OP_SOURCE:
-      gl->DisableBlending();
-      break;
-    case OP_OVER:
-      gl->EnableBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-      break;
-    case OP_ADD:
-      gl->EnableBlending(GL_ONE, GL_ONE);
-      break;
-    case OP_ATOP:
-      gl->EnableBlending(GL_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
-                         GL_ZERO, GL_ONE);
-      break;
-    case OP_OUT:
-      gl->EnableBlending(GL_ONE_MINUS_DST_ALPHA, GL_ZERO);
-      break;
-    case OP_IN:
-      gl->EnableBlending(GL_DST_ALPHA, GL_ZERO);
-      break;
-    case OP_DEST_IN:
-      gl->EnableBlending(GL_ZERO, GL_SRC_ALPHA);
-      break;
-    case OP_DEST_OUT:
-      gl->EnableBlending(GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
-      break;
-    case OP_DEST_OVER:
-      gl->EnableBlending(GL_ONE_MINUS_DST_ALPHA, GL_ONE);
-      break;
-    case OP_DEST_ATOP:
-      gl->EnableBlending(GL_ONE_MINUS_DST_ALPHA, GL_SRC_ALPHA,
-                         GL_ONE, GL_ZERO);
-      break;
-    case OP_XOR:
-      gl->EnableBlending(GL_ONE_MINUS_DST_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-      break;
+  gl->SetBlendMode(aCompositionOp);
+
+  if (aAntialiasMode == AA_NONE) {
+    gl->DisableMultisample();
+  } else {
+    gl->EnableMultisample();
   }
 }
 

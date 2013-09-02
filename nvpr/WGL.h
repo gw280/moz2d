@@ -8,8 +8,7 @@
 #define MOZILLA_GFX_NVPR_WGL_H_
 
 #include "GL.h"
-#include <Windows.h>
-#include "GL/wglext.h"
+#include "WGLDefs.h"
 
 namespace mozilla {
 namespace gfx {
@@ -41,23 +40,21 @@ public:
   MACRO(DeleteContext) \
   MACRO(GetCurrentContext)
 
-#define FOR_ALL_WGL_EXTENSIONS(MACRO) \
-  MACRO(GetExtensionsStringARB) \
-  MACRO(CopyImageSubDataNV) \
-  MACRO(DXOpenDeviceNV) \
-  MACRO(DXCloseDeviceNV) \
-  MACRO(DXRegisterObjectNV) \
-  MACRO(DXUnregisterObjectNV) \
-  MACRO(DXLockObjectsNV) \
-  MACRO(DXUnlockObjectsNV)
-
 #define DECLARE_WGL_METHOD(NAME) \
   decltype(&wgl##NAME) NAME;
 
   FOR_ALL_WGL_ENTRY_POINTS(DECLARE_WGL_METHOD);
-  FOR_ALL_WGL_EXTENSIONS(DECLARE_WGL_METHOD);
 
 #undef DECLARE_WGL_METHOD
+
+  WGLGetExtensionsStringARB GetExtensionsStringARB;
+  WGLCopyImageSubDataNV CopyImageSubDataNV;
+  WGLDXOpenDeviceNV DXOpenDeviceNV;
+  WGLDXCloseDeviceNV DXCloseDeviceNV;
+  WGLDXRegisterObjectNV DXRegisterObjectNV;
+  WGLDXUnregisterObjectNV DXUnregisterObjectNV;
+  WGLDXLockObjectsNV DXLockObjectsNV;
+  WGLDXUnlockObjectsNV DXUnlockObjectsNV;
 
 private:
   template<typename C, typename T> bool
