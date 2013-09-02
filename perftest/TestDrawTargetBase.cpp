@@ -433,13 +433,15 @@ TestDrawTargetBase::DrawTurbulence500x500()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
 
-  filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(0.025, 0.025));
-  filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, 4u);
-  filter->SetAttribute(ATT_TURBULENCE_SEED, 0u);
-  filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
-  filter->SetAttribute(ATT_TURBULENCE_TYPE, (uint32_t)TURBULENCE_TYPE_TURBULENCE);
+  for (int32_t i = 0; i < 10; i++) {
+    filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(0.025, 0.025));
+    filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, 4u);
+    filter->SetAttribute(ATT_TURBULENCE_SEED, 0u);
+    filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
+    filter->SetAttribute(ATT_TURBULENCE_TYPE, (uint32_t)TURBULENCE_TYPE_TURBULENCE);
 
-  mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
+    mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
+  }
   Flush();
 }
 
