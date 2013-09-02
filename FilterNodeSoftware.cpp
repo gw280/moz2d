@@ -670,22 +670,23 @@ ConvertToB8G8R8A8(SourceSurface* aSurface)
         for (int32_t x = 0; x < size.width; x += 16) {
           int32_t inputIndex = y * inputStride + x;
           int32_t outputIndex = y * outputStride + 4 * x;
-          m128i_t alpha16x8 = simd::LoadFrom<m128i_t>((m128i_t*)&inputData[inputIndex]);
-          m128i_t alphaLo8x16 = simd::UnpackLo8x8To8x16(alpha16x8);
-          m128i_t alphaHi8x16 = simd::UnpackHi8x8To8x16(alpha16x8);
-          m128i_t alphaLoLo4x32 = simd::UnpackLo8x8To8x16(alphaLo8x16);
-          m128i_t alphaLoHi4x32 = simd::UnpackHi8x8To8x16(alphaLo8x16);
-          m128i_t alphaHiLo4x32 = simd::UnpackLo8x8To8x16(alphaHi8x16);
-          m128i_t alphaHiHi4x32 = simd::UnpackHi8x8To8x16(alphaHi8x16);
-          simd::StoreTo((m128i_t*)&outputData[outputIndex], alphaLoLo4x32);
+          m128i_t p1To16 = simd::LoadFrom<m128i_t>((m128i_t*)&inputData[inputIndex]);
+          m128i_t zero = simd::FromZero8<m128i_t>();
+          m128i_t p1To8 = simd::InterleaveLo8(zero, p1To16);
+          m128i_t p9To16 = simd::InterleaveHi8(zero, p1To16);
+          m128i_t p1To4 = simd::InterleaveLo8(zero, p1To8);
+          m128i_t p5To8 = simd::InterleaveHi8(zero, p1To8);
+          m128i_t p9To12 = simd::InterleaveLo8(zero, p9To16);
+          m128i_t p13To16 = simd::InterleaveHi8(zero, p9To16);
+          simd::StoreTo((m128i_t*)&outputData[outputIndex], p1To4);
           if (outputStride > (x + 4) * 4) {
-            simd::StoreTo((m128i_t*)&outputData[outputIndex+16], alphaLoHi4x32);
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+16], p5To8);
           }
           if (outputStride > (x + 8) * 4) {
-            simd::StoreTo((m128i_t*)&outputData[outputIndex+32], alphaHiLo4x32);
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+32], p9To12);
           }
           if (outputStride > (x + 12) * 4) {
-            simd::StoreTo((m128i_t*)&outputData[outputIndex+48], alphaHiHi4x32);
+            simd::StoreTo((m128i_t*)&outputData[outputIndex+48], p13To16);
           }
         }
       }

@@ -27,6 +27,13 @@ template<typename m128i_t>
 void StoreTo(m128i_t* aTarget, m128i_t aM);
 
 template<typename m128i_t>
+m128i_t FromZero8();
+
+template<typename m128i_t>
+m128i_t From8(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+              uint8_t i, uint8_t j, uint8_t k, uint8_t l, uint8_t m, uint8_t n, uint8_t o, uint8_t p);
+
+template<typename m128i_t>
 m128i_t From16(int16_t a, int16_t b, int16_t c, int16_t d, int16_t e, int16_t f, int16_t g, int16_t h);
 
 template<typename m128i_t>
@@ -91,6 +98,12 @@ template<int8_t aIndex, typename m128i_t>
 inline m128i_t Splat32(m128i_t aM);
 
 template<typename m128i_t>
+inline m128i_t InterleaveLo8(m128i_t m1, m128i_t m2);
+
+template<typename m128i_t>
+inline m128i_t InterleaveHi8(m128i_t m1, m128i_t m2);
+
+template<typename m128i_t>
 inline m128i_t InterleaveLo16(m128i_t m1, m128i_t m2);
 
 template<typename m128i_t>
@@ -134,6 +147,41 @@ template<>
 void StoreTo<ScalarM128i>(ScalarM128i* aTarget, ScalarM128i aM)
 {
   *aTarget = aM;
+}
+
+template<>
+ScalarM128i FromZero8<ScalarM128i>()
+{
+  ScalarM128i m;
+  m.i32[0] = 0;
+  m.i32[1] = 0;
+  m.i32[2] = 0;
+  m.i32[3] = 0;
+  return m;
+}
+
+template<>
+ScalarM128i From8<ScalarM128i>(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+                               uint8_t i, uint8_t j, uint8_t k, uint8_t l, uint8_t m, uint8_t n, uint8_t o, uint8_t p)
+{
+  ScalarM128i _m;
+  _m.u8[0] = a;
+  _m.u8[1] = b;
+  _m.u8[2] = c;
+  _m.u8[3] = d;
+  _m.u8[4] = e;
+  _m.u8[5] = f;
+  _m.u8[6] = g;
+  _m.u8[7] = h;
+  _m.u8[8+0] = i;
+  _m.u8[8+1] = j;
+  _m.u8[8+2] = k;
+  _m.u8[8+3] = l;
+  _m.u8[8+4] = m;
+  _m.u8[8+5] = n;
+  _m.u8[8+6] = o;
+  _m.u8[8+7] = p;
+  return _m;
 }
 
 template<>
@@ -411,6 +459,26 @@ inline ScalarM128i SplatHi16(ScalarM128i aM)
 
 template<>
 inline ScalarM128i
+InterleaveLo8<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  return From8<ScalarM128i>(m1.u8[0], m2.u8[0], m1.u8[1], m2.u8[1],
+                            m1.u8[2], m2.u8[2], m1.u8[3], m2.u8[3],
+                            m1.u8[4], m2.u8[4], m1.u8[5], m2.u8[5],
+                            m1.u8[6], m2.u8[6], m1.u8[7], m2.u8[7]);
+}
+
+template<>
+inline ScalarM128i
+InterleaveHi8<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
+{
+  return From8<ScalarM128i>(m1.u8[8+0], m2.u8[8+0], m1.u8[8+1], m2.u8[8+1],
+                            m1.u8[8+2], m2.u8[8+2], m1.u8[8+3], m2.u8[8+3],
+                            m1.u8[8+4], m2.u8[8+4], m1.u8[8+5], m2.u8[8+5],
+                            m1.u8[8+6], m2.u8[8+6], m1.u8[8+7], m2.u8[8+7]);
+}
+
+template<>
+inline ScalarM128i
 InterleaveLo16<ScalarM128i>(ScalarM128i m1, ScalarM128i m2)
 {
   return From16<ScalarM128i>(m1.i16[0], m2.i16[0], m1.i16[1], m2.i16[1],
@@ -600,6 +668,12 @@ template<>
 void StoreTo<__m128i>(__m128i* aTarget, __m128i aM)
 {
   _mm_store_si128(aTarget, aM);
+}
+
+template<>
+__m128i FromZero8<__m128i>()
+{
+  return _mm_setzero_si128();
 }
 
 template<>
@@ -798,6 +872,18 @@ UnpackHi8x8To8x16<__m128i>(__m128i m)
 {
   __m128i zero = _mm_set1_epi8(0);
   return _mm_unpackhi_epi8(m, zero);
+}
+
+__m128i
+InterleaveLo8(__m128i m1, __m128i m2)
+{
+  return _mm_unpacklo_epi8(m1, m2);
+}
+
+__m128i
+InterleaveHi8(__m128i m1, __m128i m2)
+{
+  return _mm_unpackhi_epi8(m1, m2);
 }
 
 __m128i
