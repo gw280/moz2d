@@ -16,6 +16,7 @@
 
 #ifdef DEBUG_DUMP_SURFACES
 #include "gfxImageSurface.h"
+#include "gfx2DGlue.h"
 namespace mozilla {
 namespace gfx {
 static void
@@ -25,7 +26,7 @@ DumpAsPNG(SourceSurface* aSurface)
   IntSize size = dataSource->GetSize();
   nsRefPtr<gfxImageSurface> imageSurface =
     new gfxImageSurface(dataSource->GetData(), gfxIntSize(size.width, size.height),
-                        dataSource->Stride(), gfxASurface::ImageFormatARGB32);
+                        dataSource->Stride(), SurfaceFormatToImageFormat(aSurface->GetFormat()));
   imageSurface->PrintAsDataURL();
 }
 } // namespace gfx
