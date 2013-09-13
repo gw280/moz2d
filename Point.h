@@ -6,6 +6,7 @@
 #ifndef MOZILLA_GFX_POINT_H_
 #define MOZILLA_GFX_POINT_H_
 
+#include "mozilla/Attributes.h"
 #include "Types.h"
 #include "BasePoint.h"
 #include "BasePoint3D.h"
@@ -117,8 +118,8 @@ struct IntSizeTyped :
   public units {
   typedef BaseSize< int32_t, IntSizeTyped<units> > Super;
 
-  IntSizeTyped() : Super() {}
-  IntSizeTyped(int32_t aWidth, int32_t aHeight) : Super(aWidth, aHeight) {}
+  MOZ_CONSTEXPR IntSizeTyped() : Super() {}
+  MOZ_CONSTEXPR IntSizeTyped(int32_t aWidth, int32_t aHeight) : Super(aWidth, aHeight) {}
 
   // XXX When all of the code is ported, the following functions to convert to and from
   // unknown types should be removed.
