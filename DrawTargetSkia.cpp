@@ -290,7 +290,7 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
   SkShader *shader = SkShader::CreateBitmapShader(bitmap, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
   shader->setLocalMatrix(matrix);
   SkSafeUnref(paint.mPaint.setShader(shader));
-  if (aSurfOptions.mFilter != FILTER_LINEAR) {
+  if (aSurfOptions.mFilter == FILTER_GOOD) {
     paint.mPaint.setFilterBitmap(false);
   }
   mCanvas->drawRect(destRect, paint.mPaint);
