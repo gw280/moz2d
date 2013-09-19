@@ -24,6 +24,10 @@ public:
   void StrokeRect();
   void StrokeLine();
   void Translate();
+  void FillMultiRect();
+  void FillMultiRectTransform1();
+  void FillMultiRectTransform2();
+  void FillMultiRectTransform3();
   void ClipRect();
   void Clip();
   void FillTriangle();

@@ -18,6 +18,10 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, StrokeRect);
   REGISTER_TEST(TestDrawTargetBase, StrokeLine);
   REGISTER_TEST(TestDrawTargetBase, Translate);
+  REGISTER_TEST(TestDrawTargetBase, FillMultiRect);
+  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform1);
+  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform2);
+  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform3);
   REGISTER_TEST(TestDrawTargetBase, ClipRect);
   REGISTER_TEST(TestDrawTargetBase, Clip);
   REGISTER_TEST(TestDrawTargetBase, FillTriangle);
@@ -109,6 +113,129 @@ TestDrawTargetBase::Translate()
   VerifyPixel(IntPoint(150, 150), Color(0.5f, 0, 0, 1.0f));
   VerifyPixel(IntPoint(199, 199), Color(0.5f, 0, 0, 1.0f));
   VerifyPixel(IntPoint(200, 200), Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillMultiRect()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+
+  builder->MoveTo(Point(0, 0));
+  builder->LineTo(Point(DT_WIDTH, 0));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 1));
+  builder->LineTo(Point(0, DT_HEIGHT / 2 + 1));
+  builder->Close();
+  builder->MoveTo(Point(0, DT_HEIGHT / 2 - 1));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 - 1));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT));
+  builder->LineTo(Point(0, DT_HEIGHT));
+  builder->Close();
+
+  RefPtr<Path> path = builder->Finish();
+
+  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillMultiRectTransform1()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+
+  builder->MoveTo(Point(0, 10));
+  builder->LineTo(Point(DT_WIDTH, 10));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 11));
+  builder->LineTo(Point(0, DT_HEIGHT / 2 + 11));
+  builder->Close();
+  builder->MoveTo(Point(0, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT + 10));
+  builder->LineTo(Point(0, DT_HEIGHT + 10));
+  builder->Close();
+
+  RefPtr<Path> path = builder->Finish();
+
+  Matrix mat;
+  mat.Translate(0, -10);
+  mDT->SetTransform(mat);
+  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->SetTransform(Matrix());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillMultiRectTransform2()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  Matrix mat;
+  mat.Translate(0, -10);
+  mDT->SetTransform(mat);
+
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+
+  builder->MoveTo(Point(0, 10));
+  builder->LineTo(Point(DT_WIDTH, 10));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 11));
+  builder->LineTo(Point(0, DT_HEIGHT / 2 + 11));
+  builder->Close();
+  builder->MoveTo(Point(0, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT + 10));
+  builder->LineTo(Point(0, DT_HEIGHT + 10));
+  builder->Close();
+
+  RefPtr<Path> path = builder->Finish();
+
+  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->SetTransform(Matrix());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::FillMultiRectTransform3()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+
+  builder->MoveTo(Point(0, 10));
+  builder->LineTo(Point(DT_WIDTH, 10));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 11));
+  builder->LineTo(Point(0, DT_HEIGHT / 2 + 11));
+  builder->Close();
+
+  Matrix mat;
+  mat.Translate(0, -10);
+  mDT->SetTransform(mat);
+
+  builder->MoveTo(Point(0, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT / 2 + 9));
+  builder->LineTo(Point(DT_WIDTH, DT_HEIGHT + 10));
+  builder->LineTo(Point(0, DT_HEIGHT + 10));
+  builder->Close();
+
+  RefPtr<Path> path = builder->Finish();
+
+  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->SetTransform(Matrix());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
 }
 
 void
