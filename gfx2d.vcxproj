@@ -160,6 +160,7 @@
     <ClInclude Include="BaseRect.h" />
     <ClInclude Include="BaseSize.h" />
     <ClInclude Include="Blur.h" />
+    <ClInclude Include="BorrowedContext.h" />
     <ClInclude Include="ClipNVpr.h" />
     <ClInclude Include="DrawEventRecorder.h" />
     <ClInclude Include="DrawTargetCairo.h">

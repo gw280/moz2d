@@ -832,6 +832,8 @@ public:
    */
   virtual void *GetNativeSurface(NativeSurfaceType aType) { return nullptr; }
 
+  virtual bool IsDualDrawTarget() { return false; }
+
   void AddUserData(UserDataKey *key, void *userData, void (*destroy)(void*)) {
     mUserData.Add(key, userData, destroy);
   }
