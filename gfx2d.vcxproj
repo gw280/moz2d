@@ -176,6 +176,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="FilterNodeD2D1.h" />
+    <ClInclude Include="FilterNodeSoftware.h" />
+    <ClInclude Include="Filters.h" />
     <ClInclude Include="DXTextureInteropNVpr.h" />
     <ClInclude Include="GLContextNVpr.h" />
     <ClInclude Include="GradientShadersNVpr.h" />
@@ -233,6 +236,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="SVGTurbulenceRenderer.h" />
     <ClInclude Include="Tools.h" />
     <ClInclude Include="Types.h" />
     <ClInclude Include="UserData.h" />
@@ -256,6 +260,8 @@
     </ClCompile>
     <ClCompile Include="DXTextureInteropNVpr.cpp" />
     <ClCompile Include="Factory.cpp" />
+    <ClCompile Include="FilterNodeD2D1.cpp" />
+    <ClCompile Include="FilterNodeSoftware.cpp" />
     <ClCompile Include="GradientStopsNVpr.cpp" />
     <ClCompile Include="ImageScaling.cpp" />
     <ClCompile Include="ImageScalingSSE2.cpp" />
@@ -306,6 +312,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="SVGTurbulenceRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile.in" />

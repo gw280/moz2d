@@ -16,6 +16,8 @@
 // solution.
 #include "mozilla/RefPtr.h"
 
+#include "Filters.h"
+
 // XXX - Bas - This will likely give problems on OS X!
 #include <string>
 
@@ -586,6 +588,19 @@ public:
                            const DrawOptions &aOptions = DrawOptions()) = 0;
 
   /*
+   * Draw the output of a FilterNode to the DrawTarget.
+   *
+   * aNode FilterNode to draw
+   * aSourceRect Source rectangle in FilterNode space to draw
+   * aDestPoint Destination point on the DrawTarget to draw the
+   *            SourceRectangle of the filter output to
+   */
+  virtual void DrawFilter(FilterNode *aNode,
+                          const Rect &aSourceRect,
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions()) = 0;
+
+  /*
    * Blend a surface to the draw target with a shadow. The shadow is drawn as a
    * gaussian blur using a specified sigma. The shadow is clipped to the size
    * of the input surface, so the input surface should contain a transparent
@@ -815,6 +830,14 @@ public:
     CreateGradientStops(GradientStop *aStops,
                         uint32_t aNumStops,
                         ExtendMode aExtendMode = EXTEND_CLAMP) const = 0;
+
+  /*
+   * Create a FilterNode object that can be used to apply a filter to various
+   * inputs.
+   *
+   * aType Type of filter node to be created.
+   */
+  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType) = 0;
 
   const Matrix &GetTransform() const { return mTransform; }
 
