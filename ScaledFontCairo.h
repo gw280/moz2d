@@ -19,8 +19,6 @@ public:
   ScaledFontCairo(const uint8_t* aData, uint32_t aFileSize, uint32_t aIndex, Float aSize);
   ~ScaledFontCairo();
 
-  virtual void CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder);
-
 #if defined(USE_SKIA) && defined(MOZ_ENABLE_FREETYPE)
   virtual SkTypeface* GetSkTypeface();
 #endif

@@ -71,24 +71,6 @@ ScaledFontCairo::~ScaledFontCairo()
 #endif
 }
 
-void
-ScaledFontCairo::CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder)
-{
-  PathBuilderCairo *builder = static_cast<PathBuilderCairo*>(aBuilder);
-
-  // Convert our GlyphBuffer into an array of Cairo glyphs.
-  RefPtr<CairoPathContext> context = builder->GetPathContext();
-  vector<cairo_glyph_t> glyphs(aBuffer.mNumGlyphs);
-  for (uint32_t i = 0; i < aBuffer.mNumGlyphs; ++i) {
-    glyphs[i].index = aBuffer.mGlyphs[i].mIndex;
-    glyphs[i].x = aBuffer.mGlyphs[i].mPosition.x;
-    glyphs[i].y = aBuffer.mGlyphs[i].mPosition.y;
-  }
-
-  cairo_set_scaled_font(*context, mScaledFont);
-  cairo_glyph_path(*context, &glyphs.front(), aBuffer.mNumGlyphs);
-}
-
 #if defined(USE_SKIA) && defined(MOZ_ENABLE_FREETYPE)
 SkTypeface* ScaledFontCairo::GetSkTypeface()
 {

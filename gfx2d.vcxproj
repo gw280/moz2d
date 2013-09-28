@@ -83,6 +83,8 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -100,12 +102,14 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions);GFX_LOG_DEBUG;GFX_LOG_WARNING;MFBT_STAND_ALONE;XP_WIN;USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD;USE_CAIRO_SCALED_FONT</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir)/../cairo/src;$(ProjectDir)/..;$(ProjectDir)/../skia/include;$(ProjectDir)/../skia/include/core;$(ProjectDir)/../skia/include/utils;$(ProjectDir)/../skia/include/gpu;$(ProjectDir)/../skia/include/config</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -128,6 +132,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>./</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -139,11 +144,12 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD</PreprocessorDefinitions>
+      <PreprocessorDefinitions>USE_NVPR;_USE_MATH_DEFINES;INITGUID;USE_D2D1_1;USE_SSE2;WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions);USE_SKIA;USE_CAIRO;CAIRO_WIN32_STATIC_BUILD;USE_CAIRO_SCALED_FONT</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>$(ProjectDir)/../cairo/src;$(ProjectDir)/..;$(ProjectDir)/../skia/include;$(ProjectDir)/../skia/include/core;$(ProjectDir)/../skia/include/utils;$(ProjectDir)/../skia/include/gpu;$(ProjectDir)/../skia/include/config</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
