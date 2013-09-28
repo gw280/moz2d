@@ -39,7 +39,7 @@ namespace gfx {
 ScaledFontCairo::ScaledFontCairo(cairo_scaled_font_t* aScaledFont, Float aSize)
   : ScaledFontBase(aSize)
 #ifdef MOZ_ENABLE_FREETYPE
-  , mFTFace(nullptr);
+  , mFTFace(nullptr)
 #endif
 {
   SetCairoScaledFont(aScaledFont);
