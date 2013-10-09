@@ -71,7 +71,7 @@ public:
   }
 
   UniqueId GetUniqueId() { return mNextUniqueId++; }
-  UniqueId TransformId() const { return mTransformIdStack.top(); }
+  UniqueId TransformId() const { return mTransformId; }
   UniqueId ClipPolygonId() const { return mClipPolygonId; }
 
   void SetSize(const IntSize& aSize);
