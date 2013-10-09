@@ -81,25 +81,8 @@ public:
                                GLuint aTextureId);
 
   void SetTransform(const Matrix& aTransform, UniqueId aTransformId);
+  void ScaleTransform(GLfloat x, GLfloat y);
   void SetTransformToIdentity();
-
-  void PushTransform(const Matrix& aTransform);
-  void PopTransform();
-
-  class ScopedPushTransform {
-  public:
-    ScopedPushTransform(GL* aGL, const Matrix& aTransform)
-      : mGL(aGL)
-    {
-      mGL->PushTransform(aTransform);
-    }
-    ~ScopedPushTransform()
-    {
-      mGL->PopTransform();
-    }
-  private:
-    GL* mGL;
-  };
 
   enum ColorWriteMaskBit { WRITE_NONE = 0x0, WRITE_RED = 0x1, WRITE_GREEN = 0x2,
                            WRITE_BLUE = 0x4, WRITE_ALPHA = 0x8,
@@ -175,7 +158,7 @@ private:
   IntSize mSize;
   GLuint mReadFramebuffer;
   GLuint mDrawFramebuffer;
-  std::stack<UniqueId> mTransformIdStack;
+  UniqueId mTransformId;
   size_t mNumClipPlanes;
   UniqueId mClipPolygonId;
   ColorWriteMask mColorWriteMask;
@@ -194,6 +177,7 @@ private:
   bool mMultisampleEnabled;
   GLuint mShaderProgram;
   unsigned mTexGenComponents[TEXTURE_UNIT_COUNT];
+  UniqueId mTexGenTransformIds[TEXTURE_UNIT_COUNT];
   GLfloat mTexGenCoefficients[TEXTURE_UNIT_COUNT][6];
   GLenum mActiveTextureTargets[TEXTURE_UNIT_COUNT];
   GLenum mBoundTextures[TEXTURE_UNIT_COUNT];
@@ -248,6 +232,7 @@ private:
   MACRO(StencilStrokePathNV) \
   MACRO(CoverStrokePathNV) \
   MACRO(StencilFillPathInstancedNV) \
+  MACRO(CoverFillPathInstancedNV) \
   MACRO(StencilFillPathNV) \
   MACRO(CoverFillPathNV) \
   MACRO(DeletePathsNV) \
@@ -290,7 +275,6 @@ private:
   MACRO(MatrixLoadIdentityEXT) \
   MACRO(NamedFramebufferTexture1DEXT) \
   MACRO(NamedFramebufferTexture2DEXT) \
-  MACRO(MultiTexGeniEXT) \
   MACRO(MultiTexGenfvEXT) \
   MACRO(BindMultiTextureEXT) \
   MACRO(EnableClientStateiEXT) \
@@ -298,7 +282,8 @@ private:
   MACRO(MultiTexCoordPointerEXT) \
   MACRO(PathStencilFuncNV) \
   MACRO(PathTexGenNV) \
-  MACRO(BlendBarrierNV)
+  MACRO(BlendBarrierNV) \
+  MACRO(MatrixScalefEXT)
 
 #define DECLARE_GL_METHOD(NAME) \
   GL##NAME NAME;

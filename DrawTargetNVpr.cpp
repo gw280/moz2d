@@ -248,13 +248,6 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
 
   Validate();
 
-  if (mStencilClipBits) {
-    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
-                          GL::LEAVE_UNCHANGED);
-  } else {
-    gl->DisableStencilTest();
-  }
-
   Paint paint;
   if (aSurfOptions.mSamplingBounds == SAMPLING_UNBOUNDED) {
     paint.SetToSurface(surface, aSurfOptions.mFilter);
@@ -265,6 +258,13 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
   ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
 
   Rect textureRect = aSourceRect;
   textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
@@ -439,19 +439,19 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
 
   Validate();
 
-  if (mStencilClipBits) {
-    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
-                          GL::LEAVE_UNCHANGED);
-  } else {
-    gl->DisableStencilTest();
-  }
-
   Paint paint;
   paint.SetToPattern(aPattern);
   paint.mGlobalAlpha = aOptions.mAlpha;
   ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
 
   gl->Rectf(aRect.x, aRect.y, aRect.x + aRect.width, aRect.y + aRect.height);
   gl->BlendBarrier();
@@ -505,12 +505,6 @@ DrawTargetNVpr::Stroke(const Path* aPath,
 
   Validate();
 
-  gl->ConfigurePathStencilTest(mStencilClipBits);
-  path->ApplyStrokeOptions(aStrokeOptions);
-  gl->StencilStrokePathNV(*path, 0x1, 0x1);
-
-  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, 1, GL::CLEAR_PASSING_VALUES, 1);
-
   Paint paint;
   paint.SetToPattern(aPattern);
   paint.mGlobalAlpha = aOptions.mAlpha;
@@ -518,6 +512,11 @@ DrawTargetNVpr::Stroke(const Path* aPath,
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
+  gl->ConfigurePathStencilTest(mStencilClipBits);
+  path->ApplyStrokeOptions(aStrokeOptions);
+  gl->StencilStrokePathNV(*path, 0x1, 0x1);
+
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, 1, GL::CLEAR_PASSING_VALUES, 1);
   gl->CoverStrokePathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
@@ -531,19 +530,12 @@ DrawTargetNVpr::Fill(const Path* aPath,
   MOZ_ASSERT(aPath->GetBackendType() == BACKEND_NVPR);
 
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
+  const GLubyte countingMask =
+      path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
 
   gl->MakeCurrent();
 
   Validate();
-
-  const GLubyte countingMask =
-    path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
-
-  gl->ConfigurePathStencilTest(mStencilClipBits);
-  gl->StencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
-
-  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
-                        GL::CLEAR_PASSING_VALUES, countingMask);
 
   Paint paint;
   paint.SetToPattern(aPattern);
@@ -552,6 +544,11 @@ DrawTargetNVpr::Fill(const Path* aPath,
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
+  gl->ConfigurePathStencilTest(mStencilClipBits);
+  gl->StencilFillPathNV(*path, GL_COUNT_UP_NV, countingMask);
+
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
+                        GL::CLEAR_PASSING_VALUES, countingMask);
   gl->CoverFillPathNV(*path, GL_BOUNDING_BOX_NV);
 
   MarkChanged();
@@ -571,48 +568,11 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
   }
 
   const ScaledFontNVpr* const font = static_cast<const ScaledFontNVpr*>(aFont);
+  const GLubyte countingMask = (~mStencilClipBits & 0xff);
 
   gl->MakeCurrent();
 
   Validate();
-
-  const GLubyte countingMask = (~mStencilClipBits & 0xff);
-
-  {
-    Matrix transform = GetTransform();
-    transform.Scale(font->Size(), -font->Size());
-    GL::ScopedPushTransform pushTransform(gl, transform);
-
-    struct Position {GLfloat x, y;};
-    vector<GLuint> characters(aBuffer.mNumGlyphs);
-    vector<Position> positions(aBuffer.mNumGlyphs);
-
-    for (size_t i = 0; i < aBuffer.mNumGlyphs; i++) {
-      // TODO: How can we know the real mapping index -> unicode?
-      characters[i] = aBuffer.mGlyphs[i].mIndex + 29;
-      positions[i].x = aBuffer.mGlyphs[i].mPosition.x * font->InverseSize();
-      positions[i].y = aBuffer.mGlyphs[i].mPosition.y * -font->InverseSize();
-    }
-
-    gl->ConfigurePathStencilTest(mStencilClipBits);
-    gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT,
-                                   &characters.front(), *font, GL_COUNT_UP_NV,
-                                   countingMask, GL_TRANSLATE_2D_NV,
-                                   &positions[0].x);
-  }
-
-  const Rect& glyphBounds = font->GlyphsBoundingBox();
-  Point minPoint = aBuffer.mGlyphs[0].mPosition;
-  Point maxPoint = aBuffer.mGlyphs[0].mPosition;
-
-  for (size_t i = 1; i < aBuffer.mNumGlyphs; i++) {
-    const Point& pt = aBuffer.mGlyphs[i].mPosition;
-    minPoint = Point(min(minPoint.x, pt.x), min(minPoint.y, pt.y));
-    maxPoint = Point(max(maxPoint.x, pt.x), max(maxPoint.y, pt.y));
-  }
-
-  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
-                        GL::CLEAR_PASSING_VALUES, countingMask);
 
   Paint paint;
   paint.SetToPattern(aPattern);
@@ -621,9 +581,31 @@ DrawTargetNVpr::FillGlyphs(ScaledFont* aFont,
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
 
-  gl->Rectf(minPoint.x + glyphBounds.x, minPoint.y + glyphBounds.y,
-            maxPoint.x + glyphBounds.XMost(), maxPoint.y + glyphBounds.YMost());
-  gl->BlendBarrier();
+  gl->ScaleTransform(font->Size(), -font->Size());
+
+  struct Position {GLfloat x, y;};
+  vector<GLuint> characters(aBuffer.mNumGlyphs);
+  vector<Position> positions(aBuffer.mNumGlyphs);
+
+  for (size_t i = 0; i < aBuffer.mNumGlyphs; i++) {
+    // TODO: How can we know the real mapping index -> unicode?
+    characters[i] = aBuffer.mGlyphs[i].mIndex + 29;
+    positions[i].x = aBuffer.mGlyphs[i].mPosition.x * font->InverseSize();
+    positions[i].y = aBuffer.mGlyphs[i].mPosition.y * -font->InverseSize();
+  }
+
+  gl->ConfigurePathStencilTest(mStencilClipBits);
+  gl->StencilFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT,
+                                 &characters.front(), *font, GL_COUNT_UP_NV,
+                                 countingMask, GL_TRANSLATE_2D_NV,
+                                 &positions[0].x);
+
+  gl->EnableStencilTest(GL::PASS_IF_NOT_ZERO, countingMask,
+                        GL::CLEAR_PASSING_VALUES, countingMask);
+  gl->CoverFillPathInstancedNV(aBuffer.mNumGlyphs, GL_UNSIGNED_INT,
+                               &characters.front(), *font,
+                               GL_BOUNDING_BOX_OF_BOUNDING_BOXES_NV,
+                               GL_TRANSLATE_2D_NV, &positions[0].x);
 
   MarkChanged();
 }
@@ -637,13 +619,6 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
 
   Validate();
 
-  if (mStencilClipBits) {
-    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
-                          GL::LEAVE_UNCHANGED);
-  } else {
-    gl->DisableStencilTest();
-  }
-
   Paint paint;
   paint.SetToPattern(aSource);
   paint.mMask.SetToPattern(aMask);
@@ -651,6 +626,13 @@ DrawTargetNVpr::Mask(const Pattern& aSource,
   ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
 
   Matrix inverse = GetTransform();
   inverse.Invert();
@@ -678,13 +660,6 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
 
   Validate();
 
-  if (mStencilClipBits) {
-    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
-                          GL::LEAVE_UNCHANGED);
-  } else {
-    gl->DisableStencilTest();
-  }
-
   Paint paint;
   paint.SetToPattern(aSource);
   paint.mMask.SetToSurface(mask);
@@ -692,6 +667,13 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
   ApplyPaint(paint);
 
   ApplyDrawOptions(aOptions.mCompositionOp, aOptions.mAntialiasMode);
+
+  if (mStencilClipBits) {
+    gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
+                          GL::LEAVE_UNCHANGED);
+  } else {
+    gl->DisableStencilTest();
+  }
 
   const GLfloat maskCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
   gl->DisableTexCoordArray(PaintShader::PAINT_UNIT);

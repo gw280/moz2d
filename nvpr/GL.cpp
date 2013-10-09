@@ -52,6 +52,7 @@ GL::GL()
   , mNextUniqueId(1)
   , mReadFramebuffer(0)
   , mDrawFramebuffer(0)
+  , mTransformId(0)
   , mColorWriteMask(WRITE_COLOR_AND_ALPHA)
   , mNumClipPlanes(0)
   , mClipPolygonId(0)
@@ -68,8 +69,8 @@ GL::GL()
   , mMultisampleEnabled(true)
   , mShaderProgram(0)
 {
-  mTransformIdStack.push(0);
   memset(mTexGenComponents, 0, sizeof(mTexGenComponents));
+  memset(mTexGenTransformIds, 0, sizeof(mTexGenTransformIds));
   memset(mTexGenCoefficients, 0, sizeof(mTexGenCoefficients));
   memset(mActiveTextureTargets, 0, sizeof(mActiveTextureTargets));
   memset(mBoundTextures, 0, sizeof(mBoundTextures));
@@ -152,11 +153,6 @@ void GL::Initialize()
 
   GenFramebuffers(1, &mTextureFramebuffer1D);
   GenFramebuffers(1, &mTextureFramebuffer2D);
-
-  for (size_t i = 0; i < TEXTURE_UNIT_COUNT; i++) {
-    MultiTexGeniEXT(GL_TEXTURE0 + i, GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-    MultiTexGeniEXT(GL_TEXTURE0 + i, GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-  }
 
   EnableClientState(GL_VERTEX_ARRAY);
 
@@ -285,7 +281,7 @@ GL::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
 {
   MOZ_ASSERT(IsCurrent());
 
-  if (mTransformIdStack.top() == aTransformId) {
+  if (mTransformId == aTransformId) {
     return;
   }
 
@@ -298,7 +294,16 @@ GL::SetTransform(const Matrix& aTransform, UniqueId aTransformId)
 
   MatrixLoadfEXT(GL_MODELVIEW, matrix);
 
-  mTransformIdStack.top() = aTransformId;
+  mTransformId = aTransformId;
+}
+
+void
+GL::ScaleTransform(GLfloat x, GLfloat y)
+{
+  MOZ_ASSERT(IsCurrent());
+
+  MatrixScalefEXT(GL_MODELVIEW, x, y, 1);
+  mTransformId = GetUniqueId();
 }
 
 void
@@ -306,29 +311,12 @@ GL::SetTransformToIdentity()
 {
   MOZ_ASSERT(IsCurrent());
 
-  if (mTransformIdStack.top() == 0) {
+  if (mTransformId == 0) {
     return;
   }
 
   MatrixLoadIdentityEXT(GL_MODELVIEW);
-  mTransformIdStack.top() = 0;
-}
-
-void
-GL::PushTransform(const Matrix& aTransform)
-{
-  MOZ_ASSERT(IsCurrent());
-
-  MatrixPushEXT(GL_MODELVIEW);
-  mTransformIdStack.push(mTransformIdStack.top());
-  SetTransform(aTransform, GetUniqueId());
-}
-
-void
-GL::PopTransform()
-{
-  mTransformIdStack.pop();
-  MatrixPopEXT(GL_MODELVIEW);
+  mTransformId = 0;
 }
 
 void
@@ -681,8 +669,6 @@ GL::SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
   }
 
   BindMultiTextureEXT(GL_TEXTURE0 + aTextureUnit, aTextureTarget, aTextureId);
-  mActiveTextureTargets[aTextureUnit] = aTextureTarget;
-  mBoundTextures[aTextureUnit] = aTextureId;
 }
 
 void
@@ -706,47 +692,34 @@ GL::SetTexGen(TextureUnit aTextureUnit, TexGenComponents aComponents,
 {
   MOZ_ASSERT(IsCurrent());
 
-  if (mTexGenComponents[aTextureUnit] == aComponents
-      && !memcmp(mTexGenCoefficients[aTextureUnit], aCoefficients,
-          aComponents * 3 * sizeof(GLfloat))) {
-    return;
-  }
-
-  if (mTexGenComponents[aTextureUnit] > aComponents) {
-    if (aComponents < TEXGEN_ST && mTexGenComponents[aTextureUnit] >= TEXGEN_ST) {
-      Disablei(GL_TEXTURE_GEN_T, aTextureUnit);
+  if (mTexGenComponents[aTextureUnit] == aComponents) {
+    if (!aComponents) {
+      return;
     }
-    if (aComponents < TEXGEN_S && mTexGenComponents[aTextureUnit] >= TEXGEN_S) {
-      Disablei(GL_TEXTURE_GEN_S, aTextureUnit);
-    }
-  } else if (mTexGenComponents[aTextureUnit] < aComponents) {
-    if (aComponents >= TEXGEN_S && mTexGenComponents[aTextureUnit] < TEXGEN_S) {
-      Enablei(GL_TEXTURE_GEN_S, aTextureUnit);
-    }
-    if (aComponents >= TEXGEN_ST && mTexGenComponents[aTextureUnit] < TEXGEN_ST) {
-      Enablei(GL_TEXTURE_GEN_T, aTextureUnit);
+    if (mTexGenTransformIds[aTextureUnit] == mTransformId
+        && !memcmp(mTexGenCoefficients[aTextureUnit], aCoefficients,
+                   aComponents * 3 * sizeof(GLfloat))) {
+      return;
     }
   }
 
-  if (aComponents >= TEXGEN_S) {
-    const GLfloat plane[] = {aCoefficients[0], aCoefficients[1],
-                             0, aCoefficients[2]};
-    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_S, GL_OBJECT_PLANE, plane);
+  for (int i = mTexGenComponents[aTextureUnit]; i < aComponents; i++) {
+    Enablei(GL_TEXTURE_GEN_S + i, aTextureUnit);
   }
-  if (aComponents >= TEXGEN_ST) {
-    const GLfloat plane[] = {aCoefficients[3], aCoefficients[4],
-                             0, aCoefficients[5]};
-    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_T, GL_OBJECT_PLANE, plane);
+  for (int i = aComponents; i < mTexGenComponents[aTextureUnit]; i++) {
+    Disablei(GL_TEXTURE_GEN_S + i, aTextureUnit);
+  }
+  for (int i = 0; i < aComponents; i++) {
+    const GLfloat plane[] = {aCoefficients[3 * i], aCoefficients[3 * i + 1],
+                             0, aCoefficients[3 * i + 2]};
+    MultiTexGenfvEXT(GL_TEXTURE0 + aTextureUnit, GL_S + i, GL_EYE_PLANE, plane);
   }
 
-  if (!aComponents) {
-    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_NONE, 0, 0);
-  } else {
-    PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_OBJECT_LINEAR,
-                 aComponents, aCoefficients);
-  }
+  PathTexGenNV(GL_TEXTURE0 + aTextureUnit, GL_EYE_LINEAR,
+               aComponents, aCoefficients);
 
   mTexGenComponents[aTextureUnit] = aComponents;
+  mTexGenTransformIds[aTextureUnit] = mTransformId;
   memcpy(mTexGenCoefficients[aTextureUnit], aCoefficients,
          aComponents * 3 * sizeof(GLfloat));
 }
