@@ -83,7 +83,7 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
   // The initial value for MIN_FILTER is NEAREST_MIPMAP_LINEAR. We initialize it
   // to what 'FILTER_LINEAR' expects.
   gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
-                           GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                           GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
   if (gl->HasExtension(GL::EXT_texture_filter_anisotropic)) {
     gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
@@ -165,17 +165,22 @@ TextureObjectNVpr::SetFilter(Filter aFilter)
     GLenum magFilter;
     GLint anisotropy;
     switch (aFilter) {
-    default:
-      MOZ_ASSERT(!"Invalid filter");
-    case FILTER_LINEAR:
-      minFilter = GL_LINEAR_MIPMAP_LINEAR;
-      magFilter = GL_LINEAR;
-      anisotropy = gl->MaxAnisotropy();
-      break;
-    case FILTER_POINT:
-      minFilter = magFilter = GL_NEAREST;
-      anisotropy = 1;
-      break;
+      default:
+        MOZ_ASSERT(!"Invalid filter");
+      case FILTER_GOOD:
+        minFilter = GL_LINEAR_MIPMAP_LINEAR;
+        magFilter = GL_LINEAR;
+        anisotropy = gl->MaxAnisotropy();
+        break;
+      case FILTER_LINEAR:
+        minFilter = GL_LINEAR;
+        magFilter = GL_LINEAR;
+        anisotropy = 1;
+        break;
+      case FILTER_POINT:
+        minFilter = magFilter = GL_NEAREST;
+        anisotropy = 1;
+        break;
     }
 
     gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
@@ -191,7 +196,7 @@ TextureObjectNVpr::SetFilter(Filter aFilter)
     mFilter = aFilter;
   }
 
-  if (mFilter == FILTER_LINEAR && !mHasMipmaps) {
+  if (mFilter == FILTER_GOOD && !mHasMipmaps) {
     gl->GenerateTextureMipmapEXT(mTextureId, GL_TEXTURE_2D);
     mHasMipmaps = true;
   }
