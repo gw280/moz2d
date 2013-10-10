@@ -669,6 +669,8 @@ GL::SetTexture(TextureUnit aTextureUnit, GLenum aTextureTarget,
   }
 
   BindMultiTextureEXT(GL_TEXTURE0 + aTextureUnit, aTextureTarget, aTextureId);
+  mActiveTextureTargets[aTextureUnit] = aTextureTarget;
+  mBoundTextures[aTextureUnit] = aTextureId;
 }
 
 void
