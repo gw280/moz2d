@@ -22,26 +22,33 @@ class ShadowShaders : public nvpr::UserData::Object {
   class HorizontalConvolutionShader;
   class ShadowShader;
 
+  static const size_t kMaxRadius = 24;
+
 public:
   ShadowShaders();
   ~ShadowShaders();
 
   enum ConvolutionChannel { RED, ALPHA, CONVOLUTION_CHANNEL_COUNT };
   void ConfigureShaders(const IntSize& aFramebufferSize,
-                        ConvolutionChannel aConvolutionChannel,
                         const Rect& aShadowRect, const Color& aShadowColor,
-                        Float aSigma, GLuint* aHorizontalConvolutionShader,
+                        Float aSigma, ConvolutionChannel aConvolutionChannel,
+                        Rect* aHorizontalConvolutionRect,
+                        GLuint* aHorizontalConvolutionShader,
                         GLuint* aShadowShader);
 
 private:
+  Float mSigma;
   size_t mRadius;
   Float mScale;
   size_t mMaxRadius;
-  std::vector<GLfloat> mWeights;
-  UniqueId mWeightsId;
-  std::vector<RefPtr<HorizontalConvolutionShader> >
-    mHorizontalConvolutionShaders[CONVOLUTION_CHANNEL_COUNT];
-  std::vector<RefPtr<ShadowShader> > mShadowShaders[CONVOLUTION_CHANNEL_COUNT];
+  GLfloat mWeights[1 + kMaxRadius];
+  GLfloat mFilteredWeights[1 + kMaxRadius / 2];
+  GLfloat mOffsets[1 + kMaxRadius / 2];
+  UniqueId mFilteredWeightsId;
+  RefPtr<HorizontalConvolutionShader>
+    mHorizontalConvolutionShaders[1 + kMaxRadius / 2][CONVOLUTION_CHANNEL_COUNT];
+  RefPtr<ShadowShader>
+    mShadowShaders[1 + kMaxRadius / 2][CONVOLUTION_CHANNEL_COUNT];
 };
 
 }

@@ -894,7 +894,7 @@ PaintShader::Initialize()
   WriteMainFunction(fragSource);
   fragSource << "}" << endl;
 
-  ShaderProgram::Initialize(nullptr, fragSource.str().c_str());
+  ShaderProgram::Initialize(fragSource.str().c_str());
   mPaint->Initialize(*this);
   mMask->Initialize(*this);
 }

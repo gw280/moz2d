@@ -268,18 +268,9 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
 
   Rect textureRect = aSourceRect;
   textureRect.ScaleInverse(surface->GetSize().width, surface->GetSize().height);
-  const GLfloat texCoords[] = {textureRect.x, textureRect.y,
-                               textureRect.XMost(), textureRect.y,
-                               textureRect.XMost(), textureRect.YMost(),
-                               textureRect.x, textureRect.YMost()};
-  gl->EnableTexCoordArray(PaintShader::PAINT_UNIT, texCoords);
+  gl->EnableTexCoordArrayToRect(PaintShader::PAINT_UNIT, textureRect);
   gl->DisableTexCoordArray(PaintShader::MASK_UNIT);
-
-  const GLfloat vertices[] = {aDestRect.x, aDestRect.y,
-                              aDestRect.XMost(), aDestRect.y,
-                              aDestRect.XMost(), aDestRect.YMost(),
-                              aDestRect.x, aDestRect.YMost()};
-  gl->SetVertexArray(vertices);
+  gl->SetVertexArrayToRect(aDestRect);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
   gl->BlendBarrier();
@@ -301,37 +292,44 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   RefPtr<ScratchSurface> horizontalConvolution = GetScratchSurface();
   ShadowShaders& shadowShaders =
     gl->GetUserObject<ShadowShaders>(&nvpr::UserData::mShadowShaders);
+  const Rect shadowRect(aDest + aOffset, Size(surface->GetSize()));
 
   gl->MakeCurrent();
 
-  // We take advantage of the fact that a Gausian blur is separable by drawing
+  // We take advantage of the fact that a Gaussian blur is separable by drawing
   // the shadow in two passes: Once with a 1-dimensional kernel in the horizontal
   // direction, and again with that same kernel in the vertical direction.
+  Rect horizontalConvolutionRect;
   GLuint horizontalConvolutionShader;
   GLuint shadowShader;
-  shadowShaders.ConfigureShaders(mSize,
+  shadowShaders.ConfigureShaders(mSize, shadowRect, aColor, aSigma,
                                  mHasAlpha ? ShadowShaders::ALPHA : ShadowShaders::RED,
-                                 Rect(aDest + aOffset, Size(surface->GetSize())),
-                                 aColor, aSigma, &horizontalConvolutionShader,
-                                 &shadowShader);
+                                 &horizontalConvolutionRect,
+                                 &horizontalConvolutionShader, &shadowShader);
 
   // Step 1: Draw the horizontal convolution into a scratch texture.
   gl->SetSize(mSize);
   gl->SetFramebufferToTexture(GL_FRAMEBUFFER, GL_TEXTURE_2D,
                               *horizontalConvolution);
+  gl->SetTransformToIdentity();
   gl->DisableScissorTest();
   gl->DisableClipPlanes();
   gl->DisableStencilTest();
   gl->SetBlendMode(OP_SOURCE);
   gl->SetColorWriteMask(mHasAlpha ? GL::WRITE_ALPHA : GL::WRITE_RED);
+  gl->DisableTexCoordArray(GL::UNIT_1);
 
   gl->SetShaderProgram(horizontalConvolutionShader);
 
   surface->SetWrapMode(GL_CLAMP_TO_BORDER);
-  surface->SetFilter(FILTER_POINT);
+  surface->SetFilter(horizontalConvolutionRect.width == shadowRect.width
+                     ? FILTER_LINEAR : FILTER_GOOD);
   gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *surface);
 
-  gl->Rectf(0, 0, 1, 1);
+  gl->EnableTexCoordArrayToUnitRect(GL::UNIT_0);
+  gl->SetVertexArrayToRect(horizontalConvolutionRect);
+
+  gl->DrawArrays(GL_QUADS, 0, 4);
 
   // Step 2: Use the horizontal convolution to draw the shadow.
   Validate(FRAMEBUFFER | CLIPPING | COLOR_WRITE_MASK);
@@ -339,33 +337,29 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   gl->SetShaderProgram(shadowShader);
 
-  horizontalConvolution->SetWrapMode(GL_CLAMP_TO_EDGE);
-  horizontalConvolution->SetFilter(FILTER_POINT);
-  gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *horizontalConvolution);
-
   if (mStencilClipBits) {
     gl->EnableStencilTest(GL::PASS_IF_ALL_SET, mStencilClipBits,
                           GL::LEAVE_UNCHANGED);
   }
-  gl->Rectf(0, 0, 1, 1);
+
+  horizontalConvolution->SetWrapMode(GL_CLAMP_TO_EDGE);
+  horizontalConvolution->SetFilter(FILTER_LINEAR);
+  gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *horizontalConvolution);
+
+  horizontalConvolutionRect.ScaleInverse(mSize.width, mSize.height);
+  gl->EnableTexCoordArrayToRect(GL::UNIT_0, horizontalConvolutionRect);
+  gl->SetVertexArrayToRect(shadowRect);
+
+  gl->DrawArrays(GL_QUADS, 0, 4);
   gl->BlendBarrier();
 
   // Step 3: Draw the surface on top of its shadow.
-  gl->SetTransformToIdentity();
-
   Paint paint;
   paint.SetToSurface(surface, FILTER_LINEAR);
   ApplyPaint(paint);
 
-  const GLfloat texCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
-  gl->EnableTexCoordArray(PaintShader::PAINT_UNIT, texCoords);
-  gl->DisableTexCoordArray(PaintShader::MASK_UNIT);
-
-  const GLfloat vertices[] = {aDest.x, aDest.y,
-                              aDest.x + surface->GetSize().width, aDest.y,
-                              aDest.x + surface->GetSize().width, aDest.y + surface->GetSize().height,
-                              aDest.x, aDest.y + surface->GetSize().height};
-  gl->SetVertexArray(vertices);
+  gl->EnableTexCoordArrayToUnitRect(GL::UNIT_0);
+  gl->SetVertexArrayToRect(aDest, Size(surface->GetSize()));
 
   gl->DrawArrays(GL_QUADS, 0, 4);
   gl->BlendBarrier();
@@ -675,15 +669,9 @@ DrawTargetNVpr::MaskSurface(const Pattern& aSource,
     gl->DisableStencilTest();
   }
 
-  const GLfloat maskCoords[] = {0, 0, 1, 0, 1, 1, 0, 1};
   gl->DisableTexCoordArray(PaintShader::PAINT_UNIT);
-  gl->EnableTexCoordArray(PaintShader::MASK_UNIT, maskCoords);
-
-  const GLfloat vertices[] = {maskRect.x, maskRect.y,
-                              maskRect.XMost(), maskRect.y,
-                              maskRect.XMost(), maskRect.YMost(),
-                              maskRect.x, maskRect.YMost()};
-  gl->SetVertexArray(vertices);
+  gl->EnableTexCoordArrayToUnitRect(PaintShader::MASK_UNIT);
+  gl->SetVertexArrayToRect(maskRect);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
   gl->BlendBarrier();

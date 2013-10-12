@@ -42,6 +42,19 @@ static void STDCALL GLDebugCallback(GLenum aSource, GLenum aType, GLuint aId,
   gfxWarning() << "";
 }
 
+static void RectToClientArray(GLfloat* aClientArray,
+                              const Point& aPosition, const Size& aSize)
+{
+  aClientArray[0] = aPosition.x;
+  aClientArray[1] = aPosition.y;
+  aClientArray[2] = aPosition.x + aSize.width;
+  aClientArray[3] = aPosition.y;
+  aClientArray[4] = aPosition.x + aSize.width;
+  aClientArray[5] = aPosition.y + aSize.height;
+  aClientArray[6] = aPosition.x;
+  aClientArray[7] = aPosition.y + aSize.height;
+}
+
 
 namespace nvpr {
 
@@ -729,13 +742,32 @@ GL::SetTexGen(TextureUnit aTextureUnit, TexGenComponents aComponents,
 void
 GL::EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords)
 {
-
   if (!mTexCoordArraysEnabled[aTextureUnit]) {
     EnableClientStateiEXT(GL_TEXTURE_COORD_ARRAY, aTextureUnit);
     mTexCoordArraysEnabled[aTextureUnit] = true;
   }
 
   MultiTexCoordPointerEXT(GL_TEXTURE0 + aTextureUnit, 2, GL_FLOAT, 0, aTexCoords);
+}
+
+void
+GL::EnableTexCoordArrayToRect(TextureUnit aTextureUnit,
+                              const Point& aPosition, const Size& aSize)
+{
+  RectToClientArray(mTexCoordRectArray[aTextureUnit], aPosition, aSize);
+  EnableTexCoordArray(aTextureUnit, mTexCoordRectArray[aTextureUnit]);
+}
+
+void
+GL::EnableTexCoordArrayToRect(TextureUnit aTextureUnit, const Rect& aRect)
+{
+  EnableTexCoordArrayToRect(aTextureUnit, aRect.TopLeft(), aRect.Size());
+}
+
+void
+GL::EnableTexCoordArrayToUnitRect(TextureUnit aTextureUnit)
+{
+  EnableTexCoordArrayToRect(aTextureUnit, Rect(0, 0, 1, 1));
 }
 
 void
@@ -753,6 +785,19 @@ void
 GL::SetVertexArray(const GLfloat* aVertices)
 {
   VertexPointer(2, GL_FLOAT, 0, aVertices);
+}
+
+void
+GL::SetVertexArrayToRect(const Point& aPosition, const Size& aSize)
+{
+  RectToClientArray(mVertexRectArray, aPosition, aSize);
+  SetVertexArray(mVertexRectArray);
+}
+
+void
+GL::SetVertexArrayToRect(const Rect& aRect)
+{
+  SetVertexArrayToRect(aRect.TopLeft(), aRect.Size());
 }
 
 }

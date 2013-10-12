@@ -22,10 +22,9 @@ public:
 
   operator GLuint() { return mProgramObject; }
 
-  void Initialize(const GLchar* aVertexSource, const GLchar* aFragmentSource);
+  void Initialize(const GLchar* aFragmentSource);
 
 private:
-  GLuint mVertexShader;
   GLuint mFragmentShader;
   GLuint mProgramObject;
 };
@@ -57,6 +56,7 @@ class UniformFloatArray : public Uniform {
 public:
   UniformFloatArray(const char* aName);
   void Set(GLfloat* aValues, GLsizei aCount, UniqueId aArrayId);
+  void Set(GLfloat* aValues, GLsizei aCount);
 
 private:
   UniqueId mArrayId;

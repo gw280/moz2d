@@ -132,9 +132,15 @@ public:
                  const GLfloat* aCoefficients = nullptr);
 
   void EnableTexCoordArray(TextureUnit aTextureUnit, const GLfloat* aTexCoords);
+  void EnableTexCoordArrayToRect(TextureUnit aTextureUnit,
+                                 const Point& aPosition, const Size& aSize);
+  void EnableTexCoordArrayToRect(TextureUnit aTextureUnit, const Rect& aRect);
+  void EnableTexCoordArrayToUnitRect(TextureUnit aTextureUnit);
   void DisableTexCoordArray(TextureUnit aTextureUnit);
 
   void SetVertexArray(const GLfloat* aVertices);
+  void SetVertexArrayToRect(const Point& aPosition, const Size& aSize);
+  void SetVertexArrayToRect(const Rect& aRect);
 
 protected:
   GL();
@@ -153,6 +159,8 @@ private:
   UniqueId mNextUniqueId;
   GLuint mTextureFramebuffer1D;
   GLuint mTextureFramebuffer2D;
+  GLfloat mTexCoordRectArray[TEXTURE_UNIT_COUNT][8];
+  GLfloat mVertexRectArray[8];
 
   // GL state.
   IntSize mSize;

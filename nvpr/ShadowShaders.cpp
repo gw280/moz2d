@@ -16,6 +16,24 @@ namespace mozilla {
 namespace gfx {
 namespace nvpr {
 
+static const char* HorizontalConvolutionShaderSrc = "\
+uniform float uWeights[1 + RADIUS];                                                       \n\
+uniform float uOffsets[1 + RADIUS];                                                       \n\
+uniform float uLod;                                                                       \n\
+uniform sampler2D uImage;                                                                 \n\
+                                                                                          \n\
+void main()                                                                               \n\
+{                                                                                         \n\
+  float convolution = uWeights[0] * textureLod(uImage, gl_TexCoord[0], uLod).a;           \n\
+  for (int i = 1; i <= RADIUS; i++) {                                                     \n\
+    vec2 offset = vec2(uOffsets[i], 0);                                                   \n\
+    convolution += uWeights[i] * (textureLod(uImage, gl_TexCoord[0] + offset, uLod).a     \n\
+                                  + textureLod(uImage, gl_TexCoord[0] - offset, uLod).a); \n\
+  }                                                                                       \n\
+  gl_FragColor[CHANNEL] = convolution;                                                    \n\
+}                                                                                         \n\                                                                                  \n\
+";
+
 class ShadowShaders::HorizontalConvolutionShader : public ShaderProgram {
 public:
   static TemporaryRef<HorizontalConvolutionShader>
@@ -26,73 +44,61 @@ public:
     const char channel = aConvolutionChannel == RED ? 'r' : 'a';
     RefPtr<HorizontalConvolutionShader> shader = new HorizontalConvolutionShader();
 
-    ostringstream vertSrc;
-    vertSrc << "uniform vec4 uSampleRect;" << endl;
-    vertSrc << "uniform vec4 uShadowRect;" << endl;
-    vertSrc << "uniform float uTexelWidth;" << endl;
-    vertSrc << "varying vec4 vSampleCoords[" << (2 + aRadius) / 2 << "];" << endl;
-    vertSrc << "void main()" << endl;
-    vertSrc << "{" << endl;
-    vertSrc << "  vec2 sampleLocation = (1 - gl_Vertex.xy) * uSampleRect.xy" << endl;
-    vertSrc << "                        + gl_Vertex.xy * uSampleRect.zw;" << endl;
-    vertSrc << "  vSampleCoords[0].st = sampleLocation;" << endl;
-    for (size_t i = 1; i <= aRadius; i++) {
-      vertSrc << "  vSampleCoords[" << (i / 2) << "]." << (i % 2 ? "zw" : "xy")
-              << " = sampleLocation.s + vec2(" << i << ", -" << i
-              << ") * uTexelWidth;" << endl;
-    }
-    vertSrc << "  vec2 vertexPosition = (1 - gl_Vertex.xy) * uShadowRect.xy" << endl;
-    vertSrc << "                        + gl_Vertex.xy * uShadowRect.zw;" << endl;
-    vertSrc << "  gl_Position = vec4(vertexPosition * 2 - 1, 0, 1);" << endl;
-    vertSrc << "}" << endl;
-
     ostringstream fragSrc;
-    fragSrc << "uniform float uWeights[" << (1 + aRadius) << "];" << endl;
-    fragSrc << "uniform sampler2D uImage;" << endl;
-    fragSrc << "varying vec4 vSampleCoords[" << (2 + aRadius) / 2 << "];" << endl;
-    fragSrc << "void main()" << endl;
-    fragSrc << "{" << endl;
-    fragSrc << "  float convolution = uWeights[0] * texture2D(uImage, vSampleCoords[0].st).a;" << endl;
-    for (size_t i = 1; i <= aRadius; i++) {
-      fragSrc << "  convolution += uWeights[" << i << "]" << endl;
-      fragSrc << "    * (texture2D(uImage, vec2(vSampleCoords["
-              << (i / 2) << "][" << (2 * (i % 2)) << "], vSampleCoords[0].t)).a" << endl;
-      fragSrc << "       + texture2D(uImage, vec2(vSampleCoords["
-              << (i / 2) << "][" << (2 * (i % 2) + 1) << "], vSampleCoords[0].t)).a);" << endl;
-    }
-    fragSrc << "  gl_FragColor." << channel << " = convolution;" << endl;
-    fragSrc << "}" << endl;
-
-    shader->Initialize(vertSrc.str().c_str(), fragSrc.str().c_str());
+    fragSrc << "#define RADIUS " << aRadius << endl;
+    fragSrc << "#define CHANNEL " << (aConvolutionChannel == RED ? '0' : '3') << endl;
+    fragSrc << HorizontalConvolutionShaderSrc;
+    shader->Initialize(fragSrc.str().c_str());
 
     return shader.forget();
   }
 
-  UniformVec4 uSampleRect;
-  UniformVec4 uShadowRect;
-  UniformFloat uTexelWidth;
   UniformFloatArray uWeights;
+  UniformFloatArray uOffsets;
+  UniformFloat uLod;
   UniformSampler uImage;
 
 private:
   HorizontalConvolutionShader()
-    : uSampleRect("uSampleRect")
-    , uShadowRect("uShadowRect")
-    , uTexelWidth("uTexelWidth")
-    , uWeights("uWeights")
+    : uWeights("uWeights")
+    , uOffsets("uOffsets")
+    , uLod("uLod")
     , uImage("uImage", GL::UNIT_0)
   {}
 
-  void Initialize(const GLchar* aVertexSource, const GLchar* aFragmentSource)
+  void Initialize(const GLchar* aFragmentSource)
   {
-    ShaderProgram::Initialize(aVertexSource, aFragmentSource);
-    uSampleRect.Initialize(*this);
-    uShadowRect.Initialize(*this);
-    uTexelWidth.Initialize(*this);
+    ShaderProgram::Initialize(aFragmentSource);
     uWeights.Initialize(*this);
+    uOffsets.Initialize(*this);
+    uLod.Initialize(*this);
     uImage.Initialize(*this);
   }
 };
+
+static const char* ShadowShaderSrc = "\
+uniform float uWeights[1 + RADIUS];                                            \n\
+uniform float uOffsets[1 + RADIUS];                                            \n\
+uniform vec4 uClampRect;                                                       \n\
+uniform vec4 uShadowColor;                                                     \n\
+uniform sampler2D uHorizontalConvolution;                                      \n\
+                                                                               \n\
+float getSample(float offsetT)                                                 \n\
+{                                                                              \n\
+  vec2 coords = vec2(gl_TexCoord[0].s, gl_TexCoord[0].t + offsetT);            \n\
+  coords = clamp(coords, uClampRect.xy, uClampRect.zw);                        \n\
+  return texture2D(uHorizontalConvolution, coords)[CHANNEL];                   \n\
+}                                                                              \n\
+                                                                               \n\
+void main()                                                                    \n\
+{                                                                              \n\
+  float alpha = uWeights[0] * getSample(0);                                    \n\
+  for (int i = 1; i <= RADIUS; i++) {                                          \n\
+    alpha += uWeights[i] * (getSample(uOffsets[i]) + getSample(-uOffsets[i])); \n\
+  }                                                                            \n\
+  gl_FragColor = alpha * uShadowColor;                                         \n\
+}                                                                              \n\
+";
 
 class ShadowShaders::ShadowShader : public ShaderProgram {
 public:
@@ -101,94 +107,51 @@ public:
   {
     MOZ_ASSERT(gl->IsCurrent());
 
-    const char channel = aConvolutionChannel == RED ? 'r' : 'a';
     RefPtr<ShadowShader> shader = new ShadowShader();
 
-    ostringstream vertSrc;
-    vertSrc << "uniform vec4 uShadowRect;" << endl;
-    vertSrc << "uniform float uTexelHeight;" << endl;
-    vertSrc << "varying vec4 vSampleCoords[" << (2 + aRadius) / 2 << "];" << endl;
-    vertSrc << "void main()" << endl;
-    vertSrc << "{" << endl;
-    vertSrc << "  vec2 shadowLocation = (1 - gl_Vertex.xy) * uShadowRect.xy" << endl;
-    vertSrc << "                        + gl_Vertex.xy * uShadowRect.zw;" << endl;
-    vertSrc << "  vSampleCoords[0].st = shadowLocation;" << endl;
-    for (size_t i = 1; i <= aRadius; i++) {
-      vertSrc << "  vSampleCoords[" << (i / 2) << "]." << (i % 2 ? "zw" : "xy")
-              << " = shadowLocation.t + vec2(" << i << ", -" << i
-              << ") * uTexelHeight;" << endl;
-    }
-    vertSrc << "  gl_Position = vec4(shadowLocation * 2 - 1, 0, 1);" << endl;
-    vertSrc << "}" << endl;
-
     ostringstream fragSrc;
-    fragSrc << "uniform float uWeights[" << (1 + aRadius) << "];" << endl;
-    fragSrc << "uniform vec4 uShadowColor;" << endl;
-    fragSrc << "uniform sampler2D uHorizontalConvolution;" << endl;
-    fragSrc << "varying vec4 vSampleCoords[" << (2 + aRadius) / 2 << "];" << endl;
-    fragSrc << "void main()" << endl;
-    fragSrc << "{" << endl;
-    fragSrc << "  float alpha = uWeights[0] * texture2D(uHorizontalConvolution, vSampleCoords[0].st)."
-            << channel << ";" << endl;
-    for (size_t i = 1; i <= aRadius; i++) {
-      fragSrc << "  alpha += uWeights[" << i << "]" << endl;
-      fragSrc << "    * (texture2D(uHorizontalConvolution, vec2(vSampleCoords[0].s, vSampleCoords["
-              << (i / 2) << "][" << (2 * (i % 2)) << "]))." << channel << "" << endl;
-      fragSrc << "       + texture2D(uHorizontalConvolution, vec2(vSampleCoords[0].s, vSampleCoords["
-              << (i / 2) << "][" << (2 * (i % 2) + 1) << "]))." << channel << ");" << endl;
-    }
-    fragSrc << "  gl_FragColor = alpha * uShadowColor;" << endl;
-    fragSrc << "}" << endl;
-
-    shader->Initialize(vertSrc.str().c_str(), fragSrc.str().c_str());
+    fragSrc << "#define RADIUS " << aRadius << endl;
+    fragSrc << "#define CHANNEL " << (aConvolutionChannel == RED ? '0' : '3') << endl;
+    fragSrc << ShadowShaderSrc;
+    shader->Initialize(fragSrc.str().c_str());
 
     return shader.forget();
   }
 
-  UniformVec4 uShadowRect;
-  UniformFloat uTexelHeight;
+  UniformVec4 uClampRect;
   UniformFloatArray uWeights;
+  UniformFloatArray uOffsets;
   UniformVec4 uShadowColor;
   UniformSampler uHorizontalConvolution;
 
 private:
   ShadowShader()
-    : uShadowRect("uShadowRect")
-    , uTexelHeight("uTexelHeight")
+    : uClampRect("uClampRect")
     , uWeights("uWeights")
+    , uOffsets("uOffsets")
     , uShadowColor("uShadowColor")
     , uHorizontalConvolution("uHorizontalConvolution", GL::UNIT_0)
   {}
 
-  void Initialize(const GLchar* aVertexSource, const GLchar* aFragmentSource)
+  void Initialize(const GLchar* aFragmentSource)
   {
-    ShaderProgram::Initialize(aVertexSource, aFragmentSource);
-    uShadowRect.Initialize(*this);
-    uTexelHeight.Initialize(*this);
+    ShaderProgram::Initialize(aFragmentSource);
+    uClampRect.Initialize(*this);
     uWeights.Initialize(*this);
+    uOffsets.Initialize(*this);
     uShadowColor.Initialize(*this);
     uHorizontalConvolution.Initialize(*this);
   }
 };
 
 ShadowShaders::ShadowShaders()
-  : mRadius(0)
+  : mSigma(0)
+  , mRadius(0)
   , mScale(1)
-  , mWeightsId(0)
+  , mFilteredWeightsId(0)
 {
-  gl->MakeCurrent();
-
-  GLint maxFloats;
-  gl->GetIntegerv(GL_MAX_VARYING_FLOATS, &maxFloats);
-
-  mMaxRadius = (maxFloats - 2) / 2;
-
-  mWeights.resize(1 + mMaxRadius);
   mWeights[0] = 1;
-  for (size_t i = 0; i < CONVOLUTION_CHANNEL_COUNT; i++) {
-    mHorizontalConvolutionShaders[i].resize(1 + mMaxRadius);
-    mShadowShaders[i].resize(1 + mMaxRadius);
-  }
+  mOffsets[0] = 0;
 }
 
 ShadowShaders::~ShadowShaders()
@@ -197,22 +160,28 @@ ShadowShaders::~ShadowShaders()
 
 void
 ShadowShaders::ConfigureShaders(const IntSize& aFramebufferSize,
+                                const Rect& aShadowRect,
+                                const Color& aShadowColor,
+                                Float aSigma,
                                 ConvolutionChannel aConvolutionChannel,
-                                const Rect& aShadowRect, const Color& aShadowColor,
-                                Float aSigma, GLuint* aHorizontalConvolutionShader,
+                                Rect* aHorizontalConvolutionRect,
+                                GLuint* aHorizontalConvolutionShader,
                                 GLuint* aShadowShader)
 {
   MOZ_ASSERT(gl->IsCurrent());
   MOZ_ASSERT(aSigma > 0);
 
-  size_t radius = static_cast<size_t>(3 * aSigma + 0.5f);
-  float scale = 1;
-  if (radius > mMaxRadius) {
-    scale = static_cast<float>(radius) / mMaxRadius;
-    radius = mMaxRadius;
-  }
+  if (mSigma != aSigma) {
+    // Compute the right side of a 1D Gaussian blur kernel for aSigma.
+    size_t radius = 2 * ceil(1.5f * aSigma);
+    if (radius > kMaxRadius) {
+      mRadius = kMaxRadius;
+      mScale = static_cast<float>(radius) / kMaxRadius;
+    } else {
+      mRadius = radius;
+      mScale = 1;
+    }
 
-  if (mRadius != radius || mScale != scale) {
     static const float oneOverSqrt2Pi = 0.39894228f;
     const float oneOverSigma = 1 / aSigma;
     const float a = oneOverSqrt2Pi * oneOverSigma;
@@ -220,63 +189,80 @@ ShadowShaders::ConfigureShaders(const IntSize& aFramebufferSize,
 
     mWeights[0] = a;
     float weightSum = mWeights[0];
-    for (size_t x = 1; x <= radius; x++) {
+    for (size_t x = 1; x <= mRadius; x++) {
       mWeights[x] = a * exp(x * x * b);
       weightSum += 2 * mWeights[x];
     }
 
     const float weightAdjust = 1 / weightSum;
-    for (size_t x = 0; x <= radius; x++) {
+    for (size_t x = 0; x <= mRadius; x++) {
       mWeights[x] *= weightAdjust;
     }
 
-    mRadius = radius;
-    mScale = scale;
-    mWeightsId = gl->GetUniqueId();
+    // The "filtered weights" and "offsets" are used by the shaders to take
+    // advantage of texture filtering and perform the convolution in N/2
+    // lookups.
+    mFilteredWeights[0] = mWeights[0];
+    mOffsets[0] = 0;
+    for (size_t x = 1; x <= mRadius / 2; x++) {
+      mFilteredWeights[x] = mWeights[2 * x - 1] + mWeights[2 * x];
+      mOffsets[x] = 2 * x - 1 + mWeights[2 * x] / mFilteredWeights[x];
+    }
+    mFilteredWeightsId = gl->GetUniqueId();
+
+    mSigma = aSigma;
   }
 
-  const Size inverseFramebufferSize(1.0f / aFramebufferSize.width,
-                                    1.0f / aFramebufferSize.height);
-  const Size inverseShadowSize(1.0f / aShadowRect.width,
-                               1.0f / aShadowRect.height);
-  const Float padding = mRadius * mScale;
+  *aHorizontalConvolutionRect = aShadowRect;
+  aHorizontalConvolutionRect->ScaleInverse(mScale);
 
-  if (aHorizontalConvolutionShader) {
+  const size_t filteredRadius = mRadius / 2;
+  float adjustedOffsets[1 + kMaxRadius / 2];
+
+  if (aHorizontalConvolutionRect && aHorizontalConvolutionShader) {
     RefPtr<HorizontalConvolutionShader>& shader =
-      mHorizontalConvolutionShaders[aConvolutionChannel][mRadius];
+      mHorizontalConvolutionShaders[filteredRadius][aConvolutionChannel];
     if (!shader) {
-      shader = HorizontalConvolutionShader::Create(aConvolutionChannel, mRadius);
+      shader = HorizontalConvolutionShader::Create(aConvolutionChannel,
+                                                   filteredRadius);
     }
 
-    Rect sampleRect(Point(), aShadowRect.Size());
-    sampleRect.Inflate(padding, 2 * padding);
-    sampleRect.Scale(inverseShadowSize.width, inverseShadowSize.height);
+    const GLfloat sampleWidth = mScale / aShadowRect.width;
+    for (size_t x = 0; x <= filteredRadius; x++) {
+      adjustedOffsets[x] = sampleWidth * mOffsets[x];
+    }
 
-    Rect shadowRect(aShadowRect);
-    shadowRect.Inflate(padding, 2 * padding);
-    shadowRect.Scale(inverseFramebufferSize.width, inverseFramebufferSize.height);
-
-    shader->uSampleRect.Set(sampleRect.TopLeft(), sampleRect.BottomRight());
-    shader->uShadowRect.Set(shadowRect.TopLeft(), shadowRect.BottomRight());
-    shader->uTexelWidth.Set(inverseShadowSize.width * mScale);
-    shader->uWeights.Set(mWeights.data(), 1 + mRadius, mWeightsId);
+    shader->uWeights.Set(mFilteredWeights, 1 + filteredRadius,
+                         mFilteredWeightsId);
+    shader->uOffsets.Set(adjustedOffsets, 1 + filteredRadius);
+    shader->uLod.Set(2 * log2(mScale)); // Double to prefer blurry over blocky.
 
     *aHorizontalConvolutionShader = *shader;
   }
 
   if (aShadowShader) {
-    RefPtr<ShadowShader>& shader = mShadowShaders[aConvolutionChannel][mRadius];
+    RefPtr<ShadowShader>& shader =
+      mShadowShaders[filteredRadius][aConvolutionChannel];
     if (!shader) {
-      shader = ShadowShader::Create(aConvolutionChannel, mRadius);
+      shader = ShadowShader::Create(aConvolutionChannel, filteredRadius);
     }
 
-    Rect shadowRect(aShadowRect);
-    shadowRect.Inflate(padding);
-    shadowRect.Scale(inverseFramebufferSize.width, inverseFramebufferSize.height);
+    const Size inverseFramebufferSize(1.0f / aFramebufferSize.width,
+                                      1.0f / aFramebufferSize.height);
 
-    shader->uShadowRect.Set(shadowRect.TopLeft(), shadowRect.BottomRight());
-    shader->uTexelHeight.Set(inverseFramebufferSize.height * mScale);
-    shader->uWeights.Set(mWeights.data(), 1 + mRadius, mWeightsId);
+    Rect clampRect(*aHorizontalConvolutionRect);
+    clampRect.Deflate(1); // Deflate by 1 instead of .5 because the convolution
+                          // rect may not lie on pixel boundaries.
+    clampRect.Scale(inverseFramebufferSize.width, inverseFramebufferSize.height);
+
+    for (size_t x = 0; x <= filteredRadius; x++) {
+      adjustedOffsets[x] = mOffsets[x] * inverseFramebufferSize.height;
+    }
+
+    shader->uClampRect.Set(clampRect.TopLeft(), clampRect.BottomRight());
+    shader->uWeights.Set(mFilteredWeights, 1 + filteredRadius,
+                         mFilteredWeightsId);
+    shader->uOffsets.Set(adjustedOffsets, 1 + filteredRadius);
     shader->uShadowColor.Set(aShadowColor.a * aShadowColor.r,
                              aShadowColor.a * aShadowColor.g,
                              aShadowColor.a * aShadowColor.b,

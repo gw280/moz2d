@@ -15,45 +15,8 @@ namespace mozilla {
 namespace gfx {
 namespace nvpr {
 
-static GLuint compileShader(const GLchar* aSource, GLenum aType)
-{
-  if (!aSource) {
-    return 0;
-  }
-
-  GLuint shader = gl->CreateShader(aType);
-  gl->ShaderSource(shader, 1, &aSource, nullptr);
-  gl->CompileShader(shader);
-
-  GLint status = 0;
-  gl->GetShaderiv(shader, GL_COMPILE_STATUS, &status);
-  if (status != GL_TRUE) {
-    cout << "Failed to compile nvpr shader." << endl;
-    cout << "----------------------- Shader Source -----------------------" << endl;
-    cout << aSource << endl;
-
-    GLint length = 0;
-    gl->GetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-    if (length) {
-      vector<GLchar> infoLog(length);
-      gl->GetShaderInfoLog(shader, length, nullptr, infoLog.data());
-
-      cout << "---------------------------- Log ----------------------------" << endl;
-      cout << infoLog.data() << endl;
-    } else {
-      cout << "No shader info log." << endl;
-    }
-
-    gl->DeleteShader(shader);
-    return 0;
-  }
-
-  return shader;
-}
-
 ShaderProgram::ShaderProgram()
-  : mVertexShader(0)
-  , mFragmentShader(0)
+  : mFragmentShader(0)
   , mProgramObject(0)
 {
 }
@@ -69,36 +32,48 @@ ShaderProgram::~ShaderProgram()
   if (mFragmentShader) {
     gl->DeleteShader(mFragmentShader);
   }
-
-  if (mVertexShader) {
-    gl->DeleteShader(mVertexShader);
-  }
 }
 
 void
-ShaderProgram::Initialize(const GLchar* aVertexSource,
-                          const GLchar* aFragmentSource)
+ShaderProgram::Initialize(const GLchar* aFragmentSource)
 {
   MOZ_ASSERT(gl->IsCurrent());
+  GLint status;
 
-  mVertexShader = compileShader(aVertexSource, GL_VERTEX_SHADER);
-  mFragmentShader = compileShader(aFragmentSource, GL_FRAGMENT_SHADER);
+  mFragmentShader = gl->CreateShader(GL_FRAGMENT_SHADER);
+  gl->ShaderSource(mFragmentShader, 1, &aFragmentSource, nullptr);
+  gl->CompileShader(mFragmentShader);
+
+  gl->GetShaderiv(mFragmentShader, GL_COMPILE_STATUS, &status);
+  if (status != GL_TRUE) {
+    cout << "Failed to compile nvpr shader." << endl;
+    cout << "----------------------- Shader Source -----------------------" << endl;
+    cout << aFragmentSource << endl;
+
+    GLint length = 0;
+    gl->GetShaderiv(mFragmentShader, GL_INFO_LOG_LENGTH, &length);
+    if (length) {
+      vector<GLchar> infoLog(length);
+      gl->GetShaderInfoLog(mFragmentShader, length, nullptr, infoLog.data());
+
+      cout << "---------------------------- Log ----------------------------" << endl;
+      cout << infoLog.data() << endl;
+    } else {
+      cout << "No shader info log." << endl;
+    }
+
+    gl->DeleteShader(mFragmentShader);
+    mFragmentShader = 0;
+    return;
+  }
+
   mProgramObject = gl->CreateProgram();
-
-  if (mVertexShader) {
-    gl->AttachShader(mProgramObject, mVertexShader);
-  }
-  if (mFragmentShader) {
-    gl->AttachShader(mProgramObject, mFragmentShader);
-  }
+  gl->AttachShader(mProgramObject, mFragmentShader);
   gl->LinkProgram(mProgramObject);
 
-  GLint status = 0;
   gl->GetProgramiv(mProgramObject, GL_LINK_STATUS, &status);
   if (status != GL_TRUE) {
     cout << "Failed to link nvpr program." << endl;
-    cout << "----------------------- Vertex Source -----------------------" << endl;
-    cout << aVertexSource << endl;
     cout << "----------------------- Fragment Source -----------------------" << endl;
     cout << aFragmentSource << endl;
 
@@ -167,8 +142,14 @@ UniformFloatArray::Set(GLfloat* aValues, GLsizei aCount, UniqueId aArrayId)
     return;
   }
 
-  gl->ProgramUniform1fvEXT(mShaderProgram, mLocation, aCount, aValues);
+  Set(aValues, aCount);
   mArrayId = aArrayId;
+}
+
+void
+UniformFloatArray::Set(GLfloat* aValues, GLsizei aCount)
+{
+  gl->ProgramUniform1fvEXT(mShaderProgram, mLocation, aCount, aValues);
 }
 
 UniformVec2::UniformVec2(const char* aName)
