@@ -21,6 +21,7 @@ class DataSourceSurfaceNVpr;
 class TextureObjectNVpr : public RefCounted<TextureObjectNVpr>
 {
   friend class DataSourceSurfaceNVpr;
+  enum NotifyDataSurface { NOTIFY_DATA_SURFACE, DO_NOT_NOTIFY_DATA_SURFACE };
 
 public:
   static TemporaryRef<TextureObjectNVpr>
@@ -41,12 +42,21 @@ public:
   void SetWrapMode(GLenum aWrapMode);
   void SetFilter(Filter aFilter);
 
-  void WritePixels(const GLvoid* aData, GLsizei aStride = 0);
-  void ReadPixels(GLvoid* aBuffer);
+  TemporaryRef<DataSourceSurface> GetDataSurface();
+
+  // Use this method when the texture contents are changed without the
+  // DataSurface (i.e. by using direct OpenGL calls).
+  void MarkChanged() { MarkChanged(NOTIFY_DATA_SURFACE); }
 
 private:
   TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize,
                     bool& aSuccess);
+
+  void WritePixels(const GLvoid* aData, GLsizei aStride,
+                   NotifyDataSurface aNotifyDataSurface = NOTIFY_DATA_SURFACE);
+  void ReadPixels(GLvoid* aBuffer);
+
+  void MarkChanged(NotifyDataSurface aNotifyDataSurface);
 
   const SurfaceFormat mFormat;
   const IntSize mSize;
@@ -57,6 +67,7 @@ private:
   GLenum mWrapMode;
   Filter mFilter;
   bool mHasMipmaps;
+  WeakPtr<DataSourceSurfaceNVpr> mDataSurface;
 };
 
 class SourceSurfaceNVpr : public SourceSurface {
@@ -76,11 +87,14 @@ public:
   virtual SurfaceFormat GetFormat() const { return mTexture->Format(); }
   virtual IntSize GetSize() const { return mTexture->Size(); }
 
-  virtual TemporaryRef<DataSourceSurface> GetDataSurface();
+  void MarkChanged() { mTexture->MarkChanged(); }
+
+  virtual TemporaryRef<DataSourceSurface> GetDataSurface() {
+    return mTexture->GetDataSurface();
+  }
 
 private:
   RefPtr<TextureObjectNVpr> mTexture;
-  WeakPtr<DataSourceSurfaceNVpr> mDataSurface;
 };
 
 class DataSourceSurfaceNVpr
@@ -99,6 +113,8 @@ public:
   virtual int32_t Stride();
 
   virtual void MarkDirty();
+
+  void OnTextureChanged();
 
 private:
   RefPtr<TextureObjectNVpr> mTexture;

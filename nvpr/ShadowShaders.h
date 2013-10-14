@@ -43,7 +43,7 @@ private:
   size_t mMaxRadius;
   GLfloat mWeights[1 + kMaxRadius];
   GLfloat mFilteredWeights[1 + kMaxRadius / 2];
-  GLfloat mOffsets[1 + kMaxRadius / 2];
+  GLfloat mOffsets[kMaxRadius / 2];
   UniqueId mFilteredWeightsId;
   RefPtr<HorizontalConvolutionShader>
     mHorizontalConvolutionShaders[1 + kMaxRadius / 2][CONVOLUTION_CHANNEL_COUNT];

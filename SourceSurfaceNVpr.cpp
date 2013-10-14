@@ -108,7 +108,7 @@ TextureObjectNVpr::Create(SurfaceFormat aFormat, const IntSize& aSize,
   RefPtr<TextureObjectNVpr> surface =
     new TextureObjectNVpr(aFormat, aSize, success);
   if (!success) {
-   return nullptr;
+    return nullptr;
   }
 
   if (aData) {
@@ -203,7 +203,8 @@ TextureObjectNVpr::SetFilter(Filter aFilter)
 }
 
 void
-TextureObjectNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
+TextureObjectNVpr::WritePixels(const GLvoid* aData, GLsizei aStride,
+                               NotifyDataSurface aNotifyDataSurface)
 {
   const GLsizei bytesPerRow = mSize.width * mBytesPerPixel;
   const GLubyte* pixelData = static_cast<const GLubyte*>(aData);
@@ -231,7 +232,7 @@ TextureObjectNVpr::WritePixels(const GLvoid* aData, GLsizei aStride)
   gl->TextureSubImage2DEXT(mTextureId, GL_TEXTURE_2D, 0, 0, 0, mSize.width,
                            mSize.height, mGLFormat, mGLType, pixelData);
 
-  mHasMipmaps = false;
+  MarkChanged(aNotifyDataSurface);
 }
 
 void
@@ -242,14 +243,24 @@ TextureObjectNVpr::ReadPixels(GLvoid* aBuffer)
   gl->GetTextureImageEXT(mTextureId, GL_TEXTURE_2D, 0, mGLFormat, mGLType, aBuffer);
 }
 
+void
+TextureObjectNVpr::MarkChanged(NotifyDataSurface aNotifyDataSurface)
+{
+  if (aNotifyDataSurface == NOTIFY_DATA_SURFACE && mDataSurface) {
+    mDataSurface->OnTextureChanged();
+  }
+
+  mHasMipmaps = false;
+}
+
 TemporaryRef<DataSourceSurface>
-SourceSurfaceNVpr::GetDataSurface()
+TextureObjectNVpr::GetDataSurface()
 {
   if (mDataSurface) {
     return mDataSurface.get();
   }
 
-  RefPtr<DataSourceSurfaceNVpr> dataSurface = new DataSourceSurfaceNVpr(mTexture);
+  RefPtr<DataSourceSurfaceNVpr> dataSurface = new DataSourceSurfaceNVpr(this);
   mDataSurface = dataSurface->asWeakPtr();
 
   return dataSurface.forget();
@@ -279,7 +290,14 @@ DataSourceSurfaceNVpr::MarkDirty()
     return;
   }
 
-  mTexture->WritePixels(mShadowBuffer.data());
+  mTexture->WritePixels(mShadowBuffer.data(), 0,
+                        TextureObjectNVpr::DO_NOT_NOTIFY_DATA_SURFACE);
+}
+
+void
+DataSourceSurfaceNVpr::OnTextureChanged()
+{
+  mShadowBuffer.clear();
 }
 
 }

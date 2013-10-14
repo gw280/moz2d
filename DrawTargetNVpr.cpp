@@ -183,6 +183,8 @@ DrawTargetNVpr::Snapshot()
     gl->BlitFramebuffer(0, 0, mSize.width, mSize.height,
                         0, 0, mSize.width, mSize.height,
                         GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+    mSnapshot->MarkChanged();
   }
 
   return mSnapshot;
@@ -330,6 +332,8 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   gl->SetVertexArrayToRect(horizontalConvolutionRect);
 
   gl->DrawArrays(GL_QUADS, 0, 4);
+
+  horizontalConvolution->MarkChanged();
 
   // Step 2: Use the horizontal convolution to draw the shadow.
   Validate(FRAMEBUFFER | CLIPPING | COLOR_WRITE_MASK);
