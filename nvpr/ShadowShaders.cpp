@@ -233,7 +233,7 @@ ShadowShaders::ConfigureShaders(const IntSize& aFramebufferSize,
     shader->uWeights.Set(mFilteredWeights, 1 + filteredRadius,
                          mFilteredWeightsId);
     shader->uOffsets.Set(adjustedOffsets, filteredRadius);
-    shader->uLod.Set(2 * log2(mScale)); // Double to prefer blurry over blocky.
+    shader->uLod.Set(2 * (log(mScale) / log(2))); // Double to prefer blurry over blocky.
 
     *aHorizontalConvolutionShader = *shader;
   }
