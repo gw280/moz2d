@@ -48,26 +48,26 @@ void
 TestDrawTargetBase::FillCompletely()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
 TestDrawTargetBase::FillRect()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
-  mDT->FillRect(Rect(50, 50, 50, 50), ColorPattern(Color(0.5f, 0, 0, 1.0f)));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  mDT->FillRect(Rect(50, 50, 50, 50), ColorPattern(Color(0.502f, 0, 0, 1.0f)));
 
   RefreshSnapshot();
 
-  VerifyPixel(IntPoint(49, 49), Color(0, 0.5f, 0, 1.0f));
-  VerifyPixel(IntPoint(50, 50), Color(0.5f, 0, 0, 1.0f));
-  VerifyPixel(IntPoint(99, 99), Color(0.5f, 0, 0, 1.0f));
-  VerifyPixel(IntPoint(100, 100), Color(0, 0.5f, 0, 1.0f));
+  VerifyPixel(IntPoint(49, 49), Color(0, 0.502f, 0, 1.0f));
+  VerifyPixel(IntPoint(50, 50), Color(0.502f, 0, 0, 1.0f));
+  VerifyPixel(IntPoint(99, 99), Color(0.502f, 0, 0, 1.0f));
+  VerifyPixel(IntPoint(100, 100), Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -75,12 +75,12 @@ TestDrawTargetBase::StrokeRect()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
   mDT->StrokeRect(Rect(DT_WIDTH / 4, DT_WIDTH / 4, DT_WIDTH / 2, DT_HEIGHT / 2),
-                  ColorPattern(Color(0, 0.5f, 0, 1.0f)),
+                  ColorPattern(Color(0, 0.502f, 0, 1.0f)),
                   StrokeOptions(max(DT_WIDTH / 2, DT_HEIGHT / 2)));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -88,31 +88,31 @@ TestDrawTargetBase::StrokeLine()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
   mDT->StrokeLine(Point(DT_WIDTH / 2, 0), Point(DT_WIDTH / 2, DT_HEIGHT),
-                  ColorPattern(Color(0, 0.5f, 0, 1.0f)),
+                  ColorPattern(Color(0, 0.502f, 0, 1.0f)),
                   StrokeOptions(DT_WIDTH));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
 TestDrawTargetBase::Translate()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   Matrix mat;
   mat.Translate(100, 100);
   mDT->SetTransform(mat);
-  mDT->FillRect(Rect(50, 50, 50, 50), ColorPattern(Color(0.5f, 0, 0, 1.0f)));
+  mDT->FillRect(Rect(50, 50, 50, 50), ColorPattern(Color(0.502f, 0, 0, 1.0f)));
   mDT->SetTransform(Matrix());
 
   RefreshSnapshot();
 
-  VerifyPixel(IntPoint(149, 149), Color(0, 0.5f, 0, 1.0f));
-  VerifyPixel(IntPoint(150, 150), Color(0.5f, 0, 0, 1.0f));
-  VerifyPixel(IntPoint(199, 199), Color(0.5f, 0, 0, 1.0f));
-  VerifyPixel(IntPoint(200, 200), Color(0, 0.5f, 0, 1.0f));
+  VerifyPixel(IntPoint(149, 149), Color(0, 0.502f, 0, 1.0f));
+  VerifyPixel(IntPoint(150, 150), Color(0.502f, 0, 0, 1.0f));
+  VerifyPixel(IntPoint(199, 199), Color(0.502f, 0, 0, 1.0f));
+  VerifyPixel(IntPoint(200, 200), Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -135,11 +135,11 @@ TestDrawTargetBase::FillMultiRect()
 
   RefPtr<Path> path = builder->Finish();
 
-  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -165,12 +165,12 @@ TestDrawTargetBase::FillMultiRectTransform1()
   Matrix mat;
   mat.Translate(0, -10);
   mDT->SetTransform(mat);
-  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   mDT->SetTransform(Matrix());
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -197,12 +197,12 @@ TestDrawTargetBase::FillMultiRectTransform2()
 
   RefPtr<Path> path = builder->Finish();
 
-  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   mDT->SetTransform(Matrix());
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -230,33 +230,33 @@ TestDrawTargetBase::FillMultiRectTransform3()
 
   RefPtr<Path> path = builder->Finish();
 
-  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   mDT->SetTransform(Matrix());
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
 TestDrawTargetBase::ClipRect()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   mDT->PushClipRect(Rect(0, 0, 0, 0));
   mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
   mDT->PopClip();
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
 TestDrawTargetBase::Clip()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
   builder->MoveTo(Point(0, 0));
@@ -270,7 +270,7 @@ TestDrawTargetBase::Clip()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 void
 TestDrawTargetBase::FillTriangle()
@@ -284,11 +284,11 @@ TestDrawTargetBase::FillTriangle()
   builder->Close();
   RefPtr<Path> path = builder->Finish();
 
-  mDT->Fill(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -303,11 +303,11 @@ TestDrawTargetBase::StrokeTriangle()
   builder->Close();
   RefPtr<Path> path = builder->Finish();
 
-  mDT->Stroke(path, ColorPattern(Color(0, 0.5f, 0, 1.0f)), StrokeOptions(500.0f));
+  mDT->Stroke(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)), StrokeOptions(500.0f));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -324,7 +324,7 @@ TestDrawTargetBase::DrawSurface()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -351,7 +351,7 @@ TestDrawTargetBase::FillWithPartialLargeSurface()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -380,7 +380,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -397,7 +397,7 @@ TestDrawTargetBase::FillWithSurface()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -406,9 +406,9 @@ TestDrawTargetBase::FillGradient()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   GradientStop rawStops[2];
-  rawStops[0].color = Color(0, 0.5f, 0, 1.0f);
+  rawStops[0].color = Color(0, 0.502f, 0, 1.0f);
   rawStops[0].offset = 0;
-  rawStops[1].color = Color(0, 0.5f, 0, 1.0f);
+  rawStops[1].color = Color(0, 0.502f, 0, 1.0f);
   rawStops[1].offset = 1.0f;
   
   RefPtr<GradientStops> stops = mDT->CreateGradientStops(rawStops, 2);
@@ -417,7 +417,7 @@ TestDrawTargetBase::FillGradient()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -426,9 +426,9 @@ TestDrawTargetBase::FillRadialGradient()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   GradientStop rawStops[2];
-  rawStops[0].color = Color(0, 0.5f, 0, 1.0f);
+  rawStops[0].color = Color(0, 0.502f, 0, 1.0f);
   rawStops[0].offset = 0;
-  rawStops[1].color = Color(0, 0.5f, 0, 1.0f);
+  rawStops[1].color = Color(0, 0.502f, 0, 1.0f);
   rawStops[1].offset = 1.0f;
   
   RefPtr<GradientStops> stops = mDT->CreateGradientStops(rawStops, 2);
@@ -437,7 +437,7 @@ TestDrawTargetBase::FillRadialGradient()
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -446,14 +446,14 @@ TestDrawTargetBase::FillWithSnapshot()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(20, 20), FORMAT_B8G8R8X8);
-  tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
   mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -465,11 +465,11 @@ TestDrawTargetBase::Mask()
   tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(1.0f, 1.0f, 1.0f, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
-  mDT->Mask(ColorPattern(Color(0, 0.5f, 0, 1.0f)), SurfacePattern(src, EXTEND_REPEAT));
+  mDT->Mask(ColorPattern(Color(0, 0.502f, 0, 1.0f)), SurfacePattern(src, EXTEND_REPEAT));
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -478,14 +478,14 @@ TestDrawTargetBase::CopySurface()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
-  tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
   mDT->CopySurface(src, IntRect(0, 0, DT_WIDTH, DT_HEIGHT), IntPoint());
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -497,11 +497,11 @@ TestDrawTargetBase::Shadow()
   tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
-  mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.5f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, OP_OVER);
+  mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.502f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, OP_OVER);
 
   RefreshSnapshot();
 
-  VerifyAllPixels(Color(0, 0.5f, 0, 1.0f));
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
 void
@@ -561,6 +561,6 @@ TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Colo
 uint32_t
 TestDrawTargetBase::RGBAPixelFromColor(const Color &aColor)
 {
-  return uint8_t((aColor.b * 255) + 0.5f) | uint8_t((aColor.g * 255) + 0.5f) << 8 |
-         uint8_t((aColor.r * 255) + 0.5f) << 16 | uint8_t((aColor.a * 255) + 0.5f) << 24;
+  return uint8_t((aColor.b * 255) + 0.502f) | uint8_t((aColor.g * 255) + 0.502f) << 8 |
+         uint8_t((aColor.r * 255) + 0.502f) << 16 | uint8_t((aColor.a * 255) + 0.502f) << 24;
 }
