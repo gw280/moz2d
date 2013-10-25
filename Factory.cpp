@@ -588,6 +588,18 @@ Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSiz
   return retVal;
 }
 
+TemporaryRef<SourceSurface>
+Factory::CreateSourceSurfaceForCairoSurface(cairo_surface_t* aSurface,
+                                            SurfaceFormat aFormat)
+{
+  RefPtr<SourceSurface> retVal;
+
+#ifdef USE_CAIRO
+  retVal = DrawTargetCairo::CreateSourceSurfaceForCairoSurface(aSurface, aFormat);
+#endif
+  return retVal;
+}
+
 TemporaryRef<DataSourceSurface>
 Factory::CreateWrappingDataSourceSurface(uint8_t *aData, int32_t aStride,
                                          const IntSize &aSize,
