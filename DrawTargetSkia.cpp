@@ -5,7 +5,10 @@
 
 #include "DrawTargetSkia.h"
 #include "SourceSurfaceSkia.h"
+
 #include "ScaledFontBase.h"
+#include "FilterNodeSoftware.h"
+
 #include "core/SkDevice.h"
 #include "gpu/SkGpuDevice.h"
 #include "core/SkTypeface.h"
@@ -20,6 +23,7 @@
 #include "HelpersSkia.h"
 #include "Tools.h"
 #include <algorithm>
+
 
 #ifdef ANDROID
 # define USE_SOFT_CLIPPING false
@@ -82,6 +86,26 @@ operator <<(ostream& aStream, const DrawTargetSkia& aDrawTarget)
 {
   aStream << "DrawTargetSkia(" << &aDrawTarget << ")";
   return aStream;
+}
+
+static SkBitmap
+GetBitmapForSurface(SourceSurface *aSurface)
+{
+  switch (aSurface->GetType()) {
+  case SURFACE_SKIA:
+    return static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  case SURFACE_DATA:
+    {
+      DataSourceSurface *surf = static_cast<DataSourceSurface*>(aSurface);
+      SkBitmap tmp;
+      tmp.setConfig(GfxFormatToSkiaConfig(surf->GetFormat()),
+                    surf->GetSize().width, surf->GetSize().height, surf->Stride());
+      tmp.setPixels(surf->GetData());
+      return tmp;
+    }
+  default:
+    return SkBitmap();
+  }
 }
 
 DrawTargetSkia::DrawTargetSkia()
@@ -268,7 +292,8 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
                             const DrawSurfaceOptions &aSurfOptions,
                             const DrawOptions &aOptions)
 {
-  if (aSurface->GetType() != SURFACE_SKIA) {
+  if (aSurface->GetType() != SURFACE_SKIA &&
+      aSurface->GetType() != SURFACE_DATA) {
     return;
   }
 
@@ -284,7 +309,7 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
   SkMatrix matrix;
   matrix.setRectToRect(sourceRect, destRect, SkMatrix::kFill_ScaleToFit);
   
-  const SkBitmap& bitmap = static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  const SkBitmap& bitmap = GetBitmapForSurface(aSurface);
  
   AutoPaintSetup paint(mCanvas.get(), aOptions);
   SkShader *shader = SkShader::CreateBitmapShader(bitmap, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
@@ -294,6 +319,16 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
     paint.mPaint.setFilterBitmap(false);
   }
   mCanvas->drawRect(destRect, paint.mPaint);
+}
+
+void
+DrawTargetSkia::DrawFilter(FilterNode *aNode,
+                           const Rect &aSourceRect,
+                           const Point &aDestPoint,
+                           const DrawOptions &aOptions)
+{
+  FilterNodeSoftware* filter = static_cast<FilterNodeSoftware*>(aNode);
+  filter->Draw(this, aSourceRect, aDestPoint, aOptions);
 }
 
 void
@@ -715,6 +750,12 @@ DrawTargetSkia::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops, Ex
   std::stable_sort(stops.begin(), stops.end());
   
   return new GradientStopsSkia(stops, aNumStops, aExtendMode);
+}
+
+TemporaryRef<FilterNode>
+DrawTargetSkia::CreateFilter(FilterType aType)
+{
+  return FilterNodeSoftware::Create(aType);
 }
 
 void
