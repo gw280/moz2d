@@ -51,6 +51,8 @@ public:
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) MOZ_OVERRIDE;
   virtual void SetInput(uint32_t aIndex, FilterNode *aFilter) MOZ_OVERRIDE;
 
+  virtual void SetStitchRect(const IntRect &aRect);
+
   virtual void AddInvalidationListener(FilterInvalidationListener* aListener);
   virtual void RemoveInvalidationListener(FilterInvalidationListener* aListener);
 
@@ -180,7 +182,7 @@ protected:
   void SetInput(uint32_t aIndex, SourceSurface *aSurface,
                 FilterNodeSoftware *aFilter);
 
-private:
+protected:
   /**
    * mInputSurfaces / mInputFilters: For each input index, either a surface or
    * a filter is set, and the other is null.
@@ -266,6 +268,7 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const Color &aColor) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> GetOutput(const IntRect &aRect) MOZ_OVERRIDE;
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
 
@@ -442,9 +445,11 @@ public:
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aOffset) MOZ_OVERRIDE;
 
 protected:
+  virtual TemporaryRef<DataSourceSurface> GetOutput(const IntRect &aRect) MOZ_OVERRIDE;
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
   virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
@@ -484,11 +489,13 @@ protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
+  virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
 
   template<TurbulenceType aType, bool aStitchable>
     TemporaryRef<DataSourceSurface> DoRender(const IntRect& aRect);
 
 private:
+  IntRect mStitchRect;
   Size mBaseFrequency;
   uint32_t mNumOctaves;
   uint32_t mSeed;

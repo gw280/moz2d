@@ -79,14 +79,14 @@ SVGTurbulenceRenderer<Type,Stitch,T>::InitFromSeed(int32_t aSeed)
 {
   RandomNumberSource rand(aSeed);
 
-  vec2<T> gradient[4][sBSize];
+  T gradient[4][sBSize][2];
   for (int32_t k = 0; k < 4; k++) {
     for (int32_t i = 0; i < sBSize; i++) {
       T a = T((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
       T b = T((rand.Next() % (sBSize + sBSize)) - sBSize) / sBSize;
       T s = sqrt(a * a + b * b);
-      gradient[k][i].x() = a / s;
-      gradient[k][i].y() = b / s;
+      gradient[k][i][0] = a / s;
+      gradient[k][i][1] = b / s;
     }
   }
 
@@ -99,11 +99,16 @@ SVGTurbulenceRenderer<Type,Stitch,T>::InitFromSeed(int32_t aSeed)
   }
 
   for (int32_t i = 0; i < sBSize; i++) {
+    // Contrary to the code in the spec, we build the first lattice selector
+    // lookup into mGradient so that we don't need to do it again for every
+    // pixel.
+    // We also change the order of the gradient indexing so that we can process
+    // all four color channels at the same time.
     uint8_t j = mLatticeSelector[i];
-    mGradient[i].x() = vec4<T>(gradient[0][j].x(), gradient[1][j].x(),
-                               gradient[2][j].x(), gradient[3][j].x());
-    mGradient[i].y() = vec4<T>(gradient[0][j].y(), gradient[1][j].y(),
-                               gradient[2][j].y(), gradient[3][j].y());
+    mGradient[i][0] = vec4<T>(gradient[0][j][0], gradient[1][j][0],
+                              gradient[2][j][0], gradient[3][j][0]);
+    mGradient[i][1] = vec4<T>(gradient[0][j][1], gradient[1][j][1],
+                              gradient[2][j][1], gradient[3][j][1]);
   }
 }
 
@@ -128,117 +133,98 @@ SVGTurbulenceRenderer<Type,Stitch,T>::AdjustBaseFrequencyForStitch(const IntRect
                         AdjustForLength(mBaseFrequency.height, aTileRect.height));
 }
 
-// from xpcom/ds/nsMathUtils.h
-template<typename T>
-static int32_t
-NS_lround(T x)
-{
-  return x >= 0.0f ? int32_t(x + 0.5f) : int32_t(x - 0.5f);
-}
-
 template<TurbulenceType Type, bool Stitch, typename T>
-StitchInfo
-SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const IntRect &aTileRect)
+typename SVGTurbulenceRenderer<Type,Stitch,T>::StitchInfo
+SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const IntRect &aTileRect) const
 {
   StitchInfo stitch;
-  stitch.mWidth = NS_lround(aTileRect.width * mBaseFrequency.width);
-  stitch.mWrapX = int(aTileRect.XMost() * mBaseFrequency.width) + sPerlinN;
-  stitch.mHeight = NS_lround(aTileRect.height * mBaseFrequency.height);
-  stitch.mWrapY = int(aTileRect.YMost() * mBaseFrequency.height) + sPerlinN;
+  stitch.width = int32_t(floorf(aTileRect.width * mBaseFrequency.width + 0.5f));
+  stitch.height = int32_t(floorf(aTileRect.height * mBaseFrequency.height + 0.5f));
+  stitch.wrapX = int32_t(aTileRect.x * mBaseFrequency.width) + stitch.width;
+  stitch.wrapY = int32_t(aTileRect.y * mBaseFrequency.height) + stitch.height;
   return stitch;
 }
 
-template<typename T, typename S>
-static vec2<S>
-Mix(T tx, T ty, const vec2<S> &qu, const vec2<S> &qv)
- {
-  S u = qu.x() * tx       + qu.y() * ty;
-  S v = qv.x() * (tx - 1) + qv.y() * ty;
-  return vec2<S>(u, v);
-}
-
 template<typename T>
-static T
+static inline T
 SCurve(T t)
 {
   return t * t * (3 - 2 * t);
 }
 
-template<typename T>
-static vec2<T>
-SCurve(const vec2<T> &t)
+static inline Point
+SCurve(Point t)
 {
-  return vec2<T>(SCurve(t.x()), SCurve(t.y()));
+  return Point(SCurve(t.x), SCurve(t.y));
 }
 
-template<typename T, typename S>
-static S
-Lerp(T t, S a, S b)
+template<typename S, typename T>
+static inline S
+Mix(S a, S b, T t)
 {
   return a + (b - a) * t;
 }
 
-template<typename T, typename S>
+template<typename S>
 static S
-BiLerp(const vec2<T> &s, const vec2<S> &a, const vec2<S> &b)
+BiMix(S aa, S ab, S ba, S bb, Point s)
 {
-  const S xa = Lerp(s.x(), a.u(), a.v());
-  const S xb = Lerp(s.x(), b.u(), b.v());
-  return Lerp(s.y(), xa, xb);
+  const S xa = Mix(aa, ab, s.x);
+  const S xb = Mix(ba, bb, s.x);
+  return Mix(xa, xb, s.y);
 }
 
-template<typename T, typename S>
+template<typename T>
 static inline vec4<T>
-Interpolate(vec2<T> r, vec2<S> qua, vec2<S> qub, vec2<S> qva, vec2<S> qvb)
+Interpolate(vec4<T> qua0, vec4<T> qua1, vec4<T> qub0, vec4<T> qub1,
+            vec4<T> qva0, vec4<T> qva1, vec4<T> qvb0, vec4<T> qvb1,
+            Point r)
 {
-  return BiLerp(SCurve(r),
-                Mix(r.x(), r.y(), qua, qva),
-                Mix(r.x(), r.y() - 1, qub, qvb));
+  return BiMix(qua0 * r.x + qua1 * r.y,
+               qva0 * (r.x - 1) + qva1 * r.y,
+               qub0 * r.x + qub1 * (r.y - 1),
+               qvb0 * (r.x - 1) + qvb1 * (r.y - 1),
+               SCurve(r));
 }
 
-template<bool Stitch>
-static void
-AdjustLatticePointsForStitch(vec2<int32_t>& aLatticePointTopLeft,
-                             vec2<int32_t>& aLatticePointBottomRight,
-                             const StitchInfo& aStitchInfo)
+template<TurbulenceType Type, bool Stitch, typename T>
+IntPoint
+SVGTurbulenceRenderer<Type,Stitch,T>::AdjustForStitch(IntPoint aLatticePoint,
+                                                      const StitchInfo& aStitchInfo) const
 {
-  // If stitching, adjust lattice points accordingly.
   if (Stitch) {
-    if (aLatticePointTopLeft.x() >= aStitchInfo.mWrapX) {
-      aLatticePointTopLeft.x() -= aStitchInfo.mWidth;
+    if (aLatticePoint.x >= aStitchInfo.wrapX) {
+      aLatticePoint.x -= aStitchInfo.width;
     }
-    if (aLatticePointBottomRight.x() >= aStitchInfo.mWrapX) {
-      aLatticePointBottomRight.x() -= aStitchInfo.mWidth;
-    }
-    if (aLatticePointTopLeft.y() >= aStitchInfo.mWrapY) {
-      aLatticePointTopLeft.y() -= aStitchInfo.mHeight;
-    }
-    if (aLatticePointBottomRight.y() >= aStitchInfo.mWrapY) {
-      aLatticePointBottomRight.y() -= aStitchInfo.mHeight;
+    if (aLatticePoint.y >= aStitchInfo.wrapY) {
+      aLatticePoint.y -= aStitchInfo.height;
     }
   }
+  return aLatticePoint;
 }
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(int aColorChannel, vec2<T> aVec, const StitchInfo& aStitchInfo) const
+SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(Point aVec, const StitchInfo& aStitchInfo) const
 {
-  vec2<T> nearestLatticePoint(floor(aVec.x()), floor(aVec.y()));
-  vec2<T> fractionalOffset = aVec - nearestLatticePoint;
+  Point nearestLatticePoint(floorf(aVec.x), floorf(aVec.y));
+  Point fractionalOffset = aVec - nearestLatticePoint;
 
-  vec2<int32_t> b0 = nearestLatticePoint + vec2<int32_t>(sPerlinN, sPerlinN);
-  vec2<int32_t> b1 = b0 + vec2<int32_t>(1, 1);
+  IntPoint nearestLatticePointInt(nearestLatticePoint.x, nearestLatticePoint.y);
 
-  AdjustLatticePointsForStitch<Stitch>(b0, b1, aStitchInfo);
+  IntPoint b0 = AdjustForStitch(nearestLatticePointInt, aStitchInfo);
+  IntPoint b1 = AdjustForStitch(b0 + IntPoint(1, 1), aStitchInfo);
 
-  uint8_t i = mLatticeSelector[uint8_t(b0.x())];
-  uint8_t j = mLatticeSelector[uint8_t(b1.x())];
+  uint8_t i = mLatticeSelector[b0.x % sBSize];
+  uint8_t j = mLatticeSelector[b1.x % sBSize];
 
-  vec2<vec4<T> > qua = mGradient[uint8_t(i + b0.y())];
-  vec2<vec4<T> > qub = mGradient[uint8_t(i + b1.y())];
-  vec2<vec4<T> > qva = mGradient[uint8_t(j + b0.y())];
-  vec2<vec4<T> > qvb = mGradient[uint8_t(j + b1.y())];
-  return Interpolate(fractionalOffset, qua, qub, qva, qvb);
+  const vec4<T>* qua = mGradient[(i + b0.y) % sBSize];
+  const vec4<T>* qub = mGradient[(i + b1.y) % sBSize];
+  const vec4<T>* qva = mGradient[(j + b0.y) % sBSize];
+  const vec4<T>* qvb = mGradient[(j + b1.y) % sBSize];
+
+  return Interpolate(qua[0], qua[1], qub[0], qub[1],
+                     qva[0], qva[1], qvb[0], qvb[1], fractionalOffset);
 }
 
 template<typename T>
@@ -250,28 +236,26 @@ vabs(const vec4<T> &v)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(int aColorChannel, const IntPoint &aPoint) const
+SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(const IntPoint &aPoint) const
 {
   StitchInfo stitchInfo = mStitchInfo;
   vec4<T> sum;
-  vec2<T> vec(aPoint.x * mBaseFrequency.width, aPoint.y * mBaseFrequency.height);
+  Point vec(aPoint.x * mBaseFrequency.width, aPoint.y * mBaseFrequency.height);
   T ratio = 1;
   for (int octave = 0; octave < mNumOctaves; octave++) {
     if (Type == TURBULENCE_TYPE_FRACTAL_NOISE) {
-      sum += Noise2(aColorChannel, vec, stitchInfo) / ratio;
+      sum += Noise2(vec, stitchInfo) / ratio;
     } else {
-      sum += vabs(Noise2(aColorChannel, vec, stitchInfo)) / ratio;
+      sum += vabs(Noise2(vec, stitchInfo)) / ratio;
     }
-    vec *= 2;
+    vec = vec * 2;
     ratio *= 2;
 
     if (Stitch) {
-      // Update stitch values. Subtracting sPerlinN before the multiplication
-      // and adding it afterward simplifies to subtracting it once.
-      stitchInfo.mWidth *= 2;
-      stitchInfo.mWrapX = 2 * stitchInfo.mWrapX - sPerlinN;
-      stitchInfo.mHeight *= 2;
-      stitchInfo.mWrapY = 2 * stitchInfo.mWrapY - sPerlinN;
+      stitchInfo.width *= 2;
+      stitchInfo.wrapX *= 2;
+      stitchInfo.height *= 2;
+      stitchInfo.wrapY *= 2;
     }
   }
   return sum;
@@ -307,18 +291,14 @@ SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const IntPoint &aPoint) const
 {
   vec4<T> col;
   if (Type == TURBULENCE_TYPE_TURBULENCE) {
-    col = Turbulence(0, aPoint);
+    col = Turbulence(aPoint);
   } else {
-    col = (Turbulence(0, aPoint) + vec4<T>(1,1,1,1)) / 2;
+    col = (Turbulence(aPoint) + vec4<T>(1,1,1,1)) / 2;
   }
   return ColorToBGRA(vec4<T>(clamped<T>(col.r(), 0, 1), clamped<T>(col.g(), 0, 1),
                              clamped<T>(col.b(), 0, 1), clamped<T>(col.a(), 0, 1)));
 }
 
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false, double>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true, double>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false, double>;
-template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, true, double>;
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, false, float>;
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_TURBULENCE, true, float>;
 template class SVGTurbulenceRenderer<TURBULENCE_TYPE_FRACTAL_NOISE, false, float>;
