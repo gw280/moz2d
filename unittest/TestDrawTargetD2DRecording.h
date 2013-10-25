@@ -9,10 +9,10 @@
 
 #include <d3d10_1.h>
 
-class TestDrawTargetD2D : public TestDrawTargetBase
+class TestDrawTargetD2DRecording : public TestDrawTargetBase
 {
 public:
-  TestDrawTargetD2D();
+  TestDrawTargetD2DRecording();
 
 private:
   mozilla::RefPtr<ID3D10Device1> mDevice;

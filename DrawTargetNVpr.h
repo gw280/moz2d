@@ -72,6 +72,11 @@ public:
                            const DrawSurfaceOptions& aSurfOptions = DrawSurfaceOptions(),
                            const DrawOptions& aOptions = DrawOptions());
 
+  virtual void DrawFilter(FilterNode *aNode,
+                          const Rect &aSourceRect,
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
+
   virtual void DrawSurfaceWithShadow(SourceSurface* aSurface,
                                      const Point& aDest,
                                      const Color& aColor,
@@ -149,6 +154,8 @@ public:
   virtual TemporaryRef<GradientStops>
     CreateGradientStops(GradientStop* aStops, uint32_t aNumStops,
                         ExtendMode aExtendMode = EXTEND_CLAMP) const;
+
+  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType) { /* Implement me! */ MOZ_ASSERT(0); return nullptr; }
 
   virtual void* GetNativeSurface(NativeSurfaceType aType);
 

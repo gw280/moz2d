@@ -88,7 +88,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;opengl32.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;d3d11.lib;opengl32.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug (With Skia)|Win32'">
@@ -100,7 +100,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);skia_core.lib;skia_effects.lib;skia_utils.lib;skia_ports.lib;skia_opts.lib;skia_images.lib;skia_skgpu.lib;skia_opts_ssse3.lib;skia_sfnt.lib;usp10.lib;opengl32.lib;cairo-static.lib</AdditionalDependencies>
+      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;d3d11.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);skia_core.lib;skia_effects.lib;skia_utils.lib;skia_ports.lib;skia_opts.lib;skia_images.lib;skia_skgpu.lib;skia_opts_ssse3.lib;skia_sfnt.lib;usp10.lib;opengl32.lib;cairo-static.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -116,7 +116,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;d3d11.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release (With Skia)|Win32'">
@@ -132,7 +132,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);skia_core.lib;skia_effects.lib;skia_utils.lib;skia_ports.lib;skia_opts.lib;skia_images.lib;skia_skgpu.lib;skia_opts_ssse3.lib;skia_sfnt.lib;usp10.lib;opengl32.lib;cairo-static.lib</AdditionalDependencies>
+      <AdditionalDependencies>../$(Configuration)/gfx2d.lib;d3d11.lib;dxguid.lib;d3d10_1.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);skia_core.lib;skia_effects.lib;skia_utils.lib;skia_ports.lib;skia_opts.lib;skia_images.lib;skia_skgpu.lib;skia_opts_ssse3.lib;skia_sfnt.lib;usp10.lib;opengl32.lib;cairo-static.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -142,6 +142,8 @@
     <ClCompile Include="TestDrawTargetBase.cpp" />
     <ClCompile Include="TestDrawTargetCairoImage.cpp" />
     <ClCompile Include="TestDrawTargetD2D.cpp" />
+    <ClCompile Include="TestDrawTargetD2D1.cpp" />
+    <ClCompile Include="TestDrawTargetD2DRecording.cpp" />
     <ClCompile Include="TestDrawTargetSkiaSoftware.cpp" />
     <ClCompile Include="TestPoint.cpp" />
     <ClCompile Include="TestRect.cpp" />
@@ -153,6 +155,8 @@
     <ClInclude Include="TestBase.h" />
     <ClInclude Include="TestDrawTargetCairoImage.h" />
     <ClInclude Include="TestDrawTargetD2D.h" />
+    <ClInclude Include="TestDrawTargetD2D1.h" />
+    <ClInclude Include="TestDrawTargetD2DRecording.h" />
     <ClInclude Include="TestDrawTargetSkiaSoftware.h" />
     <ClInclude Include="TestPoint.h" />
     <ClInclude Include="TestRect.h" />

@@ -7,13 +7,11 @@
 
 #include "TestDrawTargetBase.h"
 
-#include <d3d10_1.h>
-
-class TestDrawTargetD2D : public TestDrawTargetBase
+class TestDrawTargetD2D1 : public TestDrawTargetBase
 {
 public:
-  TestDrawTargetD2D();
+  TestDrawTargetD2D1();
 
 private:
-  mozilla::RefPtr<ID3D10Device1> mDevice;
+  mozilla::RefPtr<ID3D11Device> mDevice;
 };

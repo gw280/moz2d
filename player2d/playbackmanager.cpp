@@ -44,6 +44,18 @@ PlaybackManager::LookupPath(ReferencePtr aRefPtr)
   return NULL;
 }
 
+FilterNode*
+PlaybackManager::LookupFilterNode(ReferencePtr aRefPtr)
+{
+  FilterNodeMap::iterator iter = mFilterNodes.find(aRefPtr);
+
+  if (iter != mFilterNodes.end()) {
+    return iter->second;
+  }
+
+  return NULL;
+}
+
 SourceSurface*
 PlaybackManager::LookupSourceSurface(ReferencePtr aRefPtr)
 {
@@ -355,6 +367,7 @@ PlaybackManager::CanDisableEvent(RecordedEvent *aEvent)
   case RecordedEvent::COPYSURFACE:
   case RecordedEvent::DRAWSURFACE:
   case RecordedEvent::DRAWSURFACEWITHSHADOW:
+  case RecordedEvent::DRAWFILTER:
   case RecordedEvent::FILL:
   case RecordedEvent::FILLGLYPHS:
   case RecordedEvent::FILLRECT:

@@ -6,6 +6,7 @@
 #include "DrawTargetCairo.h"
 
 #include "SourceSurfaceCairo.h"
+#include "FilterNodeSoftware.h"
 #include "PathCairo.h"
 #include "HelpersCairo.h"
 #include "ScaledFontBase.h"
@@ -514,6 +515,16 @@ DrawTargetCairo::DrawSurface(SourceSurface *aSurface,
 }
 
 void
+DrawTargetCairo::DrawFilter(FilterNode *aNode,
+                            const Rect &aSourceRect,
+                            const Point &aDestPoint,
+                            const DrawOptions &aOptions)
+{
+  FilterNodeSoftware* filter = static_cast<FilterNodeSoftware*>(aNode);
+  filter->Draw(this, aSourceRect, aDestPoint, aOptions);
+}
+
+void
 DrawTargetCairo::DrawSurfaceWithShadow(SourceSurface *aSurface,
                                        const Point &aDest,
                                        const Color &aColor,
@@ -545,7 +556,7 @@ DrawTargetCairo::DrawSurfaceWithShadow(SourceSurface *aSurface,
     Rect extents(0, 0, width, height);
     AlphaBoxBlur blur(extents,
                       cairo_image_surface_get_stride(blursurf),
-                      aSigma);
+                      aSigma, aSigma);
     blur.Blur(cairo_image_surface_get_data(blursurf));
   } else {
     blursurf = sourcesurf;
@@ -912,6 +923,12 @@ DrawTargetCairo::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops,
   RefPtr<GradientStopsCairo> stops = new GradientStopsCairo(aStops, aNumStops,
                                                             aExtendMode);
   return stops;
+}
+
+TemporaryRef<FilterNode>
+DrawTargetCairo::CreateFilter(FilterType aType)
+{
+  return FilterNodeSoftware::Create(aType);
 }
 
 /**

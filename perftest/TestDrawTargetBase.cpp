@@ -48,6 +48,17 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200SmallRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
+  REGISTER_TEST(TestDrawTargetBase, CreateRandom200);
+  REGISTER_TEST(TestDrawTargetBase, DrawTurbulence500x500);
+  REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter200x200x100Radius40);
+  REGISTER_TEST(TestDrawTargetBase, Premultiply200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Unpremultiply200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, ComponentTransfer200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, ColorMatrix200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Composite200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, CompositeA8Single200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Blend200x200x1000);
+  REGISTER_TEST(TestDrawTargetBase, Blur500x500x50);
 
   mGroup = GROUP_DRAWTARGETS;
 }
@@ -396,10 +407,246 @@ TestDrawTargetBase::DrawShadow200x200LargeRadius()
   Flush();
 }
 
-TemporaryRef<SourceSurface>
-TestDrawTargetBase::CreateSquareRandomSourceSurface(int aSize, SurfaceFormat aFormat)
+void
+TestDrawTargetBase::CreateRandom200()
 {
-  unsigned char *surfData = new unsigned char[aSize * aSize * BytesPerPixel(aFormat)];
+  mRandom200 = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8, false);
+}
+
+void
+TestDrawTargetBase::DrawTurbulence500x500()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
+
+  for (int32_t i = 0; i < 10; i++) {
+    filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(0.025, 0.025));
+    filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, 4u);
+    filter->SetAttribute(ATT_TURBULENCE_SEED, 0u);
+    filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
+    filter->SetAttribute(ATT_TURBULENCE_TYPE, (uint32_t)TURBULENCE_TYPE_TURBULENCE);
+
+    mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
+  }
+  Flush();
+}
+
+void
+TestDrawTargetBase::DrawMorphologyFilter200x200x100Radius40()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> src = mRandom200;
+
+  for (int32_t i = 0; i < 100; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+    filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(40, 40));
+    filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
+    filter->SetInput(0, src);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Premultiply200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_PREMULTIPLY);
+    filter->SetInput(IN_PREMULTIPLY_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Unpremultiply200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_UNPREMULTIPLY);
+    filter->SetInput(IN_UNPREMULTIPLY_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::ComponentTransfer200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+
+  Float table[256];
+  uint8_t c = 0;
+  for (size_t i = 0; i < 256; i++) {
+    table[i] = c;
+    c += 17;
+  }
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISCRETE_TRANSFER);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_R, false);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_G, false);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_B, false);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_R, table, 256);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_G, table, 256);
+    filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_B, table, 256);
+    filter->SetInput(IN_DISCRETE_TRANSFER_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  // Flush();
+}
+
+void
+TestDrawTargetBase::ColorMatrix200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+
+  Matrix5x4 m(0.1, 0.4, 0.3, 0.2,
+              0.4, 0.2, 0.2, 0.1,
+              0.2, 0.3, 0.1, 0.4,
+              0.3, 0.1, 0.4, 0.2,
+              0.0, 0.0, 0.0, 0.0);
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
+    filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, m);
+    filter->SetInput(IN_COLOR_MATRIX_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Composite200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+    filter->SetAttribute(ATT_COMPOSITE_OPERATOR, (uint32_t)COMPOSITE_OPERATOR_XOR);
+    filter->SetInput(IN_COMPOSITE_IN_START, surf);
+    filter->SetInput(IN_COMPOSITE_IN_START + 1, surf);
+    filter->SetInput(IN_COMPOSITE_IN_START + 2, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::CompositeA8Single200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+    filter->SetAttribute(ATT_COMPOSITE_OPERATOR, (uint32_t)COMPOSITE_OPERATOR_OVER);
+    filter->SetInput(IN_COMPOSITE_IN_START, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Blend200x200x1000()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+    filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
+    filter->SetInput(IN_BLEND_IN, surf);
+    filter->SetInput(IN_BLEND_IN2, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::Blur500x500x50()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> tile = mDT->CreateFilter(FILTER_TILE);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, mRandom200);
+  tile->SetAttribute(ATT_TILE_SOURCE_RECT, IntRect(0, 0, 200, 200));
+  tile->SetInput(IN_TILE_IN, premultiply);
+  dt->DrawFilter(tile, Rect(0, 0, 500, 500), Point());
+  RefPtr<SourceSurface> surf = dt->Snapshot();
+
+  for (int i = 0; i < 50; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+    filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 40.0f);
+    filter->SetInput(IN_GAUSSIAN_BLUR_IN, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
+  }
+
+  Flush();
+}
+
+TemporaryRef<SourceSurface>
+TestDrawTargetBase::CreateSquareRandomSourceSurface(int aSize, SurfaceFormat aFormat, bool aLeaveUninitialized)
+{
+  size_t length = aSize * aSize * BytesPerPixel(aFormat);
+  unsigned char *surfData = new unsigned char[length];
+
+  if (!aLeaveUninitialized) {
+    uint8_t c = 0;
+    for (size_t i = 0; i < length; i++) {
+      surfData[i] = c;
+      c += 113;
+      if (i % 4 == 0) {
+        c += 173;
+      }
+    }
+  }
 
   RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(aSize, aSize), aSize * BytesPerPixel(aFormat), aFormat);
 
