@@ -100,6 +100,10 @@ public:
                           const Rect &aSourceRect,
                           const Point &aDestPoint,
                           const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
+  virtual void DrawFilter(FilterNode *aNode,
+                          const Rect &aSourceRect,
+                          const Point &aDestPoint,
+                          const DrawOptions &aOptions = DrawOptions());
   virtual void MaskSurface(const Pattern &aSource,
                            SourceSurface *aMask,
                            Point aOffset,
@@ -137,7 +141,7 @@ public:
   virtual TemporaryRef<PathBuilder> CreatePathBuilder(FillRule) const;
   virtual TemporaryRef<GradientStops> CreateGradientStops(GradientStop *, uint32_t,
                                                           ExtendMode aExtendMode = EXTEND_CLAMP) const;
-  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType) { /* Implement me! */ MOZ_ASSERT(0); return nullptr; }
+  virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType);
 
   virtual void *GetNativeSurface(NativeSurfaceType);
 
