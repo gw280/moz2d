@@ -63,7 +63,7 @@ public:
   virtual void DrawFilter(FilterNode *aNode,
                           const Rect &aSourceRect,
                           const Point &aDestPoint,
-                          const DrawOptions &aOptions = DrawOptions()) { /* Implement me! */ MOZ_ASSERT(0); }
+                          const DrawOptions &aOptions = DrawOptions());
 
   virtual void MaskSurface(const Pattern &aSource,
                            SourceSurface *aMask,

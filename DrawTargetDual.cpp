@@ -98,6 +98,14 @@ DrawTargetDual::DrawSurfaceWithShadow(SourceSurface *aSurface, const Point &aDes
 }
 
 void
+DrawTargetDual::DrawFilter(FilterNode *aNode, const Rect &aSourceRect,
+                           const Point &aDestPoint, const DrawOptions &aOptions)
+{
+  mA->DrawFilter(aNode, aSourceRect, aDestPoint, aOptions);
+  mB->DrawFilter(aNode, aSourceRect, aDestPoint, aOptions);
+}
+
+void
 DrawTargetDual::MaskSurface(const Pattern &aSource,
                            SourceSurface *aMask,
                            Point aOffset,
