@@ -31,12 +31,28 @@ GfxFormatToSkiaConfig(SurfaceFormat format)
       return SkBitmap::kRGB_565_Config;
     case FORMAT_A8:
       return SkBitmap::kA8_Config;
-
+    default:
+      return SkBitmap::kARGB_8888_Config;
   }
-
-  return SkBitmap::kARGB_8888_Config;
 }
 
+static inline SurfaceFormat
+SkiaConfigToGfxFormat(SkBitmap::Config config)
+{
+  switch (config)
+  {
+    case SkBitmap::kARGB_8888_Config:
+      return FORMAT_B8G8R8A8;
+    case SkBitmap::kRGB_565_Config:
+      return FORMAT_R5G6B5;
+    case SkBitmap::kA8_Config:
+      return FORMAT_A8;
+    default:
+      return FORMAT_B8G8R8A8;
+  }
+}
+
+#ifdef USE_SKIA_GPU
 static inline GrPixelConfig
 GfxFormatToGrConfig(SurfaceFormat format)
 {
@@ -56,6 +72,7 @@ GfxFormatToGrConfig(SurfaceFormat format)
   }
 
 }
+#endif
 static inline void
 GfxMatrixToSkiaMatrix(const Matrix& mat, SkMatrix& retval)
 {
@@ -133,19 +150,6 @@ StrokeOptionsToPaint(SkPaint& aPaint, const StrokeOptions &aOptions)
 
   aPaint.setStyle(SkPaint::kStroke_Style);
   return true;
-}
-
-static inline void
-ConvertBGRXToBGRA(unsigned char* aData, const IntSize &aSize, int32_t aStride)
-{
-    uint32_t* pixel = reinterpret_cast<uint32_t*>(aData);
-
-    for (int row = 0; row < aSize.height; ++row) {
-        for (int column = 0; column < aSize.width; ++column) {
-            pixel[column] |= 0xFF000000;
-        }
-        pixel += (aStride/4);
-    }
 }
 
 static inline SkXfermode::Mode
