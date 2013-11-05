@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <mozilla/Assertions.h>
+#include <mozilla/FloatingPoint.h>
 #include <algorithm>
 
 namespace mozilla {
@@ -55,6 +56,15 @@ struct BaseRect {
   // is <= 0
   bool IsEmpty() const { return height <= 0 || width <= 0; }
   void SetEmpty() { width = height = 0; }
+
+  // "Finite" means not inf and not NaN
+  bool IsFinite() const
+  {
+    return (mozilla::IsFinite(x) &&
+            mozilla::IsFinite(y) &&
+            mozilla::IsFinite(width) &&
+            mozilla::IsFinite(height));
+  }
 
   // Returns true if this rectangle contains the interior of aRect. Always
   // returns true if aRect is empty, and always returns false is aRect is
