@@ -11,6 +11,13 @@
 #include "Rect.h"
 #include "Matrix.h"
 #include "UserData.h"
+
+// GenericRefCountedBase allows us to hold on to refcounted objects of any type
+// (contrary to RefCounted<T> which requires knowing the type T) and, in particular,
+// without having a dependency on that type. This is used for DrawTargetSkia
+// to be able to hold on to a GLContext.
+#include "GenericRefCounted.h"
+
 // This RefPtr class isn't ideal for usage in Azure, as it doesn't allow T**
 // outparams using the &-operator. But it will have to do as there's no easy
 // solution.
@@ -31,12 +38,16 @@ struct _cairo_scaled_font;
 typedef _cairo_scaled_font cairo_scaled_font_t;
 
 struct ID3D10Device1;
+struct ID3D10Texture2D;
 struct ID3D11Device;
 struct ID2D1Device;
-struct ID3D10Texture2D;
 struct IDWriteRenderingParams;
 
 class GrContext;
+struct GrGLInterface;
+
+struct CGContext;
+typedef struct CGContext *CGContextRef;
 
 namespace mozilla {
 
@@ -239,8 +250,10 @@ class RadialGradientPattern : public Pattern
 {
 public:
   /*
-   * aBegin Start of the linear gradient
-   * aEnd End of the linear gradient
+   * aCenter1 Center of the inner (focal) circle.
+   * aCenter2 Center of the outer circle.
+   * aRadius1 Radius of the inner (focal) circle.
+   * aRadius2 Radius of the outer circle.
    * aStops GradientStops object for this gradient, this should match the
    *        backend type of the draw target this pattern will be used with.
    * aMatrix A matrix that transforms the pattern into user space
@@ -302,7 +315,7 @@ public:
 
 /*
  * This is the base class for source surfaces. These objects are surfaces
- * which may be used as a source in a SurfacePattern of a DrawSurface call.
+ * which may be used as a source in a SurfacePattern or a DrawSurface call.
  * They cannot be drawn to directly.
  */
 class SourceSurface : public RefCounted<SourceSurface>
@@ -439,6 +452,11 @@ public:
    * mutable.
    */
   virtual FillRule GetFillRule() const = 0;
+
+  virtual Float ComputeLength() { return 0; }
+
+  virtual Point ComputePointAtLength(Float aLength,
+                                     Point* aTangent) { return Point(); }
 };
 
 /* The PathBuilder class allows path creation. Once finish is called on the
@@ -524,7 +542,6 @@ struct FontOptions
   FontStyle mStyle;
 };
 
-
 /* This class is designed to allow passing additional glyph rendering
  * parameters to the glyph drawing functions. This is an empty wrapper class
  * merely used to allow holding on to and passing around platform specific
@@ -561,6 +578,15 @@ public:
    */
   virtual TemporaryRef<SourceSurface> Snapshot() = 0;
   virtual IntSize GetSize() = 0;
+
+  /**
+   * If possible returns the bits to this DrawTarget for direct manipulation. While
+   * the bits is locked any modifications to this DrawTarget is forbidden.
+   * Release takes the original data pointer for safety.
+   */
+  virtual bool LockBits(uint8_t** aData, IntSize* aSize,
+                        int32_t* aStride, SurfaceFormat* aFormat) { return false; }
+  virtual void ReleaseBits(uint8_t* aData) {}
 
   /* Ensure that the DrawTarget backend has flushed all drawing operations to
    * this draw target. This must be called before using the backing surface of
@@ -626,6 +652,19 @@ public:
   virtual void CopySurface(SourceSurface *aSurface,
                            const IntRect &aSourceRect,
                            const IntPoint &aDestination) = 0;
+
+  /*
+   * Same as CopySurface, except uses itself as the source.
+   *
+   * Some backends may be able to optimize this better
+   * than just taking a snapshot and using CopySurface.
+   */
+  virtual void CopyRect(const IntRect &aSourceRect,
+                        const IntPoint &aDestination)
+  {
+    RefPtr<SourceSurface> source = Snapshot();
+    CopySurface(source, aSourceRect, aDestination);
+  }
 
   /*
    * Fill a rectangle on the DrawTarget with a certain source pattern.
@@ -757,9 +796,9 @@ public:
                                                                   SurfaceFormat aFormat) const = 0;
 
   /*
-   * Create a SourceSurface optimized for use with this DrawTarget from
-   * an arbitrary other SourceSurface. This may return aSourceSurface or some
-   * other existing surface.
+   * Create a SourceSurface optimized for use with this DrawTarget from an
+   * arbitrary SourceSurface type supported by this backend. This may return
+   * aSourceSurface or some other existing surface.
    */
   virtual TemporaryRef<SourceSurface> OptimizeSourceSurface(SourceSurface *aSurface) const = 0;
 
@@ -862,6 +901,20 @@ public:
     return mPermitSubpixelAA;
   }
 
+  virtual GenericRefCountedBase* GetGLContext() const {
+    return nullptr;
+  }
+
+#ifdef USE_SKIA_GPU
+  virtual void InitWithGLContextAndGrGLInterface(GenericRefCountedBase* aGLContext,
+                                            GrGLInterface* aGrGLInterface,
+                                            const IntSize &aSize,
+                                            SurfaceFormat aFormat)
+  {
+    MOZ_CRASH();
+  }
+#endif
+
 protected:
   UserData mUserData;
   Matrix mTransform;
@@ -944,13 +997,28 @@ public:
 
   static void SetGlobalEventRecorder(DrawEventRecorder *aRecorder);
 
-#ifdef MOZ_ENABLE_FREETYPE
-  static FT_Library GetFreetypeLibrary();
+#ifdef USE_SKIA_GPU
+  static TemporaryRef<DrawTarget>
+    CreateDrawTargetSkiaWithGLContextAndGrGLInterface(GenericRefCountedBase* aGLContext,
+                                                      GrGLInterface* aGrGLInterface,
+                                                      const IntSize &aSize,
+                                                      SurfaceFormat aFormat);
+
+  static void
+    SetGlobalSkiaCacheLimits(int aCount, int aSizeInBytes);
 #endif
 
-#ifdef USE_SKIA
+  static void PurgeTextureCaches();
+
+#if defined(USE_SKIA) && defined(MOZ_ENABLE_FREETYPE)
+  static TemporaryRef<GlyphRenderingOptions>
+    CreateCairoGlyphRenderingOptions(FontHinting aHinting, bool aAutoHinting);
+#endif
   static TemporaryRef<DrawTarget>
-    CreateSkiaDrawTargetForFBO(unsigned int aFBOID, GrContext *aContext, const IntSize &aSize, SurfaceFormat aFormat);
+    CreateDualDrawTarget(DrawTarget *targetA, DrawTarget *targetB);
+
+#ifdef XP_MACOSX
+  static TemporaryRef<DrawTarget> CreateDrawTargetForCairoCGContext(CGContextRef cg, const IntSize& aSize);
 #endif
 
 #ifdef WIN32

@@ -12,12 +12,11 @@
 
 #ifdef USE_SKIA
 #include "DrawTargetSkia.h"
-#include "ScaledFontSkia.h"
+#include "ScaledFontBase.h"
+#ifdef MOZ_ENABLE_FREETYPE
+#define USE_SKIA_FREETYPE
+#include "ScaledFontCairo.h"
 #endif
-
-#ifdef USE_NVPR
-#include "DrawTargetNVpr.h"
-#include "ScaledFontNVpr.h"
 #endif
 
 #if defined(WIN32) && defined(USE_SKIA)
@@ -161,10 +160,6 @@ ID3D11Device *Factory::mD3D11Device;
 ID2D1Device *Factory::mD2D1Device;
 #endif
 #endif
-#ifdef MOZ_ENABLE_FREETYPE
-FT_Library Factory::mFreetypeLibrary = nullptr;
-#endif
-
 
 DrawEventRecorder *Factory::mRecorder;
 
@@ -243,13 +238,6 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
       break;
     }
 #endif
-#ifdef USE_NVPR
-  case BACKEND_NVPR:
-    {
-      retVal = DrawTargetNVpr::Create(aSize, aFormat);
-      break;
-    }
-#endif
   default:
     gfxDebug() << "Invalid draw target type specified.";
     return nullptr;
@@ -292,16 +280,14 @@ Factory::CreateDrawTargetForData(BackendType aBackend,
       newTarget = new DrawTargetSkia();
       newTarget->Init(aData, aSize, aStride, aFormat);
       retVal = newTarget;
-      break;
     }
 #endif
 #ifdef XP_MACOSX
   case BACKEND_COREGRAPHICS:
     {
       RefPtr<DrawTargetCG> newTarget = new DrawTargetCG();
-      if (newTarget->Init(aBackend, aData, aSize, aStride, aFormat)) {
-        retVal = newTarget;
-      }
+      if (newTarget->Init(aBackend, aData, aSize, aStride, aFormat))
+        return newTarget;
       break;
     }
 #endif
@@ -355,13 +341,7 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
       return new ScaledFontMac(static_cast<CGFontRef>(aNativeFont.mFont), aSize);
     }
 #endif
-#ifdef USE_SKIA
-  case NATIVE_FONT_SKIA_FONT_FACE:
-    {
-      return new ScaledFontSkia(static_cast<FontOptions*>(aNativeFont.mFont), aSize);
-    }
-#endif
-#ifdef USE_CAIRO
+#if defined(USE_CAIRO) || defined(USE_SKIA_FREETYPE)
   case NATIVE_FONT_CAIRO_FONT_FACE:
     {
       return new ScaledFontCairo(static_cast<cairo_scaled_font_t*>(aNativeFont.mFont), aSize);
@@ -385,24 +365,6 @@ Factory::CreateScaledFontForTrueTypeData(uint8_t *aData, uint32_t aSize,
       return new ScaledFontDWrite(aData, aSize, aFaceIndex, aGlyphSize);
     }
 #endif
-#ifdef USE_SKIA
-  case FONT_SKIA:
-  {
-    return new ScaledFontSkia(aData, aSize, aFaceIndex, aGlyphSize);
-  }
-#endif
-#ifdef USE_CAIRO
-  case FONT_CAIRO:
-  {
-    return new ScaledFontCairo(aData, aSize, aFaceIndex, aGlyphSize);
-  }
-#endif
-#ifdef USE_NVPR
-  case FONT_NVPR:
-  {
-    return ScaledFontNVpr::Create(aData, aSize, aFaceIndex, aGlyphSize);
-  }
-#endif
   default:
     gfxWarning() << "Unable to create requested font type from truetype data";
     return nullptr;
@@ -423,6 +385,21 @@ Factory::CreateScaledFontWithCairo(const NativeFont& aNativeFont, Float aSize, c
 #else
   return nullptr;
 #endif
+}
+
+TemporaryRef<DrawTarget>
+Factory::CreateDualDrawTarget(DrawTarget *targetA, DrawTarget *targetB)
+{
+  RefPtr<DrawTarget> newTarget =
+    new DrawTargetDual(targetA, targetB);
+
+  RefPtr<DrawTarget> retVal = newTarget;
+
+  if (mRecorder) {
+    retVal = new DrawTargetRecording(mRecorder, retVal);
+  }
+
+  return retVal;
 }
 
 #ifdef MOZ_ENABLE_FREETYPE
@@ -560,13 +537,44 @@ Factory::D2DCleanup()
 
 #ifdef USE_SKIA_GPU
 TemporaryRef<DrawTarget>
-Factory::CreateSkiaDrawTargetForFBO(unsigned int aFBOID, GrContext *aGrContext, const IntSize &aSize, SurfaceFormat aFormat)
+Factory::CreateDrawTargetSkiaWithGLContextAndGrGLInterface(GenericRefCountedBase* aGLContext,
+                                                           GrGLInterface* aGrGLInterface,
+                                                           const IntSize &aSize,
+                                                           SurfaceFormat aFormat)
 {
-  RefPtr<DrawTargetSkia> newTarget = new DrawTargetSkia();
-  newTarget->InitWithFBO(aFBOID, aGrContext, aSize, aFormat);
+  DrawTargetSkia* newDrawTargetSkia = new DrawTargetSkia();
+  newDrawTargetSkia->InitWithGLContextAndGrGLInterface(aGLContext, aGrGLInterface, aSize, aFormat);
+  RefPtr<DrawTarget> newTarget = newDrawTargetSkia;
   return newTarget;
 }
-#endif // USE_SKIA
+
+void
+Factory::SetGlobalSkiaCacheLimits(int aCount, int aSizeInBytes)
+{
+    DrawTargetSkia::SetGlobalCacheLimits(aCount, aSizeInBytes);
+}
+#endif // USE_SKIA_GPU
+
+void
+Factory::PurgeTextureCaches()
+{
+#ifdef USE_SKIA_GPU
+  DrawTargetSkia::PurgeTextureCaches();
+#endif
+}
+
+#ifdef USE_SKIA_FREETYPE
+TemporaryRef<GlyphRenderingOptions>
+Factory::CreateCairoGlyphRenderingOptions(FontHinting aHinting, bool aAutoHinting)
+{
+  RefPtr<GlyphRenderingOptionsCairo> options =
+    new GlyphRenderingOptionsCairo();
+
+  options->SetHinting(aHinting);
+  options->SetAutoHinting(aAutoHinting);
+  return options;
+}
+#endif
 
 TemporaryRef<DrawTarget>
 Factory::CreateDrawTargetForCairoSurface(cairo_surface_t* aSurface, const IntSize& aSize)
@@ -600,14 +608,50 @@ Factory::CreateSourceSurfaceForCairoSurface(cairo_surface_t* aSurface,
   return retVal;
 }
 
+#ifdef XP_MACOSX
+TemporaryRef<DrawTarget>
+Factory::CreateDrawTargetForCairoCGContext(CGContextRef cg, const IntSize& aSize)
+{
+  RefPtr<DrawTarget> retVal;
+
+  RefPtr<DrawTargetCG> newTarget = new DrawTargetCG();
+
+  if (newTarget->Init(cg, aSize)) {
+    retVal = newTarget;
+  }
+
+  if (mRecorder && retVal) {
+    RefPtr<DrawTarget> recordDT = new DrawTargetRecording(mRecorder, retVal);
+    return recordDT;
+  }
+  return retVal;
+}
+#endif
+
 TemporaryRef<DataSourceSurface>
 Factory::CreateWrappingDataSourceSurface(uint8_t *aData, int32_t aStride,
                                          const IntSize &aSize,
                                          SurfaceFormat aFormat)
 {
+  if (aSize.width <= 0 || aSize.height <= 0) {
+    return nullptr;
+  }
+
   RefPtr<SourceSurfaceRawData> newSurf = new SourceSurfaceRawData();
 
   if (newSurf->InitWrappingData(aData, aSize, aStride, aFormat, false)) {
+    return newSurf;
+  }
+
+  return nullptr;
+}
+
+TemporaryRef<DataSourceSurface>
+Factory::CreateDataSourceSurface(const IntSize &aSize,
+                                 SurfaceFormat aFormat)
+{
+  RefPtr<SourceSurfaceAlignedRawData> newSurf = new SourceSurfaceAlignedRawData();
+  if (newSurf->Init(aSize, aFormat)) {
     return newSurf;
   }
 
