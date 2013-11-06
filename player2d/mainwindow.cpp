@@ -169,8 +169,6 @@ MainWindow::UpdateObjects()
    list.push_back("");
 
    ui->objectTree->clear();
-   ui->objectTree->setColumnWidth(0, 60);
-   ui->objectTree->setColumnWidth(1, 80);
 
    {
      PlaybackManager::DTMap::iterator iter = mPBManager.mDrawTargets.begin();
