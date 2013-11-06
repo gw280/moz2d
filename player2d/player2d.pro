@@ -8,6 +8,8 @@ QT       += core gui widgets
 
 TARGET = player2d
 TEMPLATE = app
+QMAKE_CXXFLAGS += -std=c++11
+CONFIG += c++11
 
 SOURCES += main.cpp\
         mainwindow.cpp \
