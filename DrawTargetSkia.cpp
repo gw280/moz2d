@@ -79,6 +79,13 @@ public:
   ExtendMode mExtendMode;
 };
 
+inline static ostream&
+operator <<(ostream& aStream, const DrawTargetSkia& aDrawTarget)
+{
+  aStream << "DrawTargetSkia (" << &aDrawTarget << ")";
+  return aStream;
+}
+
 #ifdef USE_SKIA_GPU
 int DrawTargetSkia::sTextureCacheCount = 256;
 int DrawTargetSkia::sTextureCacheSizeInBytes = 96*1024*1024;
