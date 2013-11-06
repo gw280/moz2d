@@ -109,7 +109,7 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D1_1]);
   ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D1_1]);
 #elif __APPLE__
-  ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
+  //ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
   //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
   //mPBManager.SetBaseDT(refDT);
   // TODO Add a way to select backends
@@ -343,6 +343,11 @@ void MainWindow::on_actionOpen_Recording_triggered()
   }
 
   while (inputFile.tellg() < length) {
+
+    if (inputFile.tellg() < 0) {
+      QMessageBox::critical(this, "Error", "Stream error: File could not be parsed");
+      return;
+    }
 
     int32_t type;
     ReadElement(inputFile, type);
