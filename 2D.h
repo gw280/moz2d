@@ -453,8 +453,15 @@ public:
    */
   virtual FillRule GetFillRule() const = 0;
 
+  /* This computes the total length of the path, moves act as if the current
+   * point is where the path was terminated, and the new point is where the
+   * cumulation of the length will resume.
+   */
   virtual Float ComputeLength() { return 0; }
 
+  /* This computes the point and the tangent vector on the path at a certain
+   * distance traveled along the path, ignoring moves.
+   */
   virtual Point ComputePointAtLength(Float aLength,
                                      Point* aTangent) { return Point(); }
 };
