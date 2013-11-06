@@ -11,8 +11,10 @@ using namespace mozilla::gfx;
 
 TestPoint::TestPoint()
 {
-  REGISTER_TEST(TestPoint, Addition);
-  REGISTER_TEST(TestPoint, Subtraction);
+#define TEST_CLASS TestPoint
+  REGISTER_TEST(Addition);
+  REGISTER_TEST(Subtraction);
+#undef TEST_CLASS
 }
 
 void

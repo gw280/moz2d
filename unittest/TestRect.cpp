@@ -10,7 +10,9 @@ using namespace mozilla::gfx;
 
 TestRect::TestRect()
 {
-  REGISTER_TEST(TestRect, ClampRect);
+#define TEST_CLASS TestRect
+  REGISTER_TEST(ClampRect);
+#undef TEST_CLASS
 }
 
 void

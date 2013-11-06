@@ -4,6 +4,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "TestDrawTargetBase.h"
+#include "PathHelpers.h"
 #include <sstream>
 
 using namespace mozilla;
@@ -12,30 +13,32 @@ using namespace std;
 
 TestDrawTargetBase::TestDrawTargetBase()
 {
-  REGISTER_TEST(TestDrawTargetBase, Initialized);
-  REGISTER_TEST(TestDrawTargetBase, FillCompletely);
-  REGISTER_TEST(TestDrawTargetBase, FillRect);
-  REGISTER_TEST(TestDrawTargetBase, StrokeRect);
-  REGISTER_TEST(TestDrawTargetBase, StrokeLine);
-  REGISTER_TEST(TestDrawTargetBase, Translate);
-  REGISTER_TEST(TestDrawTargetBase, FillMultiRect);
-  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform1);
-  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform2);
-  REGISTER_TEST(TestDrawTargetBase, FillMultiRectTransform3);
-  REGISTER_TEST(TestDrawTargetBase, ClipRect);
-  REGISTER_TEST(TestDrawTargetBase, Clip);
-  REGISTER_TEST(TestDrawTargetBase, FillTriangle);
-  REGISTER_TEST(TestDrawTargetBase, StrokeTriangle);
-  REGISTER_TEST(TestDrawTargetBase, DrawSurface);
-  REGISTER_TEST(TestDrawTargetBase, FillWithSurface);
-  REGISTER_TEST(TestDrawTargetBase, FillWithPartialLargeSurface);
-  REGISTER_TEST(TestDrawTargetBase, FillWithScaledLargeSurface);
-  REGISTER_TEST(TestDrawTargetBase, FillGradient);
-  REGISTER_TEST(TestDrawTargetBase, FillRadialGradient);
-  REGISTER_TEST(TestDrawTargetBase, FillWithSnapshot);
-  REGISTER_TEST(TestDrawTargetBase, Mask);
-  REGISTER_TEST(TestDrawTargetBase, CopySurface);
-  REGISTER_TEST(TestDrawTargetBase, Shadow);
+#define TEST_CLASS TestDrawTargetBase
+  REGISTER_TEST(Initialized);
+  REGISTER_TEST(FillCompletely);
+  REGISTER_TEST(FillRect);
+  REGISTER_TEST(StrokeRect);
+  REGISTER_TEST(StrokeLine);
+  REGISTER_TEST(Translate);
+  REGISTER_TEST(FillMultiRect);
+  REGISTER_TEST(FillMultiRectTransform1);
+  REGISTER_TEST(FillMultiRectTransform2);
+  REGISTER_TEST(FillMultiRectTransform3);
+  REGISTER_TEST(ClipRect);
+  REGISTER_TEST(Clip);
+  REGISTER_TEST(FillTriangle);
+  REGISTER_TEST(StrokeTriangle);
+  REGISTER_TEST(DrawSurface);
+  REGISTER_TEST(FillWithSurface);
+  REGISTER_TEST(FillWithPartialLargeSurface);
+  REGISTER_TEST(FillWithScaledLargeSurface);
+  REGISTER_TEST(FillGradient);
+  REGISTER_TEST(FillRadialGradient);
+  REGISTER_TEST(FillWithSnapshot);
+  REGISTER_TEST(Mask);
+  REGISTER_TEST(CopySurface);
+  REGISTER_TEST(Shadow);
+#undef TEST_CLASS
 }
 
 void

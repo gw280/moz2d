@@ -7,7 +7,9 @@
 
 SanityChecks::SanityChecks()
 {
-  REGISTER_TEST(SanityChecks, AlwaysPasses);
+#define TEST_CLASS SanityChecks
+  REGISTER_TEST(AlwaysPasses);
+#undef TEST_CLASS
 }
 
 void

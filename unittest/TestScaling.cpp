@@ -11,13 +11,15 @@ using namespace mozilla::gfx;
 
 TestScaling::TestScaling()
 {
-  REGISTER_TEST(TestScaling, BasicHalfScale);
-  REGISTER_TEST(TestScaling, DoubleHalfScale);
-  REGISTER_TEST(TestScaling, UnevenHalfScale);
-  REGISTER_TEST(TestScaling, OddStrideHalfScale);
-  REGISTER_TEST(TestScaling, VerticalHalfScale);
-  REGISTER_TEST(TestScaling, HorizontalHalfScale);
-  REGISTER_TEST(TestScaling, MixedHalfScale);
+#define TEST_CLASS TestScaling
+  REGISTER_TEST(BasicHalfScale);
+  REGISTER_TEST(DoubleHalfScale);
+  REGISTER_TEST(UnevenHalfScale);
+  REGISTER_TEST(OddStrideHalfScale);
+  REGISTER_TEST(VerticalHalfScale);
+  REGISTER_TEST(HorizontalHalfScale);
+  REGISTER_TEST(MixedHalfScale);
+#undef TEST_CLASS
 }
 
 void
