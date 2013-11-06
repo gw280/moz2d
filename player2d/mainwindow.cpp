@@ -403,8 +403,19 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
 {
   ObjectItem *objItem = static_cast<ObjectItem*>(item);
 
+  for (int i = 0; i < ui->viewWidget->count(); i++) {
+    QWidget *tab = ui->viewWidget->widget(i);
+    void *tabObjItem = qVariantValue<void*>(tab->property("objItem"));
+    if (objItem == tabObjItem) {
+      ui->viewWidget->setCurrentIndex(i);
+      return;
+    }
+  }
+
   QWidget *newTab = objItem->CreateViewWidget();
+  newTab->setProperty("objItem", qVariantFromValue<void*>(objItem));
   ui->viewWidget->addTab(newTab, objItem->GetTitle());
+  ui->viewWidget->setCurrentIndex(ui->viewWidget->count() - 1);
 
   QObject::connect(this, SIGNAL(UpdateViews()), newTab, SLOT(UpdateView()));
   QObject::connect(this, SIGNAL(EventChange()), newTab, SLOT(EventChanged()));
