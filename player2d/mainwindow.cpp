@@ -378,6 +378,54 @@ void MainWindow::on_actionOpen_Recording_triggered()
   DefaultArrangement();
 }
 
+void MainWindow::FocusView(ReferencePtr aEvent)
+{
+  QStringList list;
+  {
+    PlaybackManager::DTMap::iterator iter = mPBManager.mDrawTargets.begin();
+
+    for (;mPBManager.mDrawTargets.end() != iter; iter++) {
+      if (iter->first == aEvent) {
+        MainWindow::on_objectTree_itemDoubleClicked(new DrawTargetItem(list, ui->objectTree, iter->first, &mPBManager), 0);
+        return;
+      }
+    }
+  }
+
+  {
+    PlaybackManager::PathMap::iterator iter = mPBManager.mPaths.begin();
+
+    for (;mPBManager.mPaths.end() != iter; iter++) {
+      if (iter->first == aEvent) {
+        MainWindow::on_objectTree_itemDoubleClicked(new PathItem(list, ui->objectTree, iter->first, &mPBManager), 0);
+        return;
+      }
+    }
+  }
+
+  {
+    PlaybackManager::SourceSurfaceMap::iterator iter = mPBManager.mSourceSurfaces.begin();
+
+    for (;mPBManager.mSourceSurfaces.end() != iter; iter++) {
+      if (iter->first == aEvent) {
+        MainWindow::on_objectTree_itemDoubleClicked(new SourceSurfaceItem(list, ui->objectTree, iter->first, &mPBManager), 0);
+        return;
+      }
+    }
+  }
+
+  {
+    PlaybackManager::GradientStopsMap::iterator iter = mPBManager.mGradientStops.begin();
+
+    for (;mPBManager.mGradientStops.end() != iter; iter++) {
+      if (iter->first == aEvent) {
+        MainWindow::on_objectTree_itemDoubleClicked(new GradientStopsItem(list, ui->objectTree, iter->first, &mPBManager), 0);
+        return;
+      }
+    }
+  }
+}
+
 void MainWindow::on_treeWidget_itemSelectionChanged()
 {
   QTreeWidgetItem *item = ui->treeWidget->currentItem();
@@ -397,6 +445,8 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
   UpdateViews();
   UpdateObjects();
   EventChange();
+
+  FocusView(mPBManager.mRecordedEvents[idx]->GetObject());
 }
 
 void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
@@ -405,15 +455,18 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
 
   for (int i = 0; i < ui->viewWidget->count(); i++) {
     QWidget *tab = ui->viewWidget->widget(i);
-    void *tabObjItem = qVariantValue<void*>(tab->property("objItem"));
-    if (objItem == tabObjItem) {
+    void *tabObjItem = qVariantValue<void*>(tab->property("objectref"));
+    if (objItem->GetObject() == tabObjItem) {
       ui->viewWidget->setCurrentIndex(i);
       return;
     }
   }
 
   QWidget *newTab = objItem->CreateViewWidget();
-  newTab->setProperty("objItem", qVariantFromValue<void*>(objItem));
+  if (!newTab) {
+    return;
+  }
+  newTab->setProperty("objectref", qVariantFromValue<void*>(objItem->GetObject()));
   ui->viewWidget->addTab(newTab, objItem->GetTitle());
   ui->viewWidget->setCurrentIndex(ui->viewWidget->count() - 1);
 

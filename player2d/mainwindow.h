@@ -94,6 +94,7 @@ private slots:
     void FilterByCurrentObject();
     void on_actionAnalyze_Call_Timings_triggered();
 
+    void FocusView(mozilla::gfx::ReferencePtr aEvent);
 private:
   friend class CallTimingAnalysis;
 
