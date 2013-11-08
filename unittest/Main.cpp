@@ -28,8 +28,8 @@ using namespace mozilla::gfx;
 int
 main()
 {
-  RefPtr<ID3D10Device1> mDevice;
 #ifdef WIN32
+  RefPtr<ID3D10Device1> mDevice;
   ::D3D10CreateDevice1(nullptr,
                        D3D10_DRIVER_TYPE_HARDWARE,
                        nullptr,
