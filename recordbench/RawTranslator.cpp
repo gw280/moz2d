@@ -1,4 +1,5 @@
 #include "RawTranslator.h"
+#include "Filters.h"
 #include <map>
 #include <vector>
 

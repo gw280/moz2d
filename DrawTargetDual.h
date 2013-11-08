@@ -12,6 +12,7 @@
 #include "SourceSurfaceDual.h"
      
 #include "2D.h"
+#include "Filters.h"
      
 namespace mozilla {
 namespace gfx {

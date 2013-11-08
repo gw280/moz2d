@@ -16,8 +16,6 @@
 // solution.
 #include "mozilla/RefPtr.h"
 
-#include "Filters.h"
-
 // XXX - Bas - This will likely give problems on OS X!
 #include <string>
 
@@ -48,6 +46,7 @@ class SourceSurface;
 class DataSourceSurface;
 class DrawTarget;
 class DrawEventRecorder;
+class FilterNode;
 
 struct NativeSurface {
   NativeSurfaceType mType;

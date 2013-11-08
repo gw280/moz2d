@@ -6,6 +6,7 @@
 #include "TestDrawTargetBase.h"
 #include <sstream>
 #include "Tools.h"
+#include "Filters.h"
 
 using namespace mozilla;
 using namespace mozilla::gfx;

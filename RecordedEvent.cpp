@@ -7,6 +7,7 @@
 #include "PathRecording.h"
 
 #include "Tools.h"
+#include "Filters.h"
 
 namespace mozilla {
 namespace gfx {
