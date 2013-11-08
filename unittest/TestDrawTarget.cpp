@@ -5,6 +5,7 @@
 
 #include "TestDrawTarget.h"
 #include "PathHelpers.h"
+#include "Filters.h"
 #include <sstream>
 
 using namespace mozilla;
