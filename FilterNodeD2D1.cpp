@@ -28,7 +28,7 @@ D2D1_BLEND_MODE D2DBlendMode(uint32_t aMode)
   case BLEND_MODE_SCREEN:
     return D2D1_BLEND_MODE_SCREEN;
   default:
-    MOZ_NOT_REACHED("Unknown enum value!");
+    MOZ_CRASH("Unknown enum value!");
   }
 
   return D2D1_BLEND_MODE_DARKEN;
@@ -43,7 +43,7 @@ D2D1_MORPHOLOGY_MODE D2DMorphologyMode(uint32_t aMode)
     return D2D1_MORPHOLOGY_MODE_ERODE;
   }
 
-  MOZ_NOT_REACHED("Unknown enum value!");
+  MOZ_CRASH("Unknown enum value!");
   return D2D1_MORPHOLOGY_MODE_DILATE;
 }
 
@@ -56,7 +56,7 @@ D2D1_TURBULENCE_NOISE D2DTurbulenceNoise(uint32_t aMode)
     return D2D1_TURBULENCE_NOISE_TURBULENCE;
   }
 
-  MOZ_NOT_REACHED("Unknown enum value!");
+  MOZ_CRASH("Unknown enum value!");
   return D2D1_TURBULENCE_NOISE_TURBULENCE;
 }
 
@@ -75,7 +75,7 @@ D2D1_COMPOSITE_MODE D2DFilterCompositionMode(uint32_t aMode)
     return D2D1_COMPOSITE_MODE_XOR;
   }
 
-  MOZ_NOT_REACHED("Unknown enum value!");
+  MOZ_CRASH("Unknown enum value!");
   return D2D1_COMPOSITE_MODE_SOURCE_OVER;
 }
 
@@ -92,7 +92,7 @@ D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
     return D2D1_CHANNEL_SELECTOR_A;
   }
 
-  MOZ_NOT_REACHED("Unknown enum value!");
+  MOZ_CRASH("Unknown enum value!");
   return D2D1_CHANNEL_SELECTOR_R;
 }
 
