@@ -7,8 +7,8 @@
   class TestDrawTarget##backendName : public parentClass \
   { \
   public: \
-    TestDrawTarget##backendName##() \
-    {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::##backendValue##, \
+    TestDrawTarget##backendName() \
+    {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BACKEND_##backendValue, \
                                                      mozilla::gfx::IntSize(DT_WIDTH, DT_HEIGHT), \
                                                      mozilla::gfx::FORMAT_B8G8R8A8); } \
   }

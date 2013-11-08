@@ -61,11 +61,11 @@ protected:
 }; 
 
 #ifdef WIN32
-IMPLEMENT_DT_TESTS(D2D, BACKEND_DIRECT2D, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(D2D, DIRECT2D, TestDrawTargetBase);
 #endif
 #ifdef USE_SKIA
-IMPLEMENT_DT_TESTS(SkiaSoftware, BACKEND_SKIA, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTargetBase);
 #endif
 #ifdef USE_CAIRO
-IMPLEMENT_DT_TESTS(CairoImage, BACKEND_CAIRO, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(CairoImage, CAIRO, TestDrawTargetBase);
 #endif
