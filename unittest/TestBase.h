@@ -32,6 +32,7 @@ class TestBase
 {
 public:
   TestBase() {}
+  virtual ~TestBase() {}
 
   typedef void (TestBase::*TestCall)();
 

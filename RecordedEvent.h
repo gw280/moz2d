@@ -69,6 +69,8 @@ inline std::string StringFromPtr(ReferencePtr aPtr)
 class Translator
 {
 public:
+  virtual ~Translator() {}
+
   virtual DrawTarget *LookupDrawTarget(ReferencePtr aRefPtr) = 0;
   virtual Path *LookupPath(ReferencePtr aRefPtr) = 0;
   virtual SourceSurface *LookupSourceSurface(ReferencePtr aRefPtr) = 0;

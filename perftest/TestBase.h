@@ -77,6 +77,7 @@ class TestBase
 {
 public:
   TestBase() : mGroup(GROUP_NONE) {}
+  virtual ~TestBase() {}
 
   typedef void (TestBase::*TestCall)();
 
