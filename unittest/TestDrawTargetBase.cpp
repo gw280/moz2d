@@ -38,6 +38,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(Mask);
   REGISTER_TEST(CopySurface);
   REGISTER_TEST(Shadow);
+  REGISTER_TEST(StreamToSink);
 #undef TEST_CLASS
 }
 
@@ -501,6 +502,46 @@ TestDrawTargetBase::Shadow()
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
   mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.502f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, OP_OVER);
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::StreamToSink()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
+  builder->MoveTo(Point(-10000, -10000));
+  builder->LineTo(Point(10000, -10000));
+  builder->LineTo(Point(0, 10000));
+  builder->Close();
+  RefPtr<Path> path = builder->Finish();
+
+  builder = mDT->CreatePathBuilder();
+  path->StreamToSink(builder);
+  path = builder->Finish();
+
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+
+  builder = mDT->CreatePathBuilder();
+  builder->MoveTo(Point(-2000, -1000));
+  builder->LineTo(Point(2000, -1000));
+  builder->BezierTo(Point(-2000, 10000), Point(2000, 10000), Point(2000, -1000));
+  builder->Close();
+  path = builder->Finish();
+
+  builder = mDT->CreatePathBuilder();
+  path->StreamToSink(builder);
+  path = builder->Finish();
+
+  mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefreshSnapshot();
 

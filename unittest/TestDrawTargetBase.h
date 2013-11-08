@@ -42,6 +42,7 @@ public:
   void Mask();
   void CopySurface();
   void Shadow();
+  void StreamToSink();
   
 protected:
   TestDrawTargetBase();
