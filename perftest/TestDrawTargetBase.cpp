@@ -532,6 +532,7 @@ TestDrawTargetBase::ColorMatrix200x200x1000()
   for (int i = 0; i < 1000; i++) {
     RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
     filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, m);
+    filter->SetAttribute(ATT_COLOR_MATRIX_ALPHA_MODE, (uint32_t)ALPHA_MODE_STRAIGHT);
     filter->SetInput(IN_COLOR_MATRIX_IN, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
   }

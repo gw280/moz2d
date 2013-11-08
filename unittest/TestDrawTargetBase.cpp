@@ -554,7 +554,8 @@ TestDrawTargetBase::ColorMatrix()
                  25.0, 0.0,  0.0,  0.0,
                  0.0,  0.1,  0.5,  0.1);
 
-  filter->SetAttribute(0, mat);
+  filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, mat);
+  filter->SetAttribute(ATT_COLOR_MATRIX_ALPHA_MODE, (uint32_t)ALPHA_MODE_STRAIGHT);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.099f, 0.2f, 0.3f, 1.0f)));
