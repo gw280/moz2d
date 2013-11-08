@@ -65,7 +65,7 @@ main()
   printf("------ STARTING RUNNING TESTS ------\n");
   for (int i = 0; i < sizeof(tests) / sizeof(TestObject); i++) {
     message << "--- RUNNING TESTS: " << tests[i].name << " ---\n";
-    printf(message.str().c_str());
+    printf("%s", message.str().c_str());
     message.str("");
     int failures = 0;
     totalTests += tests[i].test->RunTests(&failures);
@@ -74,6 +74,6 @@ main()
     delete tests[i].test;
   }
   message << "------ FINISHED RUNNING TESTS ------\nTests run: " << totalTests << " - Passes: " << totalTests - totalFailures << " - Failures: " << totalFailures << "\n";
-  printf(message.str().c_str());
+  printf("%s", message.str().c_str());
   return totalFailures;
 }

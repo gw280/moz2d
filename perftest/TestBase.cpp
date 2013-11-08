@@ -74,5 +74,5 @@ TestBase::RunTests(std::ostream *aCSVOutput)
 void
 TestBase::LogMessage(string aMessage)
 {
-  printf(aMessage.c_str());
+  printf("%s", aMessage.c_str());
 }

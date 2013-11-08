@@ -82,7 +82,7 @@ main()
     }
 
     message << "--- RUNNING TESTS: " << tests[i].name << " ---\n";
-    printf(message.str().c_str());
+    printf("%s", message.str().c_str());
     message.str("");
     int failures = 0;
     totalTests += tests[i].test->RunTests(group != GROUP_NONE ? &fileStream : nullptr);
@@ -96,6 +96,6 @@ main()
     delete tests[i].test;
   }
   message << "------ FINISHED RUNNING TESTS ------\nTests run: " << totalTests << "\n";
-  printf(message.str().c_str());
+  printf("%s", message.str().c_str());
   return totalFailures;
 }
