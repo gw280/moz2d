@@ -6,6 +6,7 @@
 #ifndef MOZILLA_GFX_FILTERNODED2D1_H_
 #define MOZILLA_GFX_FILTERNODED2D1_H_
 
+#include "2D.h"
 #include "Filters.h"
 #include <d2d1_1.h>
 #include <cguid.h>
@@ -73,8 +74,9 @@ static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
 class FilterNodeD2D1 : public FilterNode
 {
 public:
-  FilterNodeD2D1(ID2D1Effect *aEffect, FilterType aType)
-    : mEffect(aEffect)
+  FilterNodeD2D1(DrawTarget* aDT, ID2D1Effect *aEffect, FilterType aType)
+    : mDT(aDT)
+	, mEffect(aEffect)
     , mType(aType)
   {}
 
@@ -102,6 +104,7 @@ protected:
   friend class DrawTargetD2D;
   friend class FilterNodeConvolveD2D1;
 
+  RefPtr<DrawTarget> mDT;
   RefPtr<ID2D1Effect> mEffect;
   FilterType mType;
 };
@@ -109,7 +112,7 @@ protected:
 class FilterNodeConvolveD2D1 : public FilterNodeD2D1
 {
 public:
-  FilterNodeConvolveD2D1(ID2D1DeviceContext *aDC);
+  FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceContext *aDC);
 
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface);
   virtual void SetInput(uint32_t aIndex, FilterNode *aFilter);

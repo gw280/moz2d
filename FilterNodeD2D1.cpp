@@ -5,13 +5,13 @@
 
 #include "FilterNodeD2D1.h"
 
-#include "2D.h"
 #include "Logging.h"
 
 #include "SourceSurfaceD2D1.h"
 #include "SourceSurfaceD2D.h"
 #include "SourceSurfaceD2DTarget.h"
 #include "DrawTargetD2D.h"
+#include "DrawTargetD2D1.h"
 
 namespace mozilla {
 namespace gfx {
@@ -110,8 +110,11 @@ D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
   return D2D1_CHANNEL_SELECTOR_R;
 }
 
-TemporaryRef<ID2D1Image> GetImageForSourceSurface(SourceSurface *aSurface)
+TemporaryRef<ID2D1Image> GetImageForSourceSurface(DrawTarget *aDT, SourceSurface *aSurface)
 {
+  if (aDT->GetType() == BACKEND_DIRECT2D1_1) {
+    return static_cast<DrawTargetD2D1*>(aDT)->GetImageForSurface(aSurface, Matrix(), EXTEND_CLAMP);
+  }
   RefPtr<ID2D1Image> image;
   switch (aSurface->GetType()) {
   case SURFACE_D2D1_1_IMAGE:
@@ -123,7 +126,7 @@ TemporaryRef<ID2D1Image> GetImageForSourceSurface(SourceSurface *aSurface)
     break;
   case SURFACE_D2D1_DRAWTARGET: {
       SourceSurfaceD2DTarget *surf = static_cast<SourceSurfaceD2DTarget*>(aSurface);
-      image = surf->GetBitmap(surf->GetDT()->GetRT());
+      image = surf->GetBitmap(static_cast<DrawTargetD2D*>(aDT)->GetRT());
     }
     break;
   default:
@@ -439,7 +442,7 @@ FilterNodeD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
     }
   }
 
-  RefPtr<ID2D1Image> image = GetImageForSourceSurface(aSurface);
+  RefPtr<ID2D1Image> image = GetImageForSourceSurface(mDT, aSurface);
   mEffect->SetInput(input, image);
 }
 
@@ -622,8 +625,8 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntPoint &aValue)
   mEffect->SetValue(input, D2DPoint(aValue));
 }
 
-FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(ID2D1DeviceContext *aDC)
-  : FilterNodeD2D1(nullptr, FILTER_CONVOLVE_MATRIX)
+FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceContext *aDC)
+  : FilterNodeD2D1(aDT, nullptr, FILTER_CONVOLVE_MATRIX)
   , mEdgeMode(EDGE_MODE_DUPLICATE)
 {
   HRESULT hr;
@@ -652,7 +655,7 @@ FilterNodeConvolveD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
 {
   MOZ_ASSERT(aIndex == 0);
 
-  mInput = GetImageForSourceSurface(aSurface);
+  mInput = GetImageForSourceSurface(mDT, aSurface);
 
   mInputEffect = nullptr;
 
