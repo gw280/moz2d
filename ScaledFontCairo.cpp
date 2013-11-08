@@ -49,7 +49,7 @@ ScaledFontCairo::ScaledFontCairo(const uint8_t* aData, uint32_t aFileSize, uint3
   : ScaledFontBase(aSize)
 {
 #ifdef MOZ_ENABLE_FREETYPE
-  FT_Error error = FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
+  FT_New_Memory_Face(Factory::GetFreetypeLibrary(), aData, aFileSize, aIndex, &mFTFace);
 
   cairo_font_face_t *face = cairo_ft_font_face_create_for_ft_face(mFTFace, FT_LOAD_DEFAULT);
   
