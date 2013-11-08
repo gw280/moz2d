@@ -447,7 +447,6 @@ void
 FilterNodeD2D1::SetInput(uint32_t aIndex, FilterNode *aFilter)
 {
   UINT32 input = GetD2D1InputForInput(mType, aIndex);
-  MOZ_ASSERT(input < mEffect->GetInputCount());
 
   if (mType == FILTER_COMPOSITE) {
     UINT32 inputCount = mEffect->GetInputCount();
@@ -458,6 +457,8 @@ FilterNodeD2D1::SetInput(uint32_t aIndex, FilterNode *aFilter)
       mEffect->SetInputCount(aIndex + 1);
     }
   }
+
+   MOZ_ASSERT(input < mEffect->GetInputCount());
 
   if (aFilter->GetBackendType() != FILTER_BACKEND_DIRECT2D1_1) {
     gfxWarning() << "Unknown input SourceSurface set on effect.";
