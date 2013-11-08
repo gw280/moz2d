@@ -39,6 +39,24 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(CopySurface);
   REGISTER_TEST(Shadow);
   REGISTER_TEST(StreamToSink);
+  REGISTER_TEST(RoundtripThroughA8MakesColorsBlack);
+  REGISTER_TEST(ColorMatrix);
+  REGISTER_TEST(Blend);
+  REGISTER_TEST(Morphology);
+  REGISTER_TEST(Flood);
+  REGISTER_TEST(Tile);
+  REGISTER_TEST(TableTransfer);
+  REGISTER_TEST(DiscreteTransfer);
+  REGISTER_TEST(LinearTransfer);
+  REGISTER_TEST(GammaTransfer);
+  REGISTER_TEST(ConvolveMatrixNone);
+  REGISTER_TEST(ConvolveMatrixWrap);
+  REGISTER_TEST(OffsetFilter);
+  REGISTER_TEST(DisplacementMap);
+  REGISTER_TEST(Turbulence);
+  REGISTER_TEST(ArithmeticCombine);
+  REGISTER_TEST(Composite);
+  REGISTER_TEST(GaussianBlur);
 #undef TEST_CLASS
 }
 
@@ -548,6 +566,641 @@ TestDrawTargetBase::StreamToSink()
   VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
 }
 
+void TestDrawTargetBase::RoundtripThroughA8MakesColorsBlack()
+{
+  Rect r(0, 0, DT_WIDTH, DT_HEIGHT);
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<DrawTarget> rgbaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  rgbaDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.1f, 0.2f, 0.3f, 0.4f)));
+  RefPtr<SourceSurface> rgbaSrc = rgbaDT->Snapshot();
+  RefPtr<DrawTarget> alphaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_A8);
+  alphaDT->DrawSurface(rgbaSrc, r, r);
+  RefPtr<SourceSurface> alphaSrc = alphaDT->Snapshot();
+  mDT->DrawSurface(alphaSrc, r, r);
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0, 0, 0.4f));
+}
+
+void
+TestDrawTargetBase::ColorMatrix()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
+
+  Matrix5x4 mat(-255,  1.0,  0.0, -8.0,
+                 0.0,  1.0, -6.0, -2.0,
+                 0.33, 0.0,  0.0,  5.0,
+                 25.0, 0.0,  0.0,  0.0,
+                 0.0,  0.1,  0.5,  0.1);
+
+  filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, mat);
+  filter->SetAttribute(ATT_COLOR_MATRIX_ALPHA_MODE, (uint32_t)ALPHA_MODE_STRAIGHT);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.099f, 0.2f, 0.3f, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(0, filter);
+  mDT->DrawFilter(premultiply, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0.1, 0.4, 0, 0.4), 2);
+}
+
+void
+TestDrawTargetBase::Blend()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+
+  filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i += 16) {
+    data[i  ] = 0xff008000;
+    data[i+1] = 0xff800080;
+    data[i+2] = 0xff0040a0;
+    data[i+3] = 0xff204080;
+
+    data[i+4] = 0x80000000;
+    data[i+5] = 0xa0000000;
+    data[i+6] = 0x20000000;
+    data[i+7] = 0x40000000;
+
+    data[i+8  ] = 0xff008000;
+    data[i+8+2] = 0xff800080;
+    data[i+8+5] = 0xff0040a0;
+    data[i+8+6] = 0xff204080;
+
+    data[i+8+1] = 0x80000000;
+    data[i+8+3] = 0xa0000000;
+    data[i+8+4] = 0x20000000;
+    data[i+8+7] = 0x40000000;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> src2 =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+    filter->SetInput(1, src2);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyPixel(IntPoint(0, 0), Color(0, 0.25f, 0, 1.0f));
+  VerifyPixel(IntPoint(1, 0), Color(0.25f, 0, 0.25, 1.0f));
+  VerifyPixel(IntPoint(2, 0), Color(0, 0.0625f, 0.393f, 1.0f));
+  VerifyPixel(IntPoint(3, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+
+  // alphablending: Float alpha = 1 - (1 - destAlpha) * (1 - sourceAlpha);
+  VerifyPixel(IntPoint(4, 0), Color(0, 0, 0, 0.75f));
+  VerifyPixel(IntPoint(5, 0), Color(0, 0, 0, 0.860f));
+  VerifyPixel(IntPoint(6, 0), Color(0, 0, 0, 0.233f));
+  VerifyPixel(IntPoint(7, 0), Color(0, 0, 0, 0.437f));
+
+  // XXX need testcases with two different inputs
+  VerifyPixel(IntPoint(8+0, 0), Color(0, 0.25f, 0, 1.0f));
+  VerifyPixel(IntPoint(8+2, 0), Color(0.25f, 0, 0.25, 1.0f));
+  VerifyPixel(IntPoint(8+5, 0), Color(0, 0.0625f, 0.393f, 1.0f));
+  VerifyPixel(IntPoint(8+6, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+
+  VerifyPixel(IntPoint(8+1, 0), Color(0, 0, 0, 0.75f));
+  VerifyPixel(IntPoint(8+3, 0), Color(0, 0, 0, 0.860f));
+  VerifyPixel(IntPoint(8+4, 0), Color(0, 0, 0, 0.233f));
+  VerifyPixel(IntPoint(8+7, 0), Color(0, 0, 0, 0.437f));
+}
+
+void
+TestDrawTargetBase::Morphology()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+
+  filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(10, 10));
+  filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(10, 10, 480, 480), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Flood()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_FLOOD);
+
+  filter->SetAttribute(ATT_FLOOD_COLOR, Color(0, 0.502f, 0, 1.0f));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Tile()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TILE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
+  dt->FillRect(Rect(100, 100, 300, 300), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_TILE_SOURCE_RECT, IntRect(100, 100, 300, 300));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::TableTransfer()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TABLE_TRANSFER);
+
+  filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_R, false);
+  filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_G, false);
+  filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_B, false);
+  filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_A, true);
+
+  Float coeffs[] = { 0, 0, 1.0f };
+
+  filter->SetAttribute(ATT_TABLE_TRANSFER_TABLE_R, coeffs, 3);
+  filter->SetAttribute(ATT_TABLE_TRANSFER_TABLE_G, coeffs, 3);
+  filter->SetAttribute(ATT_TABLE_TRANSFER_TABLE_B, coeffs, 3);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  uint32_t pixelVal = Color(0.498f, 0.75f, 0.498f, 1.0f).ToABGR();
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
+    data[i] = pixelVal;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.498f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::DiscreteTransfer()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISCRETE_TRANSFER);
+
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_R, false);
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_G, false);
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_B, false);
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_A, true);
+
+  Float coeffs[] = { 0, 0.502f, 0, 1.0f };
+
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_R, coeffs, 3);
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_G, coeffs, 3);
+  filter->SetAttribute(ATT_DISCRETE_TRANSFER_TABLE_B, coeffs, 3);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  uint32_t pixelVal = Color(0.7f, 0.4f, 0.2f, 1.0f).ToABGR();
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
+    data[i] = pixelVal;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::LinearTransfer()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_LINEAR_TRANSFER);
+
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_R, false);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_G, false);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_B, false);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_A, true);
+
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_INTERCEPT_R, 0.502f);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_SLOPE_R, -5.0f);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_INTERCEPT_G, 0.f);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_SLOPE_G, 1.0f);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_INTERCEPT_B, 0.502f);
+  filter->SetAttribute(ATT_LINEAR_TRANSFER_SLOPE_B, -5.0f);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
+    data[i] = 0xff808080;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::GammaTransfer()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAMMA_TRANSFER);
+
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_R, false);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_G, false);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_B, false);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_A, true);
+
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_AMPLITUDE_R, 0.f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_EXPONENT_R, 1.f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_OFFSET_R, 0.f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_AMPLITUDE_G, 1.0f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_EXPONENT_G, 2.0f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_OFFSET_G, 0.25f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_AMPLITUDE_B, 2.0f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_EXPONENT_B, 2.0f);
+  filter->SetAttribute(ATT_GAMMA_TRANSFER_OFFSET_B, -0.502f);
+
+  uint32_t *data = new uint32_t[DT_WIDTH * DT_HEIGHT * 4];
+  for (int i = 0; i < DT_WIDTH * DT_HEIGHT; i++) {
+    data[i] = 0xff808080;
+  }
+
+  {
+    RefPtr<SourceSurface> src =
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+
+    filter->SetInput(0, src);
+
+    mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+  }
+
+  delete [] data;
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ConvolveMatrixNone()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0, 0, 1.0f)));
+  for (int x = 0; x < DT_WIDTH + 3; x += 3) {
+    dt->FillRect(Rect(x, 0, 1, DT_HEIGHT + 3), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
+  }
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_NONE);
+
+  Float kernel[] = { 1.0f, 1.0f, 1.0f,
+                     1.0f, 1.0f, 1.0f,
+                     1.0f, 1.0f, 1.0f };
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 9);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(3, 3));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, true);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 3.0f / 0.502f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, Size(1.0f, 1.0f));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(0, 0));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ConvolveMatrixWrap()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_DUPLICATE);
+
+  Float kernel[] = { 1.0f, 1.0f,
+                     1.0f, 1.0f };
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 4);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(2, 2));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, true);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 4.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, Size(1.0f, 1.0f));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(1, 0));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::OffsetFilter()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_OFFSET);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_OFFSET_OFFSET, IntPoint(-100, -100));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::DisplacementMap()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISPLACEMENT_MAP);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dtDisplacement = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.502f, 0.502f, 0.502f, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 0, 100, 100), ColorPattern(Color(1.0f, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(100, 0, DT_WIDTH - 200, 100), ColorPattern(Color(0.502f, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, 0, 101, 100), ColorPattern(Color(0, 1.0f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, 100, 100, DT_HEIGHT - 200), ColorPattern(Color(1.0f, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, 100, 101, DT_HEIGHT - 200), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(0, DT_HEIGHT - 101, 100, 101), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(100, DT_HEIGHT - 101, DT_WIDTH - 200, 101), ColorPattern(Color(0.502f, 0, 0, 1.0f)));
+  dtDisplacement->FillRect(Rect(DT_WIDTH - 101, DT_HEIGHT - 101, 101, 101), ColorPattern(Color(0, 0, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  RefPtr<SourceSurface> srcDisplacement = dtDisplacement->Snapshot();
+  filter->SetInput(0, src);
+  filter->SetInput(1, srcDisplacement);
+
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_SCALE, 220.0f);
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_X_CHANNEL, (uint32_t)COLOR_CHANNEL_R);
+  filter->SetAttribute(ATT_DISPLACEMENT_MAP_Y_CHANNEL, (uint32_t)COLOR_CHANNEL_G);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Turbulence()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
+
+  filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(10.0f, 10.0f));
+  filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, uint32_t(1));
+  filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
+  filter->SetAttribute(ATT_TURBULENCE_TYPE, uint32_t(TURBULENCE_TYPE_FRACTAL_NOISE));
+
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
+
+  Float avgR = 0;
+  Float avgG = 0;
+  Float avgB = 0;
+  Float avgA = 0;
+  for (int y = 0; y < DT_HEIGHT; y++) {
+    Float avgRRow = 0;
+    Float avgGRow = 0;
+    Float avgBRow = 0;
+    Float avgARow = 0;
+    for (int x = 0; x < DT_WIDTH; x++) {
+      Color currentColor = Color::FromABGR(colVal[(y * mDataSnapshot->Stride()) / 4 + x]);
+      avgRRow += currentColor.r;
+      avgGRow += currentColor.g;
+      avgBRow += currentColor.b;
+      avgARow += currentColor.a;
+    }
+    avgRRow /= Float(DT_WIDTH);
+    avgGRow /= Float(DT_WIDTH);
+    avgBRow /= Float(DT_WIDTH);
+    avgARow /= Float(DT_WIDTH);
+    avgR += avgRRow;
+    avgG += avgGRow;
+    avgB += avgBRow;
+    avgA += avgARow;
+  }
+
+  avgR /= Float(DT_HEIGHT);
+  avgG /= Float(DT_HEIGHT);
+  avgB /= Float(DT_HEIGHT);
+  avgA /= Float(DT_HEIGHT);
+
+  if (avgR < 0.2f || avgR > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average red value outside of expected range.");
+    return;
+  }
+  if (avgG < 0.2f || avgG > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average green value outside of expected range.");
+    return;
+  }
+  if (avgB < 0.2f || avgB > 0.3f) {
+    mTestFailed = true;
+    LogMessage("Average blue value outside of expected range.");
+    return;
+  }
+  if (avgA < 0.45f || avgA > 0.55f) {
+    mTestFailed = true;
+    LogMessage("Average alpha value outside of expected range.");
+    return;
+  }
+}
+
+void
+TestDrawTargetBase::ArithmeticCombine()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.25f, 0.5f, 0.25f, 1.0f)));
+  src = dt2->Snapshot();
+  filter->SetInput(1, src);
+
+  Float coeffs[4] = { 1.0f, 1.0f, -1.0f, 0.25f };
+
+
+  filter->SetAttribute(ATT_ARITHMETIC_COMBINE_COEFFICIENTS, coeffs, 4);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::Composite()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt3 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+  dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 1.0f, 0, 0.5f)));
+  dt3->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0, 0, 0.332f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+  src = dt2->Snapshot();
+  filter->SetInput(1, src);
+  src = dt3->Snapshot();
+  filter->SetInput(2, src);
+
+  filter->SetAttribute(ATT_COMPOSITE_OPERATOR, uint32_t(COMPOSITE_OPERATOR_OVER));
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::GaussianBlur()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+
+  dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
+
+  RefPtr<SourceSurface> src = dt->Snapshot();
+  filter->SetInput(0, src);
+
+  filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 44.0f);
+
+  mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
+
+  RefreshSnapshot();
+
+  // XXX - Find a more solid test for this.
+  VerifyPixel(IntPoint(250, 250), Color(0, 0.5f, 0, 1.0f), 3);
+  VerifyPixel(IntPoint(0, 0), Color(0, 0, 0, 0));
+}
+
 void
 TestDrawTargetBase::RefreshSnapshot()
 {
@@ -556,55 +1209,90 @@ TestDrawTargetBase::RefreshSnapshot()
 }
 
 void
-TestDrawTargetBase::VerifyAllPixels(const Color &aColor)
+TestDrawTargetBase::VerifyAllPixels(const Color &aColor,
+                                    uint8_t aTolerance)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
-  uint32_t expected = RGBAPixelFromColor(aColor);
+  uint32_t expected = BGRAPixelFromColor(aColor);
 
   for (int y = 0; y < DT_HEIGHT; y++) {
     for (int x = 0; x < DT_WIDTH; x++) {
       if (colVal[y * (mDataSnapshot->Stride() / 4) + x] != expected) {
-        LogMessage("VerifyAllPixels Failed\n");
-        mTestFailed = true;
-        return;
+        stringstream message;
+        int32_t rawActual = colVal[y * (mDataSnapshot->Stride() / 4) + x];
+        int32_t actb = rawActual & 0xFF;
+        int32_t actg = (rawActual & 0xFF00) >> 8;
+        int32_t actr = (rawActual & 0xFF0000) >> 16;
+        int32_t acta = (rawActual & 0xFF000000) >> 24;
+        int32_t expb = expected & 0xFF;
+        int32_t expg = (expected & 0xFF00) >> 8;
+        int32_t expr = (expected & 0xFF0000) >> 16;
+        int32_t expa = (expected & 0xFF000000) >> 24;
+
+        if (abs(actb - expb) > aTolerance ||
+            abs(actg - expg) > aTolerance ||
+            abs(actr - expr) > aTolerance ||
+            abs(acta - expa) > aTolerance) {
+          message << "Verify Pixel (" << x << "x" << y << ") Failed."
+            " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
+            " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
+
+          LogMessage(message.str());
+          LogMessage("VerifyAllPixels Failed\n");
+          mTestFailed = true;
+          return;
+        }
       }
     }
   }
 }
 
 void
-TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Color &aColor)
+TestDrawTargetBase::VerifyPixel(const IntPoint &aPoint, const mozilla::gfx::Color &aColor,
+                                uint8_t aTolerance)
 {
   uint32_t *colVal = (uint32_t*)mDataSnapshot->GetData();
 
-  uint32_t expected = RGBAPixelFromColor(aColor);
+  uint32_t expected = BGRAPixelFromColor(aColor);
   uint32_t rawActual = colVal[aPoint.y * (mDataSnapshot->Stride() / 4) + aPoint.x];
 
   if (rawActual != expected) {
     stringstream message;
-    uint32_t actb = rawActual & 0xFF;
-    uint32_t actg = (rawActual & 0xFF00) >> 8;
-    uint32_t actr = (rawActual & 0xFF0000) >> 16;
-    uint32_t acta = (rawActual & 0xFF000000) >> 24;
-    uint32_t expb = expected & 0xFF;
-    uint32_t expg = (expected & 0xFF00) >> 8;
-    uint32_t expr = (expected & 0xFF0000) >> 16;
-    uint32_t expa = (expected & 0xFF000000) >> 24;
+    int32_t actb = rawActual & 0xFF;
+    int32_t actg = (rawActual & 0xFF00) >> 8;
+    int32_t actr = (rawActual & 0xFF0000) >> 16;
+    int32_t acta = (rawActual & 0xFF000000) >> 24;
+    int32_t expb = expected & 0xFF;
+    int32_t expg = (expected & 0xFF00) >> 8;
+    int32_t expr = (expected & 0xFF0000) >> 16;
+    int32_t expa = (expected & 0xFF000000) >> 24;
 
-    message << "Verify Pixel (" << aPoint.x << "x" << aPoint.y << ") Failed."
-      " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
-      " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
+    if (abs(actb - expb) > aTolerance ||
+        abs(actg - expg) > aTolerance ||
+        abs(actr - expr) > aTolerance ||
+        abs(acta - expa) > aTolerance) {
+      message << "Verify Pixel (" << aPoint.x << "x" << aPoint.y << ") Failed."
+        " Expected (" << expr << "," << expg << "," << expb << "," << expa << ") "
+        " Got (" << actr << "," << actg << "," << actb << "," << acta << ")\n";
 
-    LogMessage(message.str());
-    mTestFailed = true;
-    return;
+      LogMessage(message.str());
+      mTestFailed = true;
+      return;
+    }
   }
 }
 
 uint32_t
-TestDrawTargetBase::RGBAPixelFromColor(const Color &aColor)
+TestDrawTargetBase::BGRAPixelFromColor(const Color &aColor)
 {
-  return uint8_t((aColor.b * 255) + 0.502f) | uint8_t((aColor.g * 255) + 0.502f) << 8 |
-         uint8_t((aColor.r * 255) + 0.502f) << 16 | uint8_t((aColor.a * 255) + 0.502f) << 24;
+  union {
+    uint32_t color;
+    uint8_t components[4];
+  };
+  components[2] = uint8_t(aColor.r * aColor.a * 255.0f + 0.5f);
+  components[1] = uint8_t(aColor.g * aColor.a * 255.0f + 0.5f);
+  components[0] = uint8_t(aColor.b * aColor.a * 255.0f + 0.5f);
+  components[3] = uint8_t(aColor.a * 255.0f + 0.5f);
+  return color;
 }
