@@ -9,6 +9,31 @@
 
 using namespace std;
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
+bool
+RunTest(TestBase::Test &aTest)
+{
+#ifdef WIN32
+  __try {
+#endif
+    // Don't try this at home! We know these are actually pointers to members
+    // of child clases, so we reinterpret cast those child class pointers to
+    // TestBase and then call the functions. Because the compiler believes
+    // these function calls are members of TestBase.
+    ((*reinterpret_cast<TestBase*>((aTest.implPointer))).*(aTest.funcCall))();
+#ifdef WIN32
+  }
+  __except (EXCEPTION_EXECUTE_HANDLER) {
+    return false;
+  }
+#endif
+
+  return true;
+}
+
 int
 TestBase::RunTests(int *aFailures)
 {
@@ -23,11 +48,10 @@ TestBase::RunTests(int *aFailures)
 
     mTestFailed = false;
 
-    // Don't try this at home! We know these are actually pointers to members
-    // of child clases, so we reinterpret cast those child class pointers to
-    // TestBase and then call the functions. Because the compiler believes
-    // these function calls are members of TestBase.
-    ((*reinterpret_cast<TestBase*>((mTests[i].implPointer))).*(mTests[i].funcCall))();
+    if (!RunTest(mTests[i])) {
+      LogMessage("Unexpected exception occured. ");
+      mTestFailed = true;
+    }
 
     if (!mTestFailed) {
       LogMessage("PASSED\n");
