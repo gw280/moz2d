@@ -99,7 +99,7 @@ public:
     if (aFilter->GetBackendType() != FILTER_BACKEND_RECORDING) {
       gfxWarning() << "Non recording filter node used with recording DrawTarget!";
     } else {
-      FilterNode *finalNode = static_cast<FilterNodeRecording*>(aFilter)->mFinalFilterNode;
+      finalNode = static_cast<FilterNodeRecording*>(aFilter)->mFinalFilterNode;
     }
 
     mRecorder->RecordEvent(RecordedFilterNodeSetInput(this, aIndex, aFilter));
