@@ -10,8 +10,9 @@
 #include "2D.h"
 #include "Tools.h"
 #include "Blur.h"
-#include <set>
+#include <map>
 #include "SVGTurbulenceRenderer.h"
+#include "FilterProcessing.h"
 #include "SIMD.h"
 
 // #define DEBUG_DUMP_SURFACES
@@ -34,11 +35,6 @@ DumpAsPNG(SourceSurface* aSurface)
 } // namespace gfx
 } // namespace mozilla
 #endif
-
-const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_B = 0;
-const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_G = 1;
-const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_R = 2;
-const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_A = 3;
 
 namespace mozilla {
 namespace gfx {
@@ -273,70 +269,6 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
       destData += destStride;
     }
   }
-}
-
-static TemporaryRef<DataSourceSurface>
-ExtractAlpha(DataSourceSurface* aSource)
-{
-  IntSize size = aSource->GetSize();
-  RefPtr<DataSourceSurface> alpha = Factory::CreateDataSourceSurface(size, FORMAT_A8);
-  int32_t sourceStride = aSource->Stride();
-  uint8_t* sourceData = aSource->GetData();
-  int32_t alphaStride = alpha->Stride();
-  uint8_t* alphaData = alpha->GetData();
-
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    for (int32_t y = 0; y < size.height; y++) {
-      for (int32_t x = 0; x < size.width; x += 16) {
-        // Process 16 pixels at a time.
-        int32_t sourceIndex = y * sourceStride + 4 * x;
-        int32_t targetIndex = y * alphaStride + x;
-
-        __m128i bgrabgrabgrabgra1 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra2 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra3 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra4 = simd::From16<__m128i>(0);
-
-        bgrabgrabgrabgra1 = simd::Load8<__m128i>(&sourceData[sourceIndex]);
-        if (4 * (x + 4) <= sourceStride) {
-          bgrabgrabgrabgra2 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 4]);
-        }
-        if (4 * (x + 8) <= sourceStride) {
-          bgrabgrabgrabgra3 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 8]);
-        }
-        if (4 * (x + 12) <= sourceStride) {
-          bgrabgrabgrabgra4 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 12]);
-        }
-
-        __m128i bbggrraabbggrraa1 = simd::InterleaveLo8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
-        __m128i bbggrraabbggrraa2 = simd::InterleaveHi8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
-        __m128i bbggrraabbggrraa3 = simd::InterleaveLo8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
-        __m128i bbggrraabbggrraa4 = simd::InterleaveHi8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
-        __m128i bbbbggggrrrraaaa1 = simd::InterleaveLo8(bbggrraabbggrraa1, bbggrraabbggrraa3);
-        __m128i bbbbggggrrrraaaa2 = simd::InterleaveHi8(bbggrraabbggrraa1, bbggrraabbggrraa3);
-        __m128i bbbbggggrrrraaaa3 = simd::InterleaveLo8(bbggrraabbggrraa2, bbggrraabbggrraa4);
-        __m128i bbbbggggrrrraaaa4 = simd::InterleaveHi8(bbggrraabbggrraa2, bbggrraabbggrraa4);
-        __m128i rrrrrrrraaaaaaaa1 = simd::InterleaveHi8(bbbbggggrrrraaaa1, bbbbggggrrrraaaa3);
-        __m128i rrrrrrrraaaaaaaa2 = simd::InterleaveHi8(bbbbggggrrrraaaa2, bbbbggggrrrraaaa4);
-        __m128i aaaaaaaaaaaaaaaa = simd::InterleaveHi8(rrrrrrrraaaaaaaa1, rrrrrrrraaaaaaaa2);
-
-        simd::Store8(&alphaData[targetIndex], aaaaaaaaaaaaaaaa);
-      }
-    }
-    return alpha;
-  }
-#endif
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t sourceIndex = y * sourceStride + 4 * x;
-      int32_t targetIndex = y * alphaStride + x;
-      alphaData[targetIndex] = sourceData[sourceIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-    }
-  }
-
-  return alpha;
 }
 
 TemporaryRef<DataSourceSurface>
@@ -718,8 +650,6 @@ FilterNodeSoftware::Draw(DrawTarget* aDrawTarget,
 TemporaryRef<DataSourceSurface>
 FilterNodeSoftware::GetOutput(const IntRect &aRect)
 {
-  return Render(aRect);
-
   if (aRect.IsEmpty()) {
     return nullptr;
   }
@@ -771,91 +701,6 @@ FilterNodeSoftware::RequestInputRect(uint32_t aInputEnumIndex, const IntRect &aR
   filter->RequestRect(filter->GetOutputRectInRect(aRect));
 }
 
-template<typename u8x16_t>
-TemporaryRef<DataSourceSurface>
-ConvertToB8G8R8A8(SourceSurface* aSurface)
-{
-  IntSize size = aSurface->GetSize();
-  RefPtr<DataSourceSurface> input = aSurface->GetDataSurface();
-  RefPtr<DataSourceSurface> output =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  uint8_t *inputData = input->GetData();
-  uint8_t *outputData = output->GetData();
-  int32_t inputStride = input->Stride();
-  int32_t outputStride = output->Stride();
-  switch (input->GetFormat()) {
-    case FORMAT_B8G8R8A8:
-      output = input;
-      break;
-    case FORMAT_B8G8R8X8:
-      for (int32_t y = 0; y < size.height; y++) {
-        for (int32_t x = 0; x < size.width; x++) {
-          int32_t inputIndex = y * inputStride + 4 * x;
-          int32_t outputIndex = y * outputStride + 4 * x;
-          outputData[outputIndex + 0] = inputData[inputIndex + 0];
-          outputData[outputIndex + 1] = inputData[inputIndex + 1];
-          outputData[outputIndex + 2] = inputData[inputIndex + 2];
-          outputData[outputIndex + 3] = 255;
-        }
-      }
-      break;
-    case FORMAT_R8G8B8A8:
-      for (int32_t y = 0; y < size.height; y++) {
-        for (int32_t x = 0; x < size.width; x++) {
-          int32_t inputIndex = y * inputStride + 4 * x;
-          int32_t outputIndex = y * outputStride + 4 * x;
-          outputData[outputIndex + 2] = inputData[inputIndex + 0];
-          outputData[outputIndex + 1] = inputData[inputIndex + 1];
-          outputData[outputIndex + 0] = inputData[inputIndex + 2];
-          outputData[outputIndex + 3] = inputData[inputIndex + 3];
-        }
-      }
-      break;
-    case FORMAT_R8G8B8X8:
-      for (int32_t y = 0; y < size.height; y++) {
-        for (int32_t x = 0; x < size.width; x++) {
-          int32_t inputIndex = y * inputStride + 4 * x;
-          int32_t outputIndex = y * outputStride + 4 * x;
-          outputData[outputIndex + 2] = inputData[inputIndex + 0];
-          outputData[outputIndex + 1] = inputData[inputIndex + 1];
-          outputData[outputIndex + 0] = inputData[inputIndex + 2];
-          outputData[outputIndex + 3] = 255;
-        }
-      }
-      break;
-    case FORMAT_A8:
-      for (int32_t y = 0; y < size.height; y++) {
-        for (int32_t x = 0; x < size.width; x += 16) {
-          int32_t inputIndex = y * inputStride + x;
-          int32_t outputIndex = y * outputStride + 4 * x;
-          u8x16_t p1To16 = simd::Load8<u8x16_t>(&inputData[inputIndex]);
-          u8x16_t zero = simd::FromZero8<u8x16_t>();
-          u8x16_t p1To8 = simd::InterleaveLo8(zero, p1To16);
-          u8x16_t p9To16 = simd::InterleaveHi8(zero, p1To16);
-          u8x16_t p1To4 = simd::InterleaveLo8(zero, p1To8);
-          u8x16_t p5To8 = simd::InterleaveHi8(zero, p1To8);
-          u8x16_t p9To12 = simd::InterleaveLo8(zero, p9To16);
-          u8x16_t p13To16 = simd::InterleaveHi8(zero, p9To16);
-          simd::Store8(&outputData[outputIndex], p1To4);
-          if (outputStride > (x + 4) * 4) {
-            simd::Store8(&outputData[outputIndex+16], p5To8);
-          }
-          if (outputStride > (x + 8) * 4) {
-            simd::Store8(&outputData[outputIndex+32], p9To12);
-          }
-          if (outputStride > (x + 12) * 4) {
-            simd::Store8(&outputData[outputIndex+48], p13To16);
-          }
-        }
-      }
-      break;
-    default:
-      output = nullptr;
-      break;
-  }
-  return output;
-}
-
 SurfaceFormat
 FilterNodeSoftware::DesiredFormat(SurfaceFormat aCurrentFormat,
                                   FormatHint aFormatHint)
@@ -870,7 +715,8 @@ TemporaryRef<DataSourceSurface>
 FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
                                               const IntRect& aRect,
                                               FormatHint aFormatHint,
-                                              ConvolveMatrixEdgeMode aEdgeMode)
+                                              ConvolveMatrixEdgeMode aEdgeMode,
+                                              const IntRect *aTransparencyPaddedSourceRect)
 {
 #ifdef DEBUG_DUMP_SURFACES
   printf("<h1>GetInputDataSourceSurface with aRect: %d, %d, %d, %d</h1>\n",
@@ -916,6 +762,12 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
     return nullptr;
   }
 
+  if (aTransparencyPaddedSourceRect && !aTransparencyPaddedSourceRect->IsEmpty()) {
+    IntRect srcRect = aTransparencyPaddedSourceRect->Intersect(aRect);
+    surface = GetDataSurfaceInRect(surface, surfaceRect, srcRect, EDGE_MODE_NONE);
+    surfaceRect = srcRect;
+  }
+
   RefPtr<DataSourceSurface> result =
     GetDataSurfaceInRect(surface, surfaceRect, aRect, aEdgeMode);
 
@@ -935,13 +787,7 @@ FilterNodeSoftware::GetInputDataSourceSurface(uint32_t aInputEnumIndex,
   SurfaceFormat currentFormat = result->GetFormat();
   if (DesiredFormat(currentFormat, aFormatHint) == FORMAT_B8G8R8A8 &&
       currentFormat != FORMAT_B8G8R8A8) {
-    if (Factory::HasSSE2()) {
-#ifdef COMPILE_WITH_SSE2
-      result = ConvertToB8G8R8A8<__m128i>(result);
-#endif
-    } else {
-      result = ConvertToB8G8R8A8<simd::Scalaru8x16_t>(result);
-    }
+    result = FilterProcessing::ConvertToB8G8R8A8(result);
   }
 
 #ifdef DEBUG_DUMP_SURFACES
@@ -1089,271 +935,6 @@ FilterNodeBlendSoftware::SetAttribute(uint32_t aIndex, uint32_t aBlendMode)
   Invalidate();
 }
 
-template<typename i16x8_t, typename i32x4_t, uint32_t aBlendMode>
-static void
-BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
-                               i16x8_t dest, i16x8_t destAlpha,
-                               i32x4_t& blendedComponent1, i32x4_t& blendedComponent2)
-{
-  i16x8_t x255 = simd::From16<i16x8_t>(255);
-
-  switch (aBlendMode) {
-
-    case BLEND_MODE_MULTIPLY:
-    {
-      // val = ((255 - destAlpha) * source + (255 - sourceAlpha + source) * dest);
-      i16x8_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
-      i16x8_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
-      i16x8_t twoFiftyFiveMinusSourceAlphaPlusSource = simd::Add16(twoFiftyFiveMinusSourceAlpha, source);
-
-      i16x8_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
-      i16x8_t leftFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
-      blendedComponent1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(sourceInterleavedWithDest1, leftFactor1);
-      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
-
-      i16x8_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
-      i16x8_t leftFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
-      blendedComponent2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(sourceInterleavedWithDest2, leftFactor2);
-      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
-
-      break;
-    }
-
-    case BLEND_MODE_SCREEN:
-    {
-      // val = 255 * (source + dest) + (0 - dest) * source;
-      i16x8_t sourcePlusDest = simd::Add16(source, dest);
-      i16x8_t zeroMinusDest = simd::Sub16(simd::From16<i16x8_t>(0), dest);
-
-      i16x8_t twoFiftyFiveInterleavedWithZeroMinusDest1 = simd::InterleaveLo16(x255, zeroMinusDest);
-      i16x8_t sourcePlusDestInterleavedWithSource1 = simd::InterleaveLo16(sourcePlusDest, source);
-      blendedComponent1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithZeroMinusDest1, sourcePlusDestInterleavedWithSource1);
-      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
-
-      i16x8_t twoFiftyFiveInterleavedWithZeroMinusDest2 = simd::InterleaveHi16(x255, zeroMinusDest);
-      i16x8_t sourcePlusDestInterleavedWithSource2 = simd::InterleaveHi16(sourcePlusDest, source);
-      blendedComponent2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithZeroMinusDest2, sourcePlusDestInterleavedWithSource2);
-      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
-
-      break;
-    }
-
-    case BLEND_MODE_DARKEN:
-    case BLEND_MODE_LIGHTEN:
-    {
-      // Darken:
-      // val = min((255 - destAlpha) * source + 255                 * dest,
-      //           255               * source + (255 - sourceAlpha) * dest);
-      //
-      // Lighten:
-      // val = max((255 - destAlpha) * source + 255                 * dest,
-      //           255               * source + (255 - sourceAlpha) * dest);
-
-      i16x8_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
-      i16x8_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
-
-      i16x8_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, x255);
-      i16x8_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1 = simd::InterleaveLo16(x255, twoFiftyFiveMinusSourceAlpha);
-      i16x8_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
-      i32x4_t product1_1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1, sourceInterleavedWithDest1);
-      i32x4_t product1_2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1, sourceInterleavedWithDest1);
-      blendedComponent1 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product1_1, product1_2) : simd::Max32(product1_1, product1_2);
-      blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
-
-      i16x8_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, x255);
-      i16x8_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2 = simd::InterleaveHi16(x255, twoFiftyFiveMinusSourceAlpha);
-      i16x8_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
-      i32x4_t product2_1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2, sourceInterleavedWithDest2);
-      i32x4_t product2_2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2, sourceInterleavedWithDest2);
-      blendedComponent2 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product2_1, product2_2) : simd::Max32(product2_1, product2_2);
-      blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
-
-      break;
-    }
-
-  }
-}
-
-template<typename i16x8_t, typename i32x4_t>
-static i32x4_t
-BlendAlphaOfFourPixels(i16x8_t s_rrrraaaa1234, i16x8_t d_rrrraaaa1234)
-{
-  i16x8_t destAlpha = simd::InterleaveHi16(d_rrrraaaa1234, simd::From16<i16x8_t>(2 * 255));
-  i16x8_t sourceAlpha = simd::InterleaveHi16(s_rrrraaaa1234, simd::From16<i16x8_t>(0));
-  i16x8_t f1 = simd::Sub16(destAlpha, simd::From16<i16x8_t>(255));
-  i16x8_t f2 = simd::Sub16(simd::From16<i16x8_t>(255), sourceAlpha);
-  return simd::FastDivideBy255(simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(f1, f2));
-}
-
-template<typename u8x16_t, typename i16x8_t>
-static void
-UnpackAndShuffleComponents(u8x16_t bgrabgrabgrabgra1234,
-                           i16x8_t& bbbbgggg1234, i16x8_t& rrrraaaa1234)
-{
-  i16x8_t bgrabgra12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(bgrabgrabgrabgra1234);
-  i16x8_t bgrabgra34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(bgrabgrabgrabgra1234);
-  i16x8_t bbggrraa13 = simd::InterleaveLo16(bgrabgra12, bgrabgra34);
-  i16x8_t bbggrraa24 = simd::InterleaveHi16(bgrabgra12, bgrabgra34);
-  bbbbgggg1234 = simd::InterleaveLo16(bbggrraa13, bbggrraa24);
-  rrrraaaa1234 = simd::InterleaveHi16(bbggrraa13, bbggrraa24);
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
-static u8x16_t
-ShuffleAndPackComponents(i32x4_t bbbb1234, i32x4_t gggg1234,
-                         i32x4_t rrrr1234, i32x4_t aaaa1234)
-{
-  i16x8_t bbbbgggg1234 = simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(bbbb1234, gggg1234);
-  i16x8_t rrrraaaa1234 = simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(rrrr1234, aaaa1234);
-  i16x8_t brbrbrbr1234 = simd::InterleaveLo16(bbbbgggg1234, rrrraaaa1234);
-  i16x8_t gagagaga1234 = simd::InterleaveHi16(bbbbgggg1234, rrrraaaa1234);
-  i16x8_t bgrabgra12 = simd::InterleaveLo16(brbrbrbr1234, gagagaga1234);
-  i16x8_t bgrabgra34 = simd::InterleaveHi16(brbrbrbr1234, gagagaga1234);
-  return simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(bgrabgra12, bgrabgra34);
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t, BlendMode mode>
-static TemporaryRef<DataSourceSurface>
-ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
-{
-  IntSize size = aInput1->GetSize();
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* source1Data = aInput1->GetData();
-  uint8_t* source2Data = aInput2->GetData();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-  int32_t source1Stride = aInput1->Stride();
-  int32_t source2Stride = aInput2->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x += 4) {
-      int32_t targetIndex = y * targetStride + 4 * x;
-      int32_t source1Index = y * source1Stride + 4 * x;
-      int32_t source2Index = y * source2Stride + 4 * x;
-
-      u8x16_t s1234 = simd::Load8<u8x16_t>(&source2Data[source2Index]);
-      u8x16_t d1234 = simd::Load8<u8x16_t>(&source1Data[source1Index]);
-
-      i16x8_t s_bbbbgggg1234, s_rrrraaaa1234;
-      i16x8_t d_bbbbgggg1234, d_rrrraaaa1234;
-      UnpackAndShuffleComponents(s1234, s_bbbbgggg1234, s_rrrraaaa1234);
-      UnpackAndShuffleComponents(d1234, d_bbbbgggg1234, d_rrrraaaa1234);
-      // Shuffle for double high
-      i16x8_t s_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(s_rrrraaaa1234);
-      i16x8_t d_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(d_rrrraaaa1234);
-      i32x4_t blendedB, blendedG, blendedR, blendedA;
-      BlendTwoComponentsOfFourPixels<i16x8_t,i32x4_t,mode>(s_bbbbgggg1234, s_aaaaaaaa1234, d_bbbbgggg1234, d_aaaaaaaa1234, blendedB, blendedG);
-      BlendTwoComponentsOfFourPixels<i16x8_t,i32x4_t,mode>(s_rrrraaaa1234, s_aaaaaaaa1234, d_rrrraaaa1234, d_aaaaaaaa1234, blendedR, blendedA);
-      blendedA = BlendAlphaOfFourPixels<i16x8_t,i32x4_t>(s_rrrraaaa1234, d_rrrraaaa1234);
-
-      u8x16_t result1234 = ShuffleAndPackComponents<i32x4_t,i16x8_t,u8x16_t>(blendedB, blendedG, blendedR, blendedA);
-      simd::Store8(&targetData[targetIndex], result1234);
-    }
-  }
-
-  return target;
-}
-
-template<BlendMode aBlendMode>
-static TemporaryRef<DataSourceSurface>
-ApplyBlending_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
-{
-  IntSize size = aInput1->GetSize();
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* source1Data = aInput1->GetData();
-  uint8_t* source2Data = aInput2->GetData();
-  uint8_t* targetData = target->GetData();
-  uint32_t targetStride = target->Stride();
-  uint32_t source1Stride = aInput1->Stride();
-  uint32_t source2Stride = aInput2->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      uint32_t targetIndex = y * targetStride + 4 * x;
-      uint32_t source1Index = y * source1Stride + 4 * x;
-      uint32_t source2Index = y * source2Stride + 4 * x;
-      uint32_t qa = source1Data[source1Index + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint32_t qb = source2Data[source2Index + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      for (int32_t i = std::min(B8G8R8A8_COMPONENT_BYTEOFFSET_B, B8G8R8A8_COMPONENT_BYTEOFFSET_R);
-           i <= std::max(B8G8R8A8_COMPONENT_BYTEOFFSET_B, B8G8R8A8_COMPONENT_BYTEOFFSET_R); i++) {
-        uint32_t ca = source1Data[source1Index + i];
-        uint32_t cb = source2Data[source2Index + i];
-        uint32_t val;
-        switch (aBlendMode) {
-          case BLEND_MODE_MULTIPLY:
-            val = ((255 - qa) * cb + (255 - qb + cb) * ca);
-            break;
-          case BLEND_MODE_SCREEN:
-            val = 255 * (cb + ca) - ca * cb;
-            break;
-          case BLEND_MODE_DARKEN:
-            val = umin((255 - qa) * cb + 255 * ca,
-                       (255 - qb) * ca + 255 * cb);
-            break;
-          case BLEND_MODE_LIGHTEN:
-            val = umax((255 - qa) * cb + 255 * ca,
-                       (255 - qb) * ca + 255 * cb);
-            break;
-          default:
-            MOZ_CRASH();
-        }
-        val = umin(FastDivideBy255<unsigned>(val), 255U);
-        targetData[targetIndex + i] = static_cast<uint8_t>(val);
-      }
-      uint32_t alpha = 255 * 255 - (255 - qa) * (255 - qb);
-      targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
-        FastDivideBy255<uint8_t>(alpha);
-    }
-  }
-
-  return target;
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
-static TemporaryRef<DataSourceSurface>
-ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
-                      BlendMode aBlendMode)
-{
-  switch (aBlendMode) {
-    case BLEND_MODE_MULTIPLY:
-      return ApplyBlending_SIMD<i32x4_t,i16x8_t,u8x16_t, BLEND_MODE_MULTIPLY>(aInput1, aInput2);
-    case BLEND_MODE_SCREEN:
-      return ApplyBlending_SIMD<i32x4_t,i16x8_t,u8x16_t, BLEND_MODE_SCREEN>(aInput1, aInput2);
-    case BLEND_MODE_DARKEN:
-      return ApplyBlending_SIMD<i32x4_t,i16x8_t,u8x16_t, BLEND_MODE_DARKEN>(aInput1, aInput2);
-    case BLEND_MODE_LIGHTEN:
-      return ApplyBlending_SIMD<i32x4_t,i16x8_t,u8x16_t, BLEND_MODE_LIGHTEN>(aInput1, aInput2);
-  }
-}
-
-static TemporaryRef<DataSourceSurface>
-ApplyBlending_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
-                        BlendMode aBlendMode)
-{
-  switch (aBlendMode) {
-    case BLEND_MODE_MULTIPLY:
-      return ApplyBlending_Scalar<BLEND_MODE_MULTIPLY>(aInput1, aInput2);
-    case BLEND_MODE_SCREEN:
-      return ApplyBlending_Scalar<BLEND_MODE_SCREEN>(aInput1, aInput2);
-    case BLEND_MODE_DARKEN:
-      return ApplyBlending_Scalar<BLEND_MODE_DARKEN>(aInput1, aInput2);
-    case BLEND_MODE_LIGHTEN:
-      return ApplyBlending_Scalar<BLEND_MODE_LIGHTEN>(aInput1, aInput2);
-    default:
-      return nullptr;
-  }
-}
-
 TemporaryRef<DataSourceSurface>
 FilterNodeBlendSoftware::Render(const IntRect& aRect)
 {
@@ -1365,12 +946,7 @@ FilterNodeBlendSoftware::Render(const IntRect& aRect)
     return nullptr;
   }
 
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    return ApplyBlending_SIMD<__m128i,__m128i,__m128i>(input1, input2, mBlendMode);
-  }
-#endif
-  return ApplyBlending_Scalar(input1, input2, mBlendMode);
+  return FilterProcessing::ApplyBlending(input1, input2, mBlendMode);
 }
 
 void
@@ -1419,170 +995,11 @@ FilterNodeMorphologySoftware::SetAttribute(uint32_t aIndex,
   Invalidate();
 }
 
-template<MorphologyOperator Operator, typename i16x8_t>
-static i16x8_t
-Morph16(i16x8_t a, i16x8_t b)
-{
-  return Operator == MORPHOLOGY_OPERATOR_ERODE ?
-    simd::Min16(a, b) : simd::Max16(a, b);
-}
-
-template<MorphologyOperator op, typename i16x8_t, typename u8x16_t>
-static void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
-                                      uint8_t* aDestData, int32_t aDestStride,
-                                      const IntRect& aDestRect, int32_t aRadius)
-{
-  int32_t kernelSize = aRadius + 1 + aRadius;
-  MOZ_ASSERT(kernelSize >= 3, "don't call this with aRadius <= 0");
-  MOZ_ASSERT(kernelSize % 4 == 1 || kernelSize % 4 == 3);
-  int32_t completeKernelSizeForFourPixels = kernelSize + 3;
-  MOZ_ASSERT(completeKernelSizeForFourPixels % 4 == 0 ||
-             completeKernelSizeForFourPixels % 4 == 2);
-  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++) {
-    int32_t kernelStartX = aDestRect.x - aRadius;
-    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4, kernelStartX += 4) {
-      int32_t sourceIndex = y * aSourceStride + 4 * kernelStartX;
-      u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t m12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t m34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
-
-      for (int32_t i = 4; i < completeKernelSizeForFourPixels; i += 4) {
-        i16x8_t p23 = simd::GetMiddleTwo16From8(p1234);
-        i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
-        u8x16_t p5678 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex + 4 * i]);
-        i16x8_t p45 = simd::GetOverlappingTwo16From8(p1234, p5678);
-        i16x8_t p56 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p5678);
-        m12 = Morph16<op,i16x8_t>(m12, p23);
-        m12 = Morph16<op,i16x8_t>(m12, p34);
-        m34 = Morph16<op,i16x8_t>(m34, p45);
-        m34 = Morph16<op,i16x8_t>(m34, p56);
-        if (completeKernelSizeForFourPixels % 4 == 0) {
-          i16x8_t p67 = simd::GetMiddleTwo16From8(p5678);
-          i16x8_t p78 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p5678);
-          m12 = Morph16<op,i16x8_t>(m12, p45);
-          m12 = Morph16<op,i16x8_t>(m12, p56);
-          m34 = Morph16<op,i16x8_t>(m34, p67);
-          m34 = Morph16<op,i16x8_t>(m34, p78);
-        }
-        p1234 = p5678;
-      }
-
-      u8x16_t m1234 = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(m12, m34);
-      int32_t destIndex = y * aDestStride + 4 * x;
-      simd::Store8(&aDestData[destIndex], m1234);
-    }
-  }
-}
-
-template<MorphologyOperator Operator>
-static void ApplyMorphologyHorizontal_Scalar(uint8_t* aSourceData, int32_t aSourceStride,
-                                             uint8_t* aDestData, int32_t aDestStride,
-                                             const IntRect& aDestRect, int32_t aRadius)
-{
-  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++) {
-    int32_t startX = aDestRect.x - aRadius;
-    int32_t endX = aDestRect.x + aRadius;
-    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x++, startX++, endX++) {
-      int32_t sourceIndex = y * aSourceStride + 4 * startX;
-      uint8_t u[4];
-      for (size_t i = 0; i < 4; i++) {
-        u[i] = aSourceData[sourceIndex + i];
-      }
-      sourceIndex += 4;
-      for (int32_t ix = startX + 1; ix <= endX; ix++, sourceIndex += 4) {
-        for (size_t i = 0; i < 4; i++) {
-          if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-            u[i] = umin(u[i], aSourceData[sourceIndex + i]);
-          } else {
-            u[i] = umax(u[i], aSourceData[sourceIndex + i]);
-          }
-        }
-      }
-
-      int32_t destIndex = y * aDestStride + 4 * x;
-      for (size_t i = 0; i < 4; i++) {
-        aDestData[destIndex+i] = u[i];
-      }
-    }
-  }
-}
-
-template<MorphologyOperator Operator, typename i16x8_t, typename u8x16_t>
-static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
-                                         uint8_t* aDestData, int32_t aDestStride,
-                                         const IntRect& aDestRect, int32_t aRadius)
-{
-  int32_t startY = aDestRect.y - aRadius;
-  int32_t endY = aDestRect.y + aRadius;
-  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++, startY++, endY++) {
-    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4) {
-      int32_t sourceIndex = startY * aSourceStride + 4 * x;
-      u8x16_t u = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t u_lo = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(u);
-      i16x8_t u_hi = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(u);
-      sourceIndex += aSourceStride;
-      for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
-        u8x16_t u2 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-        i16x8_t u2_lo = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(u2);
-        i16x8_t u2_hi = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(u2);
-        if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-          u_lo = simd::Min16(u_lo, u2_lo);
-          u_hi = simd::Min16(u_hi, u2_hi);
-        } else {
-          u_lo = simd::Max16(u_lo, u2_lo);
-          u_hi = simd::Max16(u_hi, u2_hi);
-        }
-      }
-
-      u = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(u_lo, u_hi);
-      int32_t destIndex = y * aDestStride + 4 * x;
-      simd::Store8(&aDestData[destIndex], u);
-    }
-  }
-}
-
-template<MorphologyOperator Operator>
-static void ApplyMorphologyVertical_Scalar(uint8_t* aSourceData, int32_t aSourceStride,
-                                           uint8_t* aDestData, int32_t aDestStride,
-                                           const IntRect& aDestRect, int32_t aRadius)
-{
-  int32_t startY = aDestRect.y - aRadius;
-  int32_t endY = aDestRect.y + aRadius;
-  for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++, startY++, endY++) {
-    for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x++) {
-      int32_t sourceIndex = startY * aSourceStride + 4 * x;
-      uint8_t u[4];
-      for (size_t i = 0; i < 4; i++) {
-        u[i] = aSourceData[sourceIndex + i];
-      }
-      sourceIndex += aSourceStride;
-      for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
-        for (size_t i = 0; i < 4; i++) {
-          if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-            u[i] = umin(u[i], aSourceData[sourceIndex + i]);
-          } else {
-            u[i] = umax(u[i], aSourceData[sourceIndex + i]);
-          }
-        }
-      }
-
-      int32_t destIndex = y * aDestStride + 4 * x;
-      for (size_t i = 0; i < 4; i++) {
-        aDestData[destIndex+i] = u[i];
-      }
-    }
-  }
-}
-
-template<MorphologyOperator Operator>
 static TemporaryRef<DataSourceSurface>
 ApplyMorphology(const IntRect& aSourceRect, DataSourceSurface* aInput,
-                const IntRect& aDestRect, int32_t rx, int32_t ry)
+                const IntRect& aDestRect, int32_t rx, int32_t ry,
+                MorphologyOperator aOperator)
 {
-  static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
-                Operator == MORPHOLOGY_OPERATOR_DILATE,
-                "unexpected morphology operator");
-
   IntRect srcRect = aSourceRect - aDestRect.TopLeft();
   IntRect destRect = aDestRect - aDestRect.TopLeft();
   IntRect tmpRect(destRect.x, srcRect.y, destRect.width, srcRect.height);
@@ -1609,15 +1026,8 @@ ApplyMorphology(const IntRect& aSourceRect, DataSourceSurface* aInput,
     uint8_t* tmpData = tmp->GetData();
     tmpData += DataOffset(tmp, destRect.TopLeft() - tmpRect.TopLeft());
 
-    if (Factory::HasSSE2()) {
-#ifdef COMPILE_WITH_SSE2
-      ApplyMorphologyHorizontal_SIMD<Operator,__m128i,__m128i>(
-        sourceData, sourceStride, tmpData, tmpStride, tmpRect, rx);
-#endif
-    } else {
-      ApplyMorphologyHorizontal_Scalar<Operator>(
-        sourceData, sourceStride, tmpData, tmpStride, tmpRect, rx);
-    }
+    FilterProcessing::ApplyMorphologyHorizontal(
+      sourceData, sourceStride, tmpData, tmpStride, tmpRect, rx, aOperator);
   }
 
   RefPtr<DataSourceSurface> dest;
@@ -1636,15 +1046,8 @@ ApplyMorphology(const IntRect& aSourceRect, DataSourceSurface* aInput,
     int32_t destStride = dest->Stride();
     uint8_t* destData = dest->GetData();
 
-    if (Factory::HasSSE2()) {
-#ifdef COMPILE_WITH_SSE2
-      ApplyMorphologyVertical_SIMD<Operator,__m128i,__m128i>(
-        tmpData, tmpStride, destData, destStride, destRect, ry);
- #endif
-    } else {
-      ApplyMorphologyVertical_Scalar<Operator>(
-        tmpData, tmpStride, destData, destStride, destRect, ry);
-    }
+    FilterProcessing::ApplyMorphologyVertical(
+      tmpData, tmpStride, destData, destStride, destRect, ry, aOperator);
   }
 
   return dest;
@@ -1669,11 +1072,7 @@ FilterNodeMorphologySoftware::Render(const IntRect& aRect)
     return input;
   }
 
-  if (mOperator == MORPHOLOGY_OPERATOR_ERODE) {
-    return ApplyMorphology<MORPHOLOGY_OPERATOR_ERODE>(srcRect, input, aRect, rx, ry);
-  } else {
-    return ApplyMorphology<MORPHOLOGY_OPERATOR_DILATE>(srcRect, input, aRect, rx, ry);
-  }
+  return ApplyMorphology(srcRect, input, aRect, rx, ry, mOperator);
 }
 
 void
@@ -1716,136 +1115,61 @@ FilterNodeColorMatrixSoftware::SetAttribute(uint32_t aIndex,
   Invalidate();
 }
 
-static int32_t
-ClampToNonZero(int32_t a)
+void
+FilterNodeColorMatrixSoftware::SetAttribute(uint32_t aIndex,
+                                            uint32_t aAlphaMode)
 {
-  return a * (a >= 0);
+  MOZ_ASSERT(aIndex == ATT_COLOR_MATRIX_ALPHA_MODE);
+  mAlphaMode = (AlphaMode)aAlphaMode;
+  Invalidate();
 }
 
-template<typename i32x4_t, typename i16x8_t>
-static i32x4_t
-ColorMatrixMultiply(i16x8_t p, i16x8_t rows_bg, i16x8_t rows_ra, i32x4_t bias)
-{
-  // int16_t p[8] == { b, g, r, a, b, g, r, a }.
-  // int16_t rows_bg[8] == { bB, bG, bR, bA, gB, gG, gR, gA }.
-  // int16_t rows_ra[8] == { rB, rG, rR, rA, aB, aG, aR, aA }.
-  // int32_t bias[4] == { _B, _G, _R, _A }.
-
-  i32x4_t sum = bias;
-
-  // int16_t bg[8] = { b, g, b, g, b, g, b, g };
-  i16x8_t bg = simd::ShuffleHi16<1,0,1,0>(simd::ShuffleLo16<1,0,1,0>(p));
-  // int32_t prodsum_bg[4] = { b * bB + g * gB, b * bG + g * gG, b * bR + g * gR, b * bA + g * gA }
-  i32x4_t prodsum_bg = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(bg, rows_bg);
-  sum = simd::Add32(sum, prodsum_bg);
-
-  // uint16_t ra[8] = { r, a, r, a, r, a, r, a };
-  i16x8_t ra = simd::ShuffleHi16<3,2,3,2>(simd::ShuffleLo16<3,2,3,2>(p));
-  // int32_t prodsum_ra[4] = { r * rB + a * aB, r * rG + a * aG, r * rR + a * aR, r * rA + a * aA }
-  i32x4_t prodsum_ra = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(ra, rows_ra);
-  sum = simd::Add32(sum, prodsum_ra);
-
-  // int32_t sum[4] == { b * bB + g * gB + r * rB + a * aB + _B, ... }.
-  return sum;
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
 static TemporaryRef<DataSourceSurface>
-ApplyColorMatrixFilter(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
+Premultiply(DataSourceSurface* aSurface)
 {
-  IntSize size = aInput->GetSize();
+  if (aSurface->GetFormat() == FORMAT_A8) {
+    return aSurface;
+  }
+
+  IntSize size = aSurface->GetSize();
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
   if (!target) {
     return nullptr;
   }
 
-  uint8_t* sourceData = aInput->GetData();
+  uint8_t* inputData = aSurface->GetData();
+  int32_t inputStride = aSurface->Stride();
   uint8_t* targetData = target->GetData();
-  int32_t sourceStride = aInput->Stride();
   int32_t targetStride = target->Stride();
 
-  const int16_t factor = 128;
-  const int16_t floatElementMax = INT16_MAX / factor; // 255
-  static_assert((floatElementMax * factor) <= INT16_MAX, "badly chosen float-to-int scale");
+  FilterProcessing::DoPremultiplicationCalculation(
+    size, targetData, targetStride, inputData, inputStride);
 
-  const Float *floats = &aMatrix._11;
-  union {
-    int16_t rows_bgra[2][8];
-    i16x8_t rows_bgra_v[2];
-  };
-  union {
-    int32_t rowBias[4];
-    i32x4_t rowsBias_v;
-  };
+  return target;
+}
 
-  ptrdiff_t componentOffsets[4] = {
-    B8G8R8A8_COMPONENT_BYTEOFFSET_R,
-    B8G8R8A8_COMPONENT_BYTEOFFSET_G,
-    B8G8R8A8_COMPONENT_BYTEOFFSET_B,
-    B8G8R8A8_COMPONENT_BYTEOFFSET_A
-  };
-
-  // We store the color matrix in rows_bgra in the following format:
-  // { bB, bG, bR, bA, gB, gG, gR, gA }.
-  // { bB, gB, bG, gG, bR, gR, bA, gA }
-  // The way this is interleaved allows us to use the intrinsic _mm_madd_epi16
-  // which works especially well for our use case.
-  for (size_t rowIndex = 0; rowIndex < 4; rowIndex++) {
-    for (size_t colIndex = 0; colIndex < 4; colIndex++) {
-      const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
-      Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -floatElementMax, floatElementMax);
-      int16_t scaledIntMatrixElement = int16_t(clampedFloatMatrixElement * factor + 0.5);
-      int8_t bg_or_ra = componentOffsets[rowIndex] / 2;
-      int8_t g_or_a = componentOffsets[rowIndex] % 2;
-      int8_t B_or_G_or_R_or_A = componentOffsets[colIndex];
-      rows_bgra[bg_or_ra][B_or_G_or_R_or_A * 2 + g_or_a] = scaledIntMatrixElement;
-    }
+static TemporaryRef<DataSourceSurface>
+Unpremultiply(DataSourceSurface* aSurface)
+{
+  if (aSurface->GetFormat() == FORMAT_A8) {
+    return aSurface;
   }
 
-  Float biasMax = (INT32_MAX - 4 * 255 * INT16_MAX) / (factor * 255);
-  for (size_t colIndex = 0; colIndex < 4; colIndex++) {
-    size_t rowIndex = 4;
-    const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
-    Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -biasMax, biasMax);
-    int32_t scaledIntMatrixElement = int32_t(clampedFloatMatrixElement * factor * 255 + 0.5);
-    rowBias[componentOffsets[colIndex]] = scaledIntMatrixElement;
+  IntSize size = aSurface->GetSize();
+  RefPtr<DataSourceSurface> target =
+    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
   }
 
-  i16x8_t row_bg_v = rows_bgra_v[0];
-  i16x8_t row_ra_v = rows_bgra_v[1];
+  uint8_t* inputData = aSurface->GetData();
+  int32_t inputStride = aSurface->Stride();
+  uint8_t* targetData = target->GetData();
+  int32_t targetStride = target->Stride();
 
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x += 4) {
-      MOZ_ASSERT(sourceStride >= 4 * (x + 4), "need to be able to read 4 pixels at this position");
-      MOZ_ASSERT(targetStride >= 4 * (x + 4), "need to be able to write 4 pixels at this position");
-      int32_t sourceIndex = y * sourceStride + 4 * x;
-      int32_t targetIndex = y * targetStride + 4 * x;
-
-      // We load 4 pixels, unpack them, process them 1 pixel at a time, and
-      // finally pack and store the 4 result pixels.
-
-      u8x16_t p1234 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
-
-      // Splat needed to get each pixel twice into i16x8
-      i16x8_t p11 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<0>(p1234));
-      i16x8_t p22 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<1>(p1234));
-      i16x8_t p33 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<2>(p1234));
-      i16x8_t p44 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<3>(p1234));
-
-      i32x4_t result_p1 = ColorMatrixMultiply(p11, row_bg_v, row_ra_v, rowsBias_v);
-      i32x4_t result_p2 = ColorMatrixMultiply(p22, row_bg_v, row_ra_v, rowsBias_v);
-      i32x4_t result_p3 = ColorMatrixMultiply(p33, row_bg_v, row_ra_v, rowsBias_v);
-      i32x4_t result_p4 = ColorMatrixMultiply(p44, row_bg_v, row_ra_v, rowsBias_v);
-
-      static_assert(factor == 1 << 7, "Please adapt the calculation in the lines below for a different factor.");
-      u8x16_t result_p1234 = simd::PackAndSaturate32To8<i32x4_t,u8x16_t>(simd::ShiftRight32<7>(result_p1),
-                                                            simd::ShiftRight32<7>(result_p2),
-                                                            simd::ShiftRight32<7>(result_p3),
-                                                            simd::ShiftRight32<7>(result_p4));
-      simd::Store8(&targetData[targetIndex], result_p1234);
-    }
-  }
+  FilterProcessing::DoUnpremultiplicationCalculation(
+    size, targetData, targetStride, inputData, inputStride);
 
   return target;
 }
@@ -1858,12 +1182,19 @@ FilterNodeColorMatrixSoftware::Render(const IntRect& aRect)
   if (!input) {
     return nullptr;
   }
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    return ApplyColorMatrixFilter<__m128i,__m128i,__m128i>(input, mMatrix);
+
+  if (mAlphaMode == ALPHA_MODE_PREMULTIPLIED) {
+    input = Unpremultiply(input);
   }
-#endif
-  return ApplyColorMatrixFilter<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>(input, mMatrix);
+
+  RefPtr<DataSourceSurface> result =
+    FilterProcessing::ApplyColorMatrix(input, mMatrix);
+
+  if (mAlphaMode == ALPHA_MODE_PREMULTIPLIED) {
+    result = Premultiply(result);
+  }
+
+  return result;
 }
 
 void
@@ -1978,9 +1309,32 @@ FilterNodeTileSoftware::SetAttribute(uint32_t aIndex,
   Invalidate();
 }
 
+namespace {
+struct CompareIntRects
+{
+  bool operator()(const IntRect& a, const IntRect& b) const
+  {
+    if (a.x != b.x) {
+      return a.x < b.x;
+    }
+    if (a.y != b.y) {
+      return a.y < b.y;
+    }
+    if (a.width != b.width) {
+      return a.width < b.width;
+    }
+    return a.height < b.height;
+  }
+};
+}
+
 TemporaryRef<DataSourceSurface>
 FilterNodeTileSoftware::Render(const IntRect& aRect)
 {
+  if (mSourceRect.IsEmpty()) {
+    return nullptr;
+  }
+
   if (NumberOfSetInputs() >= 1 && mInputFilters[0]) {
     mInputFilters[0]->SetStitchRect(mSourceRect);
   }
@@ -1990,6 +1344,9 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
   }
 
   RefPtr<DataSourceSurface> target;
+
+  typedef std::map<IntRect, RefPtr<DataSourceSurface>, CompareIntRects> InputMap;
+  InputMap inputs;
 
   IntPoint startIndex = TileIndex(mSourceRect, aRect.TopLeft());
   IntPoint endIndex = TileIndex(mSourceRect, aRect.BottomRight());
@@ -2003,15 +1360,14 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
         continue;
       }
 
-      // TODO: We should not keep re-requesting the same rect over and over.
-      // We should build a list of needed rects first, get surfaces for each
-      // of them, and then use the right surface at this point.
-      // The current implementation isn't that bad because input filters
-      // usually cache their output, but if we request a subrect of their
-      // cached rect, they'll create new surfaces containing the subimage
-      // each time.
-      RefPtr<DataSourceSurface> input =
-        GetInputDataSourceSurface(IN_TILE_IN, srcRect);
+      RefPtr<DataSourceSurface> input;
+      InputMap::iterator it = inputs.find(srcRect);
+      if (it == inputs.end()) {
+        input = GetInputDataSourceSurface(IN_TILE_IN, srcRect);
+        inputs[srcRect] = input;
+      } else {
+        input = it->second;
+      }
       if (!input) {
         return nullptr;
       }
@@ -2036,17 +1392,10 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
 void
 FilterNodeTileSoftware::RequestFromInputsForRect(const IntRect &aRect)
 {
-  IntPoint startIndex = TileIndex(mSourceRect, aRect.TopLeft());
-  IntPoint endIndex = TileIndex(mSourceRect, aRect.BottomRight());
-  for (int32_t ix = startIndex.x; ix <= endIndex.x; ix++) {
-    for (int32_t iy = startIndex.y; iy <= endIndex.y; iy++) {
-      IntPoint sourceToDestOffset(ix * mSourceRect.width,
-                                  iy * mSourceRect.height);
-      IntRect destRect = aRect.Intersect(mSourceRect + sourceToDestOffset);
-      IntRect srcRect = destRect - sourceToDestOffset;
-      RequestInputRect(IN_TILE_IN, srcRect);
-    }
-  }
+  // Do not request anything.
+  // Source rects for the tile filter can be discontinuous with large gaps
+  // between them. Requesting those from our input filter might cause it to
+  // render the whole bounding box of all of them, which would be wasteful.
 }
 
 IntRect
@@ -2173,7 +1522,7 @@ FilterNodeComponentTransferSoftware::Render(const IntRect& aRect)
       IsAllZero(lookupTables[B8G8R8A8_COMPONENT_BYTEOFFSET_B]);
 
     if (colorChannelsBecomeBlack) {
-      input = ExtractAlpha(input);
+      input = FilterProcessing::ExtractAlpha(input);
     }
   }
 
@@ -2607,6 +1956,15 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
 
 void
 FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
+                                               const IntRect &aSourceRect)
+{
+  MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_SOURCE_RECT);
+  mSourceRect = aSourceRect;
+  Invalidate();
+}
+
+void
+FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
                                                uint32_t aEdgeMode)
 {
   MOZ_ASSERT(aIndex == ATT_CONVOLVE_MATRIX_EDGE_MODE);
@@ -2647,6 +2005,12 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, s
   const uint8_t &cuu = ColorComponentAtPoint(aData, aStride, lx + 1, ly + 1, bpp, c);
   return ((cll * tlx + cul * tux) * tly +
           (clu * tlx + cuu * tux) * tuy + f * f / 2) / (f * f);
+}
+
+static int32_t
+ClampToNonZero(int32_t a)
+{
+  return a * (a >= 0);
 }
 
 template<typename CoordType>
@@ -2775,7 +2139,7 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
 
   IntRect srcRect = InflatedSourceRect(aRect);
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, NEED_COLOR_CHANNELS, mEdgeMode);
+    GetInputDataSourceSurface(IN_CONVOLVE_MATRIX_IN, srcRect, NEED_COLOR_CHANNELS, mEdgeMode, &mSourceRect);
   RefPtr<DataSourceSurface> target =
     Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
   if (!input || !target) {
@@ -3063,6 +2427,20 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const Size &aBaseFre
 }
 
 void
+FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const Point &aOffset)
+{
+  switch (aIndex) {
+    case ATT_TURBULENCE_OFFSET:
+      mOffset = aOffset;
+      break;
+    default:
+      MOZ_CRASH();
+      break;
+  }
+  Invalidate();
+}
+
+void
 FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, bool aStitchable)
 {
   MOZ_ASSERT(aIndex == ATT_TURBULENCE_STITCHABLE);
@@ -3103,13 +2481,16 @@ FilterNodeTurbulenceSoftware::DoRender(const IntRect& aRect)
   uint8_t* targetData = target->GetData();
   uint32_t stride = target->Stride();
 
-  SVGTurbulenceRenderer<aType,aStitchable,float> renderer(mBaseFrequency, mSeed, mNumOctaves, mStitchRect);
+  SVGTurbulenceRenderer<aType,aStitchable,float>
+    renderer(mBaseFrequency, mSeed, mNumOctaves, Rect(mStitchRect) - mOffset);
+
+  Point offset = Point(aRect.TopLeft()) - mOffset;
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
       int32_t targIndex = y * stride + x * 4;
       *(uint32_t*)(targetData + targIndex) =
-        renderer.ColorAtPoint(aRect.TopLeft() + IntPoint(x, y));
+        renderer.ColorAtPoint(offset + Point(x, y));
     }
   }
 
@@ -3252,147 +2633,6 @@ FilterNodeCompositeSoftware::SetAttribute(uint32_t aIndex, uint32_t aCompositeOp
   Invalidate();
 }
 
-template<typename i32x4_t, typename i16x8_t, uint32_t aCompositeOperator>
-static inline i16x8_t
-CompositeTwoPixels(i16x8_t source, i16x8_t sourceAlpha, i16x8_t dest, i16x8_t destAlpha)
-{
-  i16x8_t x255 = simd::From16<i16x8_t>(255);
-
-  switch (aCompositeOperator) {
-
-    case COMPOSITE_OPERATOR_OVER:
-    {
-      // val = dest * (255 - sourceAlpha) + source * 255;
-      i16x8_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
-
-      i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
-      i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, x255);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
-
-      i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
-      i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, x255);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
-
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
-                                         simd::FastDivideBy255(result2));
-    }
-
-    case COMPOSITE_OPERATOR_IN:
-    {
-      // val = source * destAlpha;
-      return simd::FastDivideBy255_16(simd::Mul16(source, destAlpha));
-    }
-
-    case COMPOSITE_OPERATOR_OUT:
-    {
-      // val = source * (255 - destAlpha);
-      i16x8_t prod = simd::Mul16(source, simd::Sub16(x255, destAlpha));
-      return simd::FastDivideBy255_16(prod);
-    }
-
-    case COMPOSITE_OPERATOR_ATOP:
-    {
-      // val = dest * (255 - sourceAlpha) + source * destAlpha;
-      i16x8_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
-
-      i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
-      i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, destAlpha);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
-
-      i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
-      i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, destAlpha);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
-
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
-                                         simd::FastDivideBy255(result2));
-    }
-
-    case COMPOSITE_OPERATOR_XOR:
-    {
-      // val = dest * (255 - sourceAlpha) + source * (255 - destAlpha);
-      i16x8_t twoFiftyFiveMinusSourceAlpha = simd::Sub16(x255, sourceAlpha);
-      i16x8_t twoFiftyFiveMinusDestAlpha = simd::Sub16(x255, destAlpha);
-
-      i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
-      i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha,
-                                                     twoFiftyFiveMinusDestAlpha);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
-
-      i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
-      i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha,
-                                                     twoFiftyFiveMinusDestAlpha);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
-
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
-                                         simd::FastDivideBy255(result2));
-    }
-
-  }
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t, uint32_t op>
-static void
-ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
-{
-  IntSize size = aDest->GetSize();
-
-  uint8_t* sourceData = aSource->GetData();
-  uint8_t* destData = aDest->GetData();
-  uint32_t sourceStride = aSource->Stride();
-  uint32_t destStride = aDest->Stride();
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x += 4) {
-      uint32_t sourceIndex = y * sourceStride + 4 * x;
-      uint32_t destIndex = y * destStride + 4 * x;
-
-      u8x16_t s1234 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
-      u8x16_t d1234 = simd::Load8<u8x16_t>(&destData[destIndex]);
-
-      i16x8_t s12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(s1234);
-      i16x8_t d12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(d1234);
-      i16x8_t sa12 = simd::Splat16<3,3>(s12);
-      i16x8_t da12 = simd::Splat16<3,3>(d12);
-      i16x8_t result12 = CompositeTwoPixels<i32x4_t,i16x8_t,op>(s12, sa12, d12, da12);
-
-      i16x8_t s34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(s1234);
-      i16x8_t d34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(d1234);
-      i16x8_t sa34 = simd::Splat16<3,3>(s34);
-      i16x8_t da34 = simd::Splat16<3,3>(d34);
-      i16x8_t result34 = CompositeTwoPixels<i32x4_t,i16x8_t,op>(s34, sa34, d34, da34);
-
-      u8x16_t result1234 = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(result12, result34);
-      simd::Store8(&destData[destIndex], result1234);
-    }
-  }
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
-static void
-ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest,
-                 CompositeOperator aOperator)
-{
-  switch (aOperator) {
-    case COMPOSITE_OPERATOR_OVER:
-      ApplyComposition<i32x4_t,i16x8_t,u8x16_t, COMPOSITE_OPERATOR_OVER>(aSource, aDest);
-      break;
-    case COMPOSITE_OPERATOR_IN:
-      ApplyComposition<i32x4_t,i16x8_t,u8x16_t, COMPOSITE_OPERATOR_IN>(aSource, aDest);
-      break;
-    case COMPOSITE_OPERATOR_OUT:
-      ApplyComposition<i32x4_t,i16x8_t,u8x16_t, COMPOSITE_OPERATOR_OUT>(aSource, aDest);
-      break;
-    case COMPOSITE_OPERATOR_ATOP:
-      ApplyComposition<i32x4_t,i16x8_t,u8x16_t, COMPOSITE_OPERATOR_ATOP>(aSource, aDest);
-      break;
-    case COMPOSITE_OPERATOR_XOR:
-      ApplyComposition<i32x4_t,i16x8_t,u8x16_t, COMPOSITE_OPERATOR_XOR>(aSource, aDest);
-      break;
-    default:
-      MOZ_CRASH();
-  }
-}
-
 TemporaryRef<DataSourceSurface>
 FilterNodeCompositeSoftware::Render(const IntRect& aRect)
 {
@@ -3410,13 +2650,7 @@ FilterNodeCompositeSoftware::Render(const IntRect& aRect)
     if (!input) {
       return nullptr;
     }
-    if (Factory::HasSSE2()) {
-#ifdef COMPILE_WITH_SSE2
-      ApplyComposition<__m128i,__m128i,__m128i>(input, dest, mOperator);
-#endif
-    } else {
-      ApplyComposition<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>(input, dest, mOperator);
-    }
+    FilterProcessing::ApplyComposition(input, dest, mOperator);
   }
   return dest;
 }
@@ -3467,156 +2701,6 @@ FilterNodeBlurXYSoftware::InputIndex(uint32_t aInputEnumIndex)
   }
 }
 
-static void
-SeparateColorChannels(DataSourceSurface* aSource,
-                      RefPtr<DataSourceSurface>& aChannel0,
-                      RefPtr<DataSourceSurface>& aChannel1,
-                      RefPtr<DataSourceSurface>& aChannel2,
-                      RefPtr<DataSourceSurface>& aChannel3)
-{
-  IntSize size = aSource->GetSize();
-  aChannel0 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
-  aChannel1 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
-  aChannel2 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
-  aChannel3 = Factory::CreateDataSourceSurface(size, FORMAT_A8);
-  int32_t sourceStride = aSource->Stride();
-  uint8_t* sourceData = aSource->GetData();
-  int32_t channelStride = aChannel0->Stride();
-  uint8_t* channel0Data = aChannel0->GetData();
-  uint8_t* channel1Data = aChannel1->GetData();
-  uint8_t* channel2Data = aChannel2->GetData();
-  uint8_t* channel3Data = aChannel3->GetData();
-
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    for (int32_t y = 0; y < size.height; y++) {
-      for (int32_t x = 0; x < size.width; x += 16) {
-        // Process 16 pixels at a time.
-        int32_t sourceIndex = y * sourceStride + 4 * x;
-        int32_t targetIndex = y * channelStride + x;
-
-        __m128i bgrabgrabgrabgra1 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra2 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra3 = simd::From16<__m128i>(0);
-        __m128i bgrabgrabgrabgra4 = simd::From16<__m128i>(0);
-
-        bgrabgrabgrabgra1 = simd::Load8<__m128i>(&sourceData[sourceIndex]);
-        if (4 * (x + 4) <= sourceStride) {
-          bgrabgrabgrabgra2 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 4]);
-        }
-        if (4 * (x + 8) <= sourceStride) {
-          bgrabgrabgrabgra3 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 8]);
-        }
-        if (4 * (x + 12) <= sourceStride) {
-          bgrabgrabgrabgra4 = simd::Load8<__m128i>(&sourceData[sourceIndex + 4 * 12]);
-        }
-
-        __m128i bbggrraabbggrraa1 = simd::InterleaveLo8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
-        __m128i bbggrraabbggrraa2 = simd::InterleaveHi8(bgrabgrabgrabgra1, bgrabgrabgrabgra3);
-        __m128i bbggrraabbggrraa3 = simd::InterleaveLo8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
-        __m128i bbggrraabbggrraa4 = simd::InterleaveHi8(bgrabgrabgrabgra2, bgrabgrabgrabgra4);
-        __m128i bbbbggggrrrraaaa1 = simd::InterleaveLo8(bbggrraabbggrraa1, bbggrraabbggrraa3);
-        __m128i bbbbggggrrrraaaa2 = simd::InterleaveHi8(bbggrraabbggrraa1, bbggrraabbggrraa3);
-        __m128i bbbbggggrrrraaaa3 = simd::InterleaveLo8(bbggrraabbggrraa2, bbggrraabbggrraa4);
-        __m128i bbbbggggrrrraaaa4 = simd::InterleaveHi8(bbggrraabbggrraa2, bbggrraabbggrraa4);
-        __m128i bbbbbbbbgggggggg1 = simd::InterleaveLo8(bbbbggggrrrraaaa1, bbbbggggrrrraaaa3);
-        __m128i rrrrrrrraaaaaaaa1 = simd::InterleaveHi8(bbbbggggrrrraaaa1, bbbbggggrrrraaaa3);
-        __m128i bbbbbbbbgggggggg2 = simd::InterleaveLo8(bbbbggggrrrraaaa2, bbbbggggrrrraaaa4);
-        __m128i rrrrrrrraaaaaaaa2 = simd::InterleaveHi8(bbbbggggrrrraaaa2, bbbbggggrrrraaaa4);
-        __m128i bbbbbbbbbbbbbbbb = simd::InterleaveLo8(bbbbbbbbgggggggg1, bbbbbbbbgggggggg2);
-        __m128i gggggggggggggggg = simd::InterleaveHi8(bbbbbbbbgggggggg1, bbbbbbbbgggggggg2);
-        __m128i rrrrrrrrrrrrrrrr = simd::InterleaveLo8(rrrrrrrraaaaaaaa1, rrrrrrrraaaaaaaa2);
-        __m128i aaaaaaaaaaaaaaaa = simd::InterleaveHi8(rrrrrrrraaaaaaaa1, rrrrrrrraaaaaaaa2);
-
-        simd::Store8(&channel0Data[targetIndex], bbbbbbbbbbbbbbbb);
-        simd::Store8(&channel1Data[targetIndex], gggggggggggggggg);
-        simd::Store8(&channel2Data[targetIndex], rrrrrrrrrrrrrrrr);
-        simd::Store8(&channel3Data[targetIndex], aaaaaaaaaaaaaaaa);
-      }
-    }
-    return;
-  }
-#endif
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t sourceIndex = y * sourceStride + 4 * x;
-      int32_t targetIndex = y * channelStride + x;
-      channel0Data[targetIndex] = sourceData[sourceIndex];
-      channel1Data[targetIndex] = sourceData[sourceIndex+1];
-      channel2Data[targetIndex] = sourceData[sourceIndex+2];
-      channel3Data[targetIndex] = sourceData[sourceIndex+3];
-    }
-  }
-}
-
-static TemporaryRef<DataSourceSurface>
-CombineColorChannels(DataSourceSurface* aChannel0, DataSourceSurface* aChannel1,
-                     DataSourceSurface* aChannel2, DataSourceSurface* aChannel3)
-{
-  IntSize size = aChannel0->GetSize();
-  RefPtr<DataSourceSurface> result =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  int32_t resultStride = result->Stride();
-  uint8_t* resultData = result->GetData();
-  int32_t channelStride = aChannel0->Stride();
-  uint8_t* channel0Data = aChannel0->GetData();
-  uint8_t* channel1Data = aChannel1->GetData();
-  uint8_t* channel2Data = aChannel2->GetData();
-  uint8_t* channel3Data = aChannel3->GetData();
-
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    for (int32_t y = 0; y < size.height; y++) {
-      for (int32_t x = 0; x < size.width; x += 16) {
-        // Process 16 pixels at a time.
-        int32_t resultIndex = y * resultStride + 4 * x;
-        int32_t channelIndex = y * channelStride + x;
-
-        __m128i bbbbbbbbbbbbbbbb = simd::Load8<__m128i>(&channel0Data[channelIndex]);
-        __m128i gggggggggggggggg = simd::Load8<__m128i>(&channel1Data[channelIndex]);
-        __m128i rrrrrrrrrrrrrrrr = simd::Load8<__m128i>(&channel2Data[channelIndex]);
-        __m128i aaaaaaaaaaaaaaaa = simd::Load8<__m128i>(&channel3Data[channelIndex]);
-
-        __m128i brbrbrbrbrbrbrbr1 = simd::InterleaveLo8(bbbbbbbbbbbbbbbb, rrrrrrrrrrrrrrrr);
-        __m128i brbrbrbrbrbrbrbr2 = simd::InterleaveHi8(bbbbbbbbbbbbbbbb, rrrrrrrrrrrrrrrr);
-        __m128i gagagagagagagaga1 = simd::InterleaveLo8(gggggggggggggggg, aaaaaaaaaaaaaaaa);
-        __m128i gagagagagagagaga2 = simd::InterleaveHi8(gggggggggggggggg, aaaaaaaaaaaaaaaa);
-
-        __m128i bgrabgrabgrabgra1 = simd::InterleaveLo8(brbrbrbrbrbrbrbr1, gagagagagagagaga1);
-        __m128i bgrabgrabgrabgra2 = simd::InterleaveHi8(brbrbrbrbrbrbrbr1, gagagagagagagaga1);
-        __m128i bgrabgrabgrabgra3 = simd::InterleaveLo8(brbrbrbrbrbrbrbr2, gagagagagagagaga2);
-        __m128i bgrabgrabgrabgra4 = simd::InterleaveHi8(brbrbrbrbrbrbrbr2, gagagagagagagaga2);
-
-        simd::Store8(&resultData[resultIndex], bgrabgrabgrabgra1);
-        if (4 * (x + 4) <= resultStride) {
-          simd::Store8(&resultData[resultIndex + 4 * 4], bgrabgrabgrabgra2);
-        }
-        if (4 * (x + 8) <= resultStride) {
-          simd::Store8(&resultData[resultIndex + 8 * 4], bgrabgrabgrabgra3);
-        }
-        if (4 * (x + 12) <= resultStride) {
-          simd::Store8(&resultData[resultIndex + 12 * 4], bgrabgrabgrabgra4);
-        }
-      }
-    }
-    return result;
-  }
-#endif
-
-  for (int32_t y = 0; y < size.height; y++) {
-    for (int32_t x = 0; x < size.width; x++) {
-      int32_t resultIndex = y * resultStride + 4 * x;
-      int32_t channelIndex = y * channelStride + x;
-      resultData[resultIndex] = channel0Data[channelIndex];
-      resultData[resultIndex+1] = channel1Data[channelIndex];
-      resultData[resultIndex+2] = channel2Data[channelIndex];
-      resultData[resultIndex+3] = channel3Data[channelIndex];
-    }
-  }
-  return result;
-}
-
 TemporaryRef<DataSourceSurface>
 FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
 {
@@ -3645,13 +2729,13 @@ FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
     blur.Blur(target->GetData());
   } else {
     RefPtr<DataSourceSurface> channel0, channel1, channel2, channel3;
-    SeparateColorChannels(input, channel0, channel1, channel2, channel3);
+    FilterProcessing::SeparateColorChannels(input, channel0, channel1, channel2, channel3);
     AlphaBoxBlur blur(r, channel0->Stride(), sigmaXY.width, sigmaXY.height);
     blur.Blur(channel0->GetData());
     blur.Blur(channel1->GetData());
     blur.Blur(channel2->GetData());
     blur.Blur(channel3->GetData());
-    target = CombineColorChannels(channel0, channel1, channel2, channel3);
+    target = FilterProcessing::CombineColorChannels(channel0, channel1, channel2, channel3);
   }
 
   return GetDataSurfaceInRect(target, srcRect, aRect, EDGE_MODE_NONE);
@@ -3789,220 +2873,6 @@ IntRect
 FilterNodeCropSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
   return GetInputRectInRect(IN_CROP_IN, aRect).Intersect(mCropRect);
-}
-
-template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
-static void
-DoPremultiplicationCalculation(const IntSize& aSize,
-                               uint8_t* aTargetData, int32_t aTargetStride,
-                               uint8_t* aSourceData, int32_t aSourceStride)
-{
-  for (int32_t y = 0; y < aSize.height; y++) {
-    for (int32_t x = 0; x < aSize.width; x += 4) {
-      int32_t inputIndex = y * aSourceStride + 4 * x;
-      int32_t targetIndex = y * aTargetStride + 4 * x;
-      u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[inputIndex]);
-      i16x8_t p12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
-
-      i16x8_t a12 = simd::Splat16<3,3>(p12);
-      a12 = simd::SetComponent16<7>(simd::SetComponent16<3>(a12, 255), 255);
-      i16x8_t a34 = simd::Splat16<3,3>(p34);
-      a34 = simd::SetComponent16<7>(simd::SetComponent16<3>(a34, 255), 255);
-
-      i32x4_t p1, p2, p3, p4;
-      simd::Mul16x4x2x2To32x4x2(p12, a12, p1, p2);
-      simd::Mul16x4x2x2To32x4x2(p34, a34, p3, p4);
-      u8x16_t result = simd::PackAndSaturate32To8<i32x4_t,u8x16_t>(simd::FastDivideBy255(p1),
-                                                      simd::FastDivideBy255(p2),
-                                                      simd::FastDivideBy255(p3),
-                                                      simd::FastDivideBy255(p4));
-      simd::Store8(&aTargetData[targetIndex], result);
-    }
-  }
-}
-
-template<>
-void
-DoPremultiplicationCalculation<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>
-                              (const IntSize& aSize,
-                               uint8_t* aTargetData, int32_t aTargetStride,
-                               uint8_t* aSourceData, int32_t aSourceStride)
-{
-  for (int32_t y = 0; y < aSize.height; y++) {
-    for (int32_t x = 0; x < aSize.width; x++) {
-      int32_t inputIndex = y * aSourceStride + 4 * x;
-      int32_t targetIndex = y * aTargetStride + 4 * x;
-      uint8_t alpha = aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alpha);
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alpha);
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        FastDivideBy255<uint8_t>(aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alpha);
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
-    }
-  }
-}
-
-static TemporaryRef<DataSourceSurface>
-Premultiply(DataSourceSurface* aSurface)
-{
-  if (aSurface->GetFormat() == FORMAT_A8) {
-    return aSurface;
-  }
-
-  IntSize size = aSurface->GetSize();
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* inputData = aSurface->GetData();
-  int32_t inputStride = aSurface->Stride();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-
-  if (Factory::HasSSE2()) {
-#ifdef COMPILE_WITH_SSE2
-    DoPremultiplicationCalculation<__m128i,__m128i,__m128i>(
-      size, targetData, targetStride, inputData, inputStride);
-#endif
-  } else {
-    DoPremultiplicationCalculation<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>(
-      size, targetData, targetStride, inputData, inputStride);
-  }
-
-  return target;
-}
-
-// We use a table of precomputed factors for unpremultiplying.
-// We want to compute round(r / (alpha / 255.0f)) for arbitrary values of
-// r and alpha in constant time. This table of factors has the property that
-// (r * sAlphaFactors[alpha] + 128) >> 8 roughly gives the result we want (with
-// a maximum deviation of 1).
-//
-// sAlphaFactors[alpha] == round(255.0 * (1 << 8) / alpha)
-//
-// This table has been created using the python code
-// ", ".join("%d" % (round(255.0 * 256 / alpha) if alpha > 0 else 0) for alpha in range(256))
-static const uint16_t sAlphaFactors[256] = {
-  0, 65280, 32640, 21760, 16320, 13056, 10880, 9326, 8160, 7253, 6528, 5935,
-  5440, 5022, 4663, 4352, 4080, 3840, 3627, 3436, 3264, 3109, 2967, 2838, 2720,
-  2611, 2511, 2418, 2331, 2251, 2176, 2106, 2040, 1978, 1920, 1865, 1813, 1764,
-  1718, 1674, 1632, 1592, 1554, 1518, 1484, 1451, 1419, 1389, 1360, 1332, 1306,
-  1280, 1255, 1232, 1209, 1187, 1166, 1145, 1126, 1106, 1088, 1070, 1053, 1036,
-  1020, 1004, 989, 974, 960, 946, 933, 919, 907, 894, 882, 870, 859, 848, 837,
-  826, 816, 806, 796, 787, 777, 768, 759, 750, 742, 733, 725, 717, 710, 702,
-  694, 687, 680, 673, 666, 659, 653, 646, 640, 634, 628, 622, 616, 610, 604,
-  599, 593, 588, 583, 578, 573, 568, 563, 558, 553, 549, 544, 540, 535, 531,
-  526, 522, 518, 514, 510, 506, 502, 498, 495, 491, 487, 484, 480, 476, 473,
-  470, 466, 463, 460, 457, 453, 450, 447, 444, 441, 438, 435, 432, 429, 427,
-  424, 421, 418, 416, 413, 411, 408, 405, 403, 400, 398, 396, 393, 391, 389,
-  386, 384, 382, 380, 377, 375, 373, 371, 369, 367, 365, 363, 361, 359, 357,
-  355, 353, 351, 349, 347, 345, 344, 342, 340, 338, 336, 335, 333, 331, 330,
-  328, 326, 325, 323, 322, 320, 318, 317, 315, 314, 312, 311, 309, 308, 306,
-  305, 304, 302, 301, 299, 298, 297, 295, 294, 293, 291, 290, 289, 288, 286,
-  285, 284, 283, 281, 280, 279, 278, 277, 275, 274, 273, 272, 271, 270, 269,
-  268, 266, 265, 264, 263, 262, 261, 260, 259, 258, 257, 256
-};
-
-template<typename i16x8_t, typename u8x16_t>
-static void
-DoUnpremultiplicationCalculation(const IntSize& aSize,
-                                 uint8_t* aTargetData, int32_t aTargetStride,
-                                 uint8_t* aSourceData, int32_t aSourceStride)
-{
-  for (int32_t y = 0; y < aSize.height; y++) {
-    for (int32_t x = 0; x < aSize.width; x += 4) {
-      int32_t inputIndex = y * aSourceStride + 4 * x;
-      int32_t targetIndex = y * aTargetStride + 4 * x;
-      union {
-        u8x16_t p1234;
-        uint8_t u8[4][4];
-      };
-      p1234 = simd::Load8<u8x16_t>(&aSourceData[inputIndex]);
-      // We interpret the alpha factors as signed even though they're unsigned,
-      // because the From16 call below expects signed ints. The conversion does
-      // not lose any information, and the multiplication works as if they were
-      // unsigned (since we only take the lower 16 bits of each 32-bit result),
-      // so everything works as if the factors were unsigned all along.
-      int16_t aF1 = (int16_t)sAlphaFactors[u8[0][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
-      int16_t aF2 = (int16_t)sAlphaFactors[u8[1][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
-      int16_t aF3 = (int16_t)sAlphaFactors[u8[2][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
-      int16_t aF4 = (int16_t)sAlphaFactors[u8[3][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
-      i16x8_t p12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t aF12 = simd::From16<i16x8_t>(aF1, aF1, aF1, 1 << 8, aF2, aF2, aF2, 1 << 8);
-      i16x8_t aF34 = simd::From16<i16x8_t>(aF3, aF3, aF3, 1 << 8, aF4, aF4, aF4, 1 << 8);
-      p12 = simd::ShiftRight16<8>(simd::Add16(simd::Mul16(p12, aF12), simd::From16<i16x8_t>(128)));
-      p34 = simd::ShiftRight16<8>(simd::Add16(simd::Mul16(p34, aF34), simd::From16<i16x8_t>(128)));
-      u8x16_t result = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(p12, p34);
-      simd::Store8(&aTargetData[targetIndex], result);
-    }
-  }
-}
-
-template<>
-void
-DoUnpremultiplicationCalculation<simd::Scalari16x8_t,simd::Scalaru8x16_t>(
-                                 const IntSize& aSize,
-                                 uint8_t* aTargetData, int32_t aTargetStride,
-                                 uint8_t* aSourceData, int32_t aSourceStride)
-{
-  for (int32_t y = 0; y < aSize.height; y++) {
-    for (int32_t x = 0; x < aSize.width; x++) {
-      int32_t inputIndex = y * aSourceStride + 4 * x;
-      int32_t targetIndex = y * aTargetStride + 4 * x;
-      uint8_t alpha = aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A];
-      uint16_t alphaFactor = sAlphaFactors[alpha];
-      // inputColor * alphaFactor + 128 is guaranteed to fit into uint16_t
-      // because the input is premultiplied and thus inputColor <= inputAlpha.
-      // The maximum value this can attain is 65520 (which is less than 65535)
-      // for color == alpha == 244:
-      // 244 * sAlphaFactors[244] + 128 == 244 * 268 + 128 == 65520
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_R] * alphaFactor + 128) >> 8;
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_G] * alphaFactor + 128) >> 8;
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-        (aSourceData[inputIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_B] * alphaFactor + 128) >> 8;
-      aTargetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] = alpha;
-    }
-  }
-}
-
-static TemporaryRef<DataSourceSurface>
-Unpremultiply(DataSourceSurface* aSurface)
-{
-  if (aSurface->GetFormat() == FORMAT_A8) {
-    return aSurface;
-  }
-
-  IntSize size = aSurface->GetSize();
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* inputData = aSurface->GetData();
-  int32_t inputStride = aSurface->Stride();
-  uint8_t* targetData = target->GetData();
-  int32_t targetStride = target->Stride();
-
-#ifdef COMPILE_WITH_SSE2
-  if (Factory::HasSSE2()) {
-    DoUnpremultiplicationCalculation<__m128i,__m128i>(
-      size, targetData, targetStride, inputData, inputStride);
-    return target;
-  }
-#endif
-  DoUnpremultiplicationCalculation<simd::Scalari16x8_t,simd::Scalaru8x16_t>(
-    size, targetData, targetStride, inputData, inputStride);
-
-  return target;
 }
 
 int32_t
@@ -4254,13 +3124,8 @@ SpotLightSoftware::GetColor(uint32_t aLightColor, const Point3D &aVectorToLight)
   };
   color = aLightColor;
   Float dot = -aVectorToLight.DotProduct(mVectorFromFocusPointToLight);
-  int16_t doti = dot * (dot >= mLimitingConeCos) * (255 << 7);
-  uint16_t tmp = 0;
-  if (false) {
-    tmp = pow(dot, mSpecularFocus) * 256;
-  } else {
-    tmp = mPowCache.Pow(doti);
-  }
+  int16_t doti = dot * (255 << 7);
+  uint16_t tmp = mPowCache.Pow(doti) * (dot >= mLimitingConeCos);
   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] = uint8_t((colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_R] * tmp) >> 8);
   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] = uint8_t((colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_G] * tmp) >> 8);
   colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] = uint8_t((colorC[B8G8R8A8_COMPONENT_BYTEOFFSET_B] * tmp) >> 8);
@@ -4307,7 +3172,7 @@ GenerateNormal(const uint8_t *data, int32_t stride,
     -2 * ColorComponentAtPoint(index, stride, -dx, zero, 1, 0) +
      2 * ColorComponentAtPoint(index, stride, dx, zero, 1, 0) +
     -1 * ColorComponentAtPoint(index, stride, -dx, dy, 1, 0) +
-     1 * ColorComponentAtPoint(index, stride, -dx, dy, 1, 0);
+     1 * ColorComponentAtPoint(index, stride, dx, dy, 1, 0);
 
   int16_t normalY =
     -1 * ColorComponentAtPoint(index, stride, -dx, -dy, 1, 0) +
@@ -4356,10 +3221,11 @@ FilterNodeLightingSoftware<LightType, LightingType>::DoRender(const IntRect& aRe
   srcRect.Inflate(ceil(float(aKernelUnitLengthX)),
                   ceil(float(aKernelUnitLengthY)));
   RefPtr<DataSourceSurface> input =
-    GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect);
+    GetInputDataSourceSurface(IN_LIGHTING_IN, srcRect, CAN_HANDLE_A8,
+                              EDGE_MODE_DUPLICATE);
 
   if (input->GetFormat() != FORMAT_A8) {
-    input = ExtractAlpha(input);
+    input = FilterProcessing::ExtractAlpha(input);
   }
 
   RefPtr<DataSourceSurface> target =

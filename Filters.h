@@ -197,6 +197,7 @@ enum ConvolveMatrixAtts
   ATT_CONVOLVE_MATRIX_DIVISOR,              // Float
   ATT_CONVOLVE_MATRIX_BIAS,                 // Float
   ATT_CONVOLVE_MATRIX_TARGET,               // IntPoint
+  ATT_CONVOLVE_MATRIX_SOURCE_RECT,          // IntRect
   ATT_CONVOLVE_MATRIX_EDGE_MODE,            // ConvolveMatrixEdgeMode
   ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH,   // Size
   ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA,       // bool
@@ -251,7 +252,8 @@ enum TurbulenceAtts
   ATT_TURBULENCE_NUM_OCTAVES,               // uint32_t
   ATT_TURBULENCE_SEED,                      // uint32_t
   ATT_TURBULENCE_STITCHABLE,                // bool
-  ATT_TURBULENCE_TYPE                       // TurbulenceType
+  ATT_TURBULENCE_TYPE,                      // TurbulenceType
+  ATT_TURBULENCE_OFFSET                     // Point
 };
 
 enum TurbulenceType

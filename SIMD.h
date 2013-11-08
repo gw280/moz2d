@@ -6,11 +6,7 @@
 #ifndef _MOZILLA_GFX_SIMD_H_
 #define _MOZILLA_GFX_SIMD_H_
 
-#if defined(__i386) || defined(__x86_64__)
-#define COMPILE_WITH_SSE2
-#endif
-
-#ifdef COMPILE_WITH_SSE2
+#ifdef SIMD_COMPILE_SSE2
 #include <xmmintrin.h>
 #endif
 
@@ -117,7 +113,7 @@ template<typename i32x4_t, typename i16x8_t>
 inline i16x8_t PackAndSaturate32To16(i32x4_t m1, i32x4_t m2);
 
 template<typename i32x4_t, typename u8x16_t>
-u8x16_t PackAndSaturate32To8(i32x4_t m1, i32x4_t m2, i32x4_t m3, i32x4_t m4);
+u8x16_t PackAndSaturate32To8(i32x4_t m1, i32x4_t m2, i32x4_t m3, const i32x4_t& m4);
 
 template<typename i16x8_t, typename u8x16_t>
 u8x16_t PackAndSaturate16To8(i16x8_t m1, i16x8_t m2);
@@ -158,7 +154,7 @@ inline void Store8<Scalaru8x16_t>(uint8_t* aTarget, Scalaru8x16_t aM)
 
 template<>
 inline Scalaru8x16_t From8<Scalaru8x16_t>(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t e, uint8_t f, uint8_t g, uint8_t h,
-                                   uint8_t i, uint8_t j, uint8_t k, uint8_t l, uint8_t m, uint8_t n, uint8_t o, uint8_t p)
+                                          uint8_t i, uint8_t j, uint8_t k, uint8_t l, uint8_t m, uint8_t n, uint8_t o, uint8_t p)
 {
   Scalaru8x16_t _m;
   _m.u8[0] = a;
@@ -371,10 +367,10 @@ template<int8_t i>
 inline Scalaru8x16_t Splat32On8(Scalaru8x16_t aM)
 {
   AssertIndex<i>();
-  return From8<Scalaru8x16_t>(aM.u8[i], aM.u8[i+1], aM.u8[i+2], aM.u8[i+3],
-                              aM.u8[i], aM.u8[i+1], aM.u8[i+2], aM.u8[i+3],
-                              aM.u8[i], aM.u8[i+1], aM.u8[i+2], aM.u8[i+3],
-                              aM.u8[i], aM.u8[i+1], aM.u8[i+2], aM.u8[i+3]);
+  return From8<Scalaru8x16_t>(aM.u8[i*4], aM.u8[i*4+1], aM.u8[i*4+2], aM.u8[i*4+3],
+                              aM.u8[i*4], aM.u8[i*4+1], aM.u8[i*4+2], aM.u8[i*4+3],
+                              aM.u8[i*4], aM.u8[i*4+1], aM.u8[i*4+2], aM.u8[i*4+3],
+                              aM.u8[i*4], aM.u8[i*4+1], aM.u8[i*4+2], aM.u8[i*4+3]);
 }
 
 template<int8_t i0, int8_t i1, int8_t i2, int8_t i3>
@@ -578,7 +574,7 @@ SaturateTo8(T a)
 
 template<>
 inline Scalaru8x16_t
-PackAndSaturate32To8<Scalari32x4_t,Scalaru8x16_t>(Scalari32x4_t m1, Scalari32x4_t m2, Scalari32x4_t m3, Scalari32x4_t m4)
+PackAndSaturate32To8<Scalari32x4_t,Scalaru8x16_t>(Scalari32x4_t m1, Scalari32x4_t m2, Scalari32x4_t m3, const Scalari32x4_t& m4)
 {
   Scalaru8x16_t m;
   m.u8[0]  = SaturateTo8(m1.i32[0]);
@@ -667,7 +663,7 @@ FastDivideBy255(Scalari32x4_t m)
                                FastDivideBy255<int32_t>(m.i32[3]));
 }
 
-#ifdef COMPILE_WITH_SSE2
+#ifdef SIMD_COMPILE_SSE2
 
 // SSE2
 
@@ -703,7 +699,10 @@ inline __m128i From16<__m128i>(int16_t a)
 }
 
 template<>
-__m128i From32<__m128i>(int32_t a, int32_t b, int32_t c, int32_t d); // XXX
+inline __m128i From32<__m128i>(int32_t a, int32_t b, int32_t c, int32_t d)
+{
+  return _mm_setr_epi32(a, b, c, d);
+}
 
 template<>
 inline __m128i From32<__m128i>(int32_t a)
@@ -924,7 +923,7 @@ PackAndSaturate32To16<__m128i,__m128i>(__m128i m1, __m128i m2)
 
 template<>
 inline __m128i
-PackAndSaturate32To8<__m128i,__m128i>(__m128i m1, __m128i m2, __m128i m3, __m128i m4)
+PackAndSaturate32To8<__m128i,__m128i>(__m128i m1, __m128i m2, __m128i m3, const __m128i& m4)
 {
   // Pack into 8 16bit signed integers (saturating).
   __m128i m12 = _mm_packs_epi32(m1, m2);
@@ -969,7 +968,7 @@ FastDivideBy255_16(__m128i m)
   return _mm_packs_epi32(FastDivideBy255(lo), FastDivideBy255(hi));
 }
 
-#endif // COMPILE_WITH_SSE2
+#endif // SIMD_COMPILE_SSE2
 
 } // namespace simd
 

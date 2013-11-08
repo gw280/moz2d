@@ -141,7 +141,8 @@ protected:
   TemporaryRef<DataSourceSurface>
     GetInputDataSourceSurface(uint32_t aInputEnumIndex, const IntRect& aRect,
                               FormatHint aFormatHint = CAN_HANDLE_A8,
-                              ConvolveMatrixEdgeMode aEdgeMode = EDGE_MODE_NONE);
+                              ConvolveMatrixEdgeMode aEdgeMode = EDGE_MODE_NONE,
+                              const IntRect *aTransparencyPaddedSourceRect = nullptr);
 
   /**
    * Returns the intersection of the input filter's or surface's output rect
@@ -217,6 +218,7 @@ class FilterNodeBlendSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeBlendSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aBlendMode) MOZ_OVERRIDE;
 
 protected:
@@ -233,6 +235,7 @@ class FilterNodeMorphologySoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeMorphologySoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aRadii) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aOperator) MOZ_OVERRIDE;
 
@@ -250,7 +253,9 @@ private:
 class FilterNodeColorMatrixSoftware : public FilterNodeSoftware
 {
 public:
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Matrix5x4 &aMatrix) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, uint32_t aAlphaMode) MOZ_OVERRIDE;
 
 protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
@@ -260,11 +265,13 @@ protected:
 
 private:
   Matrix5x4 mMatrix;
+  AlphaMode mAlphaMode;
 };
 
 class FilterNodeFloodSoftware : public FilterNodeSoftware
 {
 public:
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Color &aColor) MOZ_OVERRIDE;
 
 protected:
@@ -279,6 +286,7 @@ private:
 class FilterNodeTileSoftware : public FilterNodeSoftware
 {
 public:
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const IntRect &aSourceRect) MOZ_OVERRIDE;
 
 protected:
@@ -299,6 +307,7 @@ class FilterNodeComponentTransferSoftware : public FilterNodeSoftware
 public:
   FilterNodeComponentTransferSoftware();
 
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, bool aDisable) MOZ_OVERRIDE;
 
 protected:
@@ -406,10 +415,12 @@ class FilterNodeConvolveMatrixSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeConvolveMatrixSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aKernelSize) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Float* aMatrix, uint32_t aSize) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, Float aValue) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Size &aKernelUnitLength) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const IntRect &aSourceRect) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aTarget) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aEdgeMode) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aPreserveAlpha) MOZ_OVERRIDE;
@@ -434,6 +445,7 @@ private:
   Float mDivisor;
   Float mBias;
   IntPoint mTarget;
+  IntRect mSourceRect;
   ConvolveMatrixEdgeMode mEdgeMode;
   Size mKernelUnitLength;
   bool mPreserveAlpha;
@@ -442,6 +454,7 @@ private:
 class FilterNodeOffsetSoftware : public FilterNodeSoftware
 {
 public:
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aOffset) MOZ_OVERRIDE;
 
 protected:
@@ -460,6 +473,7 @@ class FilterNodeDisplacementMapSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeDisplacementMapSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float aScale) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue) MOZ_OVERRIDE;
 
@@ -481,7 +495,9 @@ class FilterNodeTurbulenceSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeTurbulenceSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Size &aSize) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const Point &aOffset) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aStitchable) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue) MOZ_OVERRIDE;
 
@@ -497,6 +513,7 @@ protected:
 private:
   IntRect mStitchRect;
   Size mBaseFrequency;
+  Point mOffset;
   uint32_t mNumOctaves;
   uint32_t mSeed;
   bool mStitchable;
@@ -507,6 +524,7 @@ class FilterNodeArithmeticCombineSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeArithmeticCombineSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) MOZ_OVERRIDE;
 
 protected:
@@ -526,6 +544,7 @@ class FilterNodeCompositeSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeCompositeSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aOperator) MOZ_OVERRIDE;
 
 protected:
@@ -557,6 +576,7 @@ class FilterNodeGaussianBlurSoftware : public FilterNodeBlurXYSoftware
 {
 public:
   FilterNodeGaussianBlurSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float aStdDeviation) MOZ_OVERRIDE;
 
 protected:
@@ -570,6 +590,7 @@ class FilterNodeDirectionalBlurSoftware : public FilterNodeBlurXYSoftware
 {
 public:
   FilterNodeDirectionalBlurSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float aStdDeviation) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aBlurDirection) MOZ_OVERRIDE;
 
@@ -584,6 +605,7 @@ private:
 class FilterNodeCropSoftware : public FilterNodeSoftware
 {
 public:
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Rect &aSourceRect) MOZ_OVERRIDE;
 
 protected:
@@ -619,6 +641,7 @@ class FilterNodeLightingSoftware : public FilterNodeSoftware
 {
 public:
   FilterNodeLightingSoftware();
+  using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, Float) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Size &) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, const Point3D &) MOZ_OVERRIDE;

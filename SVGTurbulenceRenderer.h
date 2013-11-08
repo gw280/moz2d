@@ -7,6 +7,7 @@
 #define _MOZILLA_GFX_SVG_TURBULENCE_RENDERER_H_
 
 #include "2D.h"
+#include "Filters.h"
 
 namespace mozilla {
 namespace gfx {
@@ -70,9 +71,9 @@ class SVGTurbulenceRenderer
 {
 public:
   SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
-                        int aNumOctaves, const IntRect &aTileRect);
+                        int aNumOctaves, const Rect &aTileRect);
 
-  uint32_t ColorAtPoint(const IntPoint &aPoint) const;
+  uint32_t ColorAtPoint(const Point &aPoint) const;
 
 private:
   /* The turbulence calculation code is an adapted version of what
@@ -88,12 +89,13 @@ private:
   };
 
   const static int sBSize = 0x100;
+  const static int sBM = 0xff;
   void InitFromSeed(int32_t aSeed);
-  void AdjustBaseFrequencyForStitch(const IntRect &aTileRect);
+  void AdjustBaseFrequencyForStitch(const Rect &aTileRect);
   IntPoint AdjustForStitch(IntPoint aLatticePoint, const StitchInfo& aStitchInfo) const;
-  StitchInfo CreateStitchInfo(const IntRect &aTileRect) const;
+  StitchInfo CreateStitchInfo(const Rect &aTileRect) const;
   vec4<T> Noise2(Point aVec, const StitchInfo& aStitchInfo) const;
-  vec4<T> Turbulence(const IntPoint &aPoint) const;
+  vec4<T> Turbulence(const Point &aPoint) const;
 
   Size mBaseFrequency;
   int32_t mNumOctaves;

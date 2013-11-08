@@ -54,7 +54,7 @@ private:
 
 template<TurbulenceType Type, bool Stitch, typename T>
 SVGTurbulenceRenderer<Type,Stitch,T>::SVGTurbulenceRenderer(const Size &aBaseFrequency, int32_t aSeed,
-                                                            int aNumOctaves, const IntRect &aTileRect)
+                                                            int aNumOctaves, const Rect &aTileRect)
  : mBaseFrequency(aBaseFrequency)
  , mNumOctaves(aNumOctaves)
 {
@@ -127,7 +127,7 @@ AdjustForLength(float aFreq, float aLength)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 void
-SVGTurbulenceRenderer<Type,Stitch,T>::AdjustBaseFrequencyForStitch(const IntRect &aTileRect)
+SVGTurbulenceRenderer<Type,Stitch,T>::AdjustBaseFrequencyForStitch(const Rect &aTileRect)
 {
   mBaseFrequency = Size(AdjustForLength(mBaseFrequency.width, aTileRect.width),
                         AdjustForLength(mBaseFrequency.height, aTileRect.height));
@@ -135,7 +135,7 @@ SVGTurbulenceRenderer<Type,Stitch,T>::AdjustBaseFrequencyForStitch(const IntRect
 
 template<TurbulenceType Type, bool Stitch, typename T>
 typename SVGTurbulenceRenderer<Type,Stitch,T>::StitchInfo
-SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const IntRect &aTileRect) const
+SVGTurbulenceRenderer<Type,Stitch,T>::CreateStitchInfo(const Rect &aTileRect) const
 {
   StitchInfo stitch;
   stitch.width = int32_t(floorf(aTileRect.width * mBaseFrequency.width + 0.5f));
@@ -215,13 +215,13 @@ SVGTurbulenceRenderer<Type,Stitch,T>::Noise2(Point aVec, const StitchInfo& aStit
   IntPoint b0 = AdjustForStitch(nearestLatticePointInt, aStitchInfo);
   IntPoint b1 = AdjustForStitch(b0 + IntPoint(1, 1), aStitchInfo);
 
-  uint8_t i = mLatticeSelector[b0.x % sBSize];
-  uint8_t j = mLatticeSelector[b1.x % sBSize];
+  uint8_t i = mLatticeSelector[b0.x & sBM];
+  uint8_t j = mLatticeSelector[b1.x & sBM];
 
-  const vec4<T>* qua = mGradient[(i + b0.y) % sBSize];
-  const vec4<T>* qub = mGradient[(i + b1.y) % sBSize];
-  const vec4<T>* qva = mGradient[(j + b0.y) % sBSize];
-  const vec4<T>* qvb = mGradient[(j + b1.y) % sBSize];
+  const vec4<T>* qua = mGradient[(i + b0.y) & sBM];
+  const vec4<T>* qub = mGradient[(i + b1.y) & sBM];
+  const vec4<T>* qva = mGradient[(j + b0.y) & sBM];
+  const vec4<T>* qvb = mGradient[(j + b1.y) & sBM];
 
   return Interpolate(qua[0], qua[1], qub[0], qub[1],
                      qva[0], qva[1], qvb[0], qvb[1], fractionalOffset);
@@ -236,7 +236,7 @@ vabs(const vec4<T> &v)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 vec4<T>
-SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(const IntPoint &aPoint) const
+SVGTurbulenceRenderer<Type,Stitch,T>::Turbulence(const Point &aPoint) const
 {
   StitchInfo stitchInfo = mStitchInfo;
   vec4<T> sum;
@@ -287,7 +287,7 @@ ColorToBGRA(const S& aColor)
 
 template<TurbulenceType Type, bool Stitch, typename T>
 uint32_t
-SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const IntPoint &aPoint) const
+SVGTurbulenceRenderer<Type,Stitch,T>::ColorAtPoint(const Point &aPoint) const
 {
   vec4<T> col;
   if (Type == TURBULENCE_TYPE_TURBULENCE) {

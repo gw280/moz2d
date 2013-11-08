@@ -7,7 +7,7 @@ INCLUDES=.
 CXXFLAGS=-std=gnu++0x -Wall
 DEBUGFLAGS=-g -DDEBUG
 RELEASEFLAGS=-O3
-DEFINES=
+DEFINES=USE_SSE2
 
 ifeq ($(QMAKE_BIN),)
 QMAKE_BIN=qmake
@@ -37,6 +37,9 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   DrawTargetRecording.cpp \
   Factory.cpp \
   FilterNodeSoftware.cpp \
+  FilterProcessing.cpp \
+  FilterProcessingScalar.cpp \
+  FilterProcessingSSE2.cpp \
   ImageScaling.cpp \
   ImageScalingSSE2.cpp \
   Matrix.cpp \
