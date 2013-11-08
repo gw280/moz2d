@@ -8,14 +8,9 @@
 #include "TestRect.h"
 #include "TestScaling.h"
 #ifdef WIN32
-#include "TestDrawTargetD2D.h"
+#include <d3d10_1.h>
 #endif
-#ifdef USE_CAIRO
-#include "TestDrawTargetCairoImage.h"
-#endif
-#ifdef USE_SKIA
-#include "TestDrawTargetSkiaSoftware.h"
-#endif
+#include "TestDrawTarget.h"
 
 #include <string>
 #include <sstream>
@@ -27,10 +22,26 @@ struct TestObject {
 
 
 using namespace std;
+using namespace mozilla;
+using namespace mozilla::gfx;
 
 int
 main()
 {
+  RefPtr<ID3D10Device1> mDevice;
+#ifdef WIN32
+  ::D3D10CreateDevice1(nullptr,
+                       D3D10_DRIVER_TYPE_HARDWARE,
+                       nullptr,
+                       D3D10_CREATE_DEVICE_BGRA_SUPPORT |
+                       D3D10_CREATE_DEVICE_PREVENT_INTERNAL_THREADING_OPTIMIZATIONS,
+                       D3D10_FEATURE_LEVEL_10_0,
+                       D3D10_1_SDK_VERSION,
+                       byRef(mDevice));
+
+  Factory::SetDirect3D10Device(mDevice);
+#endif
+
   TestObject tests[] = 
   {
     { new SanityChecks(), "Sanity Checks" },

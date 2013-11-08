@@ -20,10 +20,6 @@ INCLUDES += $(MOZ2D_SKIA)/include \
             $(MOZ2D_SKIA)/include/gpu \
             $(NULL)
 
-UNITTEST_CPPSRCS += \
-  unittest/TestDrawTargetSkiaSoftware.cpp \
-  $(NULL)
-  
 PERFTEST_CPPSRCS += \
   perftest/TestDrawTargetSkiaSoftware.cpp \
   $(NULL)

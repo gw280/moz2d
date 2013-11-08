@@ -7,6 +7,7 @@
   
 #include "2D.h"
 #include "TestBase.h"
+#include "TestHelpers.h"
   
 #define DT_WIDTH 500
 #define DT_HEIGHT 500
@@ -58,3 +59,13 @@ protected:
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
   mozilla::RefPtr<mozilla::gfx::DataSourceSurface> mDataSnapshot;
 }; 
+
+#ifdef WIN32
+IMPLEMENT_DT_TESTS(D2D, BACKEND_DIRECT2D, TestDrawTargetBase);
+#endif
+#ifdef USE_SKIA
+IMPLEMENT_DT_TESTS(SkiaSoftware, BACKEND_SKIA, TestDrawTargetBase);
+#endif
+#ifdef USE_CAIRO
+IMPLEMENT_DT_TESTS(CairoImage, BACKEND_CAIRO, TestDrawTargetBase);
+#endif
