@@ -169,12 +169,12 @@ BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
 
       i16x8_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
       i16x8_t leftFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
-      blendedComponent1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(sourceInterleavedWithDest1, leftFactor1);
+      blendedComponent1 = simd::MulAdd16x8x2To32x4(sourceInterleavedWithDest1, leftFactor1);
       blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
 
       i16x8_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
       i16x8_t leftFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, twoFiftyFiveMinusSourceAlphaPlusSource);
-      blendedComponent2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(sourceInterleavedWithDest2, leftFactor2);
+      blendedComponent2 = simd::MulAdd16x8x2To32x4(sourceInterleavedWithDest2, leftFactor2);
       blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
 
       break;
@@ -188,12 +188,12 @@ BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
 
       i16x8_t twoFiftyFiveInterleavedWithZeroMinusDest1 = simd::InterleaveLo16(x255, zeroMinusDest);
       i16x8_t sourcePlusDestInterleavedWithSource1 = simd::InterleaveLo16(sourcePlusDest, source);
-      blendedComponent1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithZeroMinusDest1, sourcePlusDestInterleavedWithSource1);
+      blendedComponent1 = simd::MulAdd16x8x2To32x4(twoFiftyFiveInterleavedWithZeroMinusDest1, sourcePlusDestInterleavedWithSource1);
       blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
 
       i16x8_t twoFiftyFiveInterleavedWithZeroMinusDest2 = simd::InterleaveHi16(x255, zeroMinusDest);
       i16x8_t sourcePlusDestInterleavedWithSource2 = simd::InterleaveHi16(sourcePlusDest, source);
-      blendedComponent2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithZeroMinusDest2, sourcePlusDestInterleavedWithSource2);
+      blendedComponent2 = simd::MulAdd16x8x2To32x4(twoFiftyFiveInterleavedWithZeroMinusDest2, sourcePlusDestInterleavedWithSource2);
       blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
 
       break;
@@ -216,16 +216,16 @@ BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
       i16x8_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1 = simd::InterleaveLo16(twoFiftyFiveMinusDestAlpha, x255);
       i16x8_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1 = simd::InterleaveLo16(x255, twoFiftyFiveMinusSourceAlpha);
       i16x8_t sourceInterleavedWithDest1 = simd::InterleaveLo16(source, dest);
-      i32x4_t product1_1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1, sourceInterleavedWithDest1);
-      i32x4_t product1_2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1, sourceInterleavedWithDest1);
+      i32x4_t product1_1 = simd::MulAdd16x8x2To32x4(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive1, sourceInterleavedWithDest1);
+      i32x4_t product1_2 = simd::MulAdd16x8x2To32x4(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha1, sourceInterleavedWithDest1);
       blendedComponent1 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product1_1, product1_2) : simd::Max32(product1_1, product1_2);
       blendedComponent1 = simd::FastDivideBy255(blendedComponent1);
 
       i16x8_t twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2 = simd::InterleaveHi16(twoFiftyFiveMinusDestAlpha, x255);
       i16x8_t twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2 = simd::InterleaveHi16(x255, twoFiftyFiveMinusSourceAlpha);
       i16x8_t sourceInterleavedWithDest2 = simd::InterleaveHi16(source, dest);
-      i32x4_t product2_1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2, sourceInterleavedWithDest2);
-      i32x4_t product2_2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2, sourceInterleavedWithDest2);
+      i32x4_t product2_1 = simd::MulAdd16x8x2To32x4(twoFiftyFiveMinusDestAlphaInterleavedWithTwoFiftyFive2, sourceInterleavedWithDest2);
+      i32x4_t product2_2 = simd::MulAdd16x8x2To32x4(twoFiftyFiveInterleavedWithTwoFiftyFiveMinusSourceAlpha2, sourceInterleavedWithDest2);
       blendedComponent2 = aBlendMode == BLEND_MODE_DARKEN ? simd::Min32(product2_1, product2_2) : simd::Max32(product2_1, product2_2);
       blendedComponent2 = simd::FastDivideBy255(blendedComponent2);
 
@@ -243,7 +243,7 @@ BlendAlphaOfFourPixels(i16x8_t s_rrrraaaa1234, i16x8_t d_rrrraaaa1234)
   i16x8_t sourceAlpha = simd::InterleaveHi16(s_rrrraaaa1234, simd::From16<i16x8_t>(0));
   i16x8_t f1 = simd::Sub16(destAlpha, simd::From16<i16x8_t>(255));
   i16x8_t f2 = simd::Sub16(simd::From16<i16x8_t>(255), sourceAlpha);
-  return simd::FastDivideBy255(simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(f1, f2));
+  return simd::FastDivideBy255(simd::MulAdd16x8x2To32x4(f1, f2));
 }
 
 template<typename u8x16_t, typename i16x8_t>
@@ -251,8 +251,8 @@ inline void
 UnpackAndShuffleComponents(u8x16_t bgrabgrabgrabgra1234,
                            i16x8_t& bbbbgggg1234, i16x8_t& rrrraaaa1234)
 {
-  i16x8_t bgrabgra12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(bgrabgrabgrabgra1234);
-  i16x8_t bgrabgra34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(bgrabgrabgrabgra1234);
+  i16x8_t bgrabgra12 = simd::UnpackLo8x8To16x8(bgrabgrabgrabgra1234);
+  i16x8_t bgrabgra34 = simd::UnpackHi8x8To16x8(bgrabgrabgrabgra1234);
   i16x8_t bbggrraa13 = simd::InterleaveLo16(bgrabgra12, bgrabgra34);
   i16x8_t bbggrraa24 = simd::InterleaveHi16(bgrabgra12, bgrabgra34);
   bbbbgggg1234 = simd::InterleaveLo16(bbggrraa13, bbggrraa24);
@@ -264,13 +264,13 @@ inline u8x16_t
 ShuffleAndPackComponents(i32x4_t bbbb1234, i32x4_t gggg1234,
                          i32x4_t rrrr1234, const i32x4_t& aaaa1234)
 {
-  i16x8_t bbbbgggg1234 = simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(bbbb1234, gggg1234);
-  i16x8_t rrrraaaa1234 = simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(rrrr1234, aaaa1234);
+  i16x8_t bbbbgggg1234 = simd::PackAndSaturate32To16(bbbb1234, gggg1234);
+  i16x8_t rrrraaaa1234 = simd::PackAndSaturate32To16(rrrr1234, aaaa1234);
   i16x8_t brbrbrbr1234 = simd::InterleaveLo16(bbbbgggg1234, rrrraaaa1234);
   i16x8_t gagagaga1234 = simd::InterleaveHi16(bbbbgggg1234, rrrraaaa1234);
   i16x8_t bgrabgra12 = simd::InterleaveLo16(brbrbrbr1234, gagagaga1234);
   i16x8_t bgrabgra34 = simd::InterleaveHi16(brbrbrbr1234, gagagaga1234);
-  return simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(bgrabgra12, bgrabgra34);
+  return simd::PackAndSaturate16To8(bgrabgra12, bgrabgra34);
 }
 
 template<typename i32x4_t, typename i16x8_t, typename u8x16_t, BlendMode mode>
@@ -368,22 +368,22 @@ inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSource
     for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4, kernelStartX += 4) {
       int32_t sourceIndex = y * aSourceStride + 4 * kernelStartX;
       u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t m12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t m34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
+      i16x8_t m12 = simd::UnpackLo8x8To16x8(p1234);
+      i16x8_t m34 = simd::UnpackHi8x8To16x8(p1234);
 
       for (int32_t i = 4; i < completeKernelSizeForFourPixels; i += 4) {
         i16x8_t p23 = simd::GetMiddleTwo16From8(p1234);
-        i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
+        i16x8_t p34 = simd::UnpackHi8x8To16x8(p1234);
         u8x16_t p5678 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex + 4 * i]);
         i16x8_t p45 = simd::GetOverlappingTwo16From8(p1234, p5678);
-        i16x8_t p56 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p5678);
+        i16x8_t p56 = simd::UnpackLo8x8To16x8(p5678);
         m12 = Morph16<op,i16x8_t>(m12, p23);
         m12 = Morph16<op,i16x8_t>(m12, p34);
         m34 = Morph16<op,i16x8_t>(m34, p45);
         m34 = Morph16<op,i16x8_t>(m34, p56);
         if (completeKernelSizeForFourPixels % 4 == 0) {
           i16x8_t p67 = simd::GetMiddleTwo16From8(p5678);
-          i16x8_t p78 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p5678);
+          i16x8_t p78 = simd::UnpackHi8x8To16x8(p5678);
           m12 = Morph16<op,i16x8_t>(m12, p45);
           m12 = Morph16<op,i16x8_t>(m12, p56);
           m34 = Morph16<op,i16x8_t>(m34, p67);
@@ -392,7 +392,7 @@ inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSource
         p1234 = p5678;
       }
 
-      u8x16_t m1234 = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(m12, m34);
+      u8x16_t m1234 = simd::PackAndSaturate16To8(m12, m34);
       int32_t destIndex = y * aDestStride + 4 * x;
       simd::Store8(&aDestData[destIndex], m1234);
     }
@@ -429,13 +429,13 @@ static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceSt
     for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4) {
       int32_t sourceIndex = startY * aSourceStride + 4 * x;
       u8x16_t u = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t u_lo = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(u);
-      i16x8_t u_hi = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(u);
+      i16x8_t u_lo = simd::UnpackLo8x8To16x8(u);
+      i16x8_t u_hi = simd::UnpackHi8x8To16x8(u);
       sourceIndex += aSourceStride;
       for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
         u8x16_t u2 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-        i16x8_t u2_lo = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(u2);
-        i16x8_t u2_hi = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(u2);
+        i16x8_t u2_lo = simd::UnpackLo8x8To16x8(u2);
+        i16x8_t u2_hi = simd::UnpackHi8x8To16x8(u2);
         if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
           u_lo = simd::Min16(u_lo, u2_lo);
           u_hi = simd::Min16(u_hi, u2_hi);
@@ -445,7 +445,7 @@ static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceSt
         }
       }
 
-      u = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(u_lo, u_hi);
+      u = simd::PackAndSaturate16To8(u_lo, u_hi);
       int32_t destIndex = y * aDestStride + 4 * x;
       simd::Store8(&aDestData[destIndex], u);
     }
@@ -481,13 +481,13 @@ ColorMatrixMultiply(i16x8_t p, i16x8_t rows_bg, i16x8_t rows_ra, const i32x4_t& 
   // int16_t bg[8] = { b, g, b, g, b, g, b, g };
   i16x8_t bg = simd::ShuffleHi16<1,0,1,0>(simd::ShuffleLo16<1,0,1,0>(p));
   // int32_t prodsum_bg[4] = { b * bB + g * gB, b * bG + g * gG, b * bR + g * gR, b * bA + g * gA }
-  i32x4_t prodsum_bg = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(bg, rows_bg);
+  i32x4_t prodsum_bg = simd::MulAdd16x8x2To32x4(bg, rows_bg);
   sum = simd::Add32(sum, prodsum_bg);
 
   // uint16_t ra[8] = { r, a, r, a, r, a, r, a };
   i16x8_t ra = simd::ShuffleHi16<3,2,3,2>(simd::ShuffleLo16<3,2,3,2>(p));
   // int32_t prodsum_ra[4] = { r * rB + a * aB, r * rG + a * aG, r * rR + a * aR, r * rA + a * aA }
-  i32x4_t prodsum_ra = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(ra, rows_ra);
+  i32x4_t prodsum_ra = simd::MulAdd16x8x2To32x4(ra, rows_ra);
   sum = simd::Add32(sum, prodsum_ra);
 
   // int32_t sum[4] == { b * bB + g * gB + r * rB + a * aB + _B, ... }.
@@ -584,10 +584,10 @@ ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
       u8x16_t p1234 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
 
       // Splat needed to get each pixel twice into i16x8
-      i16x8_t p11 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<0>(p1234));
-      i16x8_t p22 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<1>(p1234));
-      i16x8_t p33 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<2>(p1234));
-      i16x8_t p44 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(simd::Splat32On8<3>(p1234));
+      i16x8_t p11 = simd::UnpackLo8x8To16x8(simd::Splat32On8<0>(p1234));
+      i16x8_t p22 = simd::UnpackLo8x8To16x8(simd::Splat32On8<1>(p1234));
+      i16x8_t p33 = simd::UnpackLo8x8To16x8(simd::Splat32On8<2>(p1234));
+      i16x8_t p44 = simd::UnpackLo8x8To16x8(simd::Splat32On8<3>(p1234));
 
       i32x4_t result_p1 = ColorMatrixMultiply(p11, row_bg_v, row_ra_v, rowsBias_v);
       i32x4_t result_p2 = ColorMatrixMultiply(p22, row_bg_v, row_ra_v, rowsBias_v);
@@ -595,10 +595,10 @@ ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
       i32x4_t result_p4 = ColorMatrixMultiply(p44, row_bg_v, row_ra_v, rowsBias_v);
 
       static_assert(factor == 1 << 7, "Please adapt the calculation in the lines below for a different factor.");
-      u8x16_t result_p1234 = simd::PackAndSaturate32To8<i32x4_t,u8x16_t>(simd::ShiftRight32<7>(result_p1),
-                                                            simd::ShiftRight32<7>(result_p2),
-                                                            simd::ShiftRight32<7>(result_p3),
-                                                            simd::ShiftRight32<7>(result_p4));
+      u8x16_t result_p1234 = simd::PackAndSaturate32To8(simd::ShiftRight32<7>(result_p1),
+                                                        simd::ShiftRight32<7>(result_p2),
+                                                        simd::ShiftRight32<7>(result_p3),
+                                                        simd::ShiftRight32<7>(result_p4));
       simd::Store8(&targetData[targetIndex], result_p1234);
     }
   }
@@ -621,13 +621,13 @@ CompositeTwoPixels(i16x8_t source, i16x8_t sourceAlpha, i16x8_t dest, const i16x
 
       i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
       i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, x255);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
+      i32x4_t result1 = simd::MulAdd16x8x2To32x4(destSourceInterleaved1, rightFactor1);
 
       i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
       i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, x255);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
+      i32x4_t result2 = simd::MulAdd16x8x2To32x4(destSourceInterleaved2, rightFactor2);
 
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
                                          simd::FastDivideBy255(result2));
     }
 
@@ -651,13 +651,13 @@ CompositeTwoPixels(i16x8_t source, i16x8_t sourceAlpha, i16x8_t dest, const i16x
 
       i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
       i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha, destAlpha);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
+      i32x4_t result1 = simd::MulAdd16x8x2To32x4(destSourceInterleaved1, rightFactor1);
 
       i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
       i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha, destAlpha);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
+      i32x4_t result2 = simd::MulAdd16x8x2To32x4(destSourceInterleaved2, rightFactor2);
 
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
                                          simd::FastDivideBy255(result2));
     }
 
@@ -670,14 +670,14 @@ CompositeTwoPixels(i16x8_t source, i16x8_t sourceAlpha, i16x8_t dest, const i16x
       i16x8_t destSourceInterleaved1 = simd::InterleaveLo16(dest, source);
       i16x8_t rightFactor1 = simd::InterleaveLo16(twoFiftyFiveMinusSourceAlpha,
                                                      twoFiftyFiveMinusDestAlpha);
-      i32x4_t result1 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved1, rightFactor1);
+      i32x4_t result1 = simd::MulAdd16x8x2To32x4(destSourceInterleaved1, rightFactor1);
 
       i16x8_t destSourceInterleaved2 = simd::InterleaveHi16(dest, source);
       i16x8_t rightFactor2 = simd::InterleaveHi16(twoFiftyFiveMinusSourceAlpha,
                                                      twoFiftyFiveMinusDestAlpha);
-      i32x4_t result2 = simd::MulAdd16x8x2To32x4<i16x8_t,i32x4_t>(destSourceInterleaved2, rightFactor2);
+      i32x4_t result2 = simd::MulAdd16x8x2To32x4(destSourceInterleaved2, rightFactor2);
 
-      return simd::PackAndSaturate32To16<i32x4_t,i16x8_t>(simd::FastDivideBy255(result1),
+      return simd::PackAndSaturate32To16(simd::FastDivideBy255(result1),
                                          simd::FastDivideBy255(result2));
     }
 
@@ -706,19 +706,19 @@ ApplyComposition(DataSourceSurface* aSource, DataSourceSurface* aDest)
       u8x16_t s1234 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
       u8x16_t d1234 = simd::Load8<u8x16_t>(&destData[destIndex]);
 
-      i16x8_t s12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(s1234);
-      i16x8_t d12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(d1234);
+      i16x8_t s12 = simd::UnpackLo8x8To16x8(s1234);
+      i16x8_t d12 = simd::UnpackLo8x8To16x8(d1234);
       i16x8_t sa12 = simd::Splat16<3,3>(s12);
       i16x8_t da12 = simd::Splat16<3,3>(d12);
       i16x8_t result12 = CompositeTwoPixels<i32x4_t,i16x8_t,op>(s12, sa12, d12, da12);
 
-      i16x8_t s34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(s1234);
-      i16x8_t d34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(d1234);
+      i16x8_t s34 = simd::UnpackHi8x8To16x8(s1234);
+      i16x8_t d34 = simd::UnpackHi8x8To16x8(d1234);
       i16x8_t sa34 = simd::Splat16<3,3>(s34);
       i16x8_t da34 = simd::Splat16<3,3>(d34);
       i16x8_t result34 = CompositeTwoPixels<i32x4_t,i16x8_t,op>(s34, sa34, d34, da34);
 
-      u8x16_t result1234 = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(result12, result34);
+      u8x16_t result1234 = simd::PackAndSaturate16To8(result12, result34);
       simd::Store8(&destData[destIndex], result1234);
     }
   }
@@ -852,8 +852,8 @@ DoPremultiplicationCalculation_SIMD(const IntSize& aSize,
       int32_t inputIndex = y * aSourceStride + 4 * x;
       int32_t targetIndex = y * aTargetStride + 4 * x;
       u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[inputIndex]);
-      i16x8_t p12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
+      i16x8_t p12 = simd::UnpackLo8x8To16x8(p1234);
+      i16x8_t p34 = simd::UnpackHi8x8To16x8(p1234);
 
       i16x8_t a12 = simd::Splat16<3,3>(p12);
       a12 = simd::SetComponent16<7>(simd::SetComponent16<3>(a12, 255), 255);
@@ -863,7 +863,7 @@ DoPremultiplicationCalculation_SIMD(const IntSize& aSize,
       i32x4_t p1, p2, p3, p4;
       simd::Mul16x4x2x2To32x4x2(p12, a12, p1, p2);
       simd::Mul16x4x2x2To32x4x2(p34, a34, p3, p4);
-      u8x16_t result = simd::PackAndSaturate32To8<i32x4_t,u8x16_t>(simd::FastDivideBy255(p1),
+      u8x16_t result = simd::PackAndSaturate32To8(simd::FastDivideBy255(p1),
                                                       simd::FastDivideBy255(p2),
                                                       simd::FastDivideBy255(p3),
                                                       simd::FastDivideBy255(p4));
@@ -927,13 +927,13 @@ DoUnpremultiplicationCalculation_SIMD(const IntSize& aSize,
       int16_t aF2 = (int16_t)sAlphaFactors[u8[1][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
       int16_t aF3 = (int16_t)sAlphaFactors[u8[2][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
       int16_t aF4 = (int16_t)sAlphaFactors[u8[3][B8G8R8A8_COMPONENT_BYTEOFFSET_A]];
-      i16x8_t p12 = simd::UnpackLo8x8To16x8<u8x16_t,i16x8_t>(p1234);
-      i16x8_t p34 = simd::UnpackHi8x8To16x8<u8x16_t,i16x8_t>(p1234);
+      i16x8_t p12 = simd::UnpackLo8x8To16x8(p1234);
+      i16x8_t p34 = simd::UnpackHi8x8To16x8(p1234);
       i16x8_t aF12 = simd::From16<i16x8_t>(aF1, aF1, aF1, 1 << 8, aF2, aF2, aF2, 1 << 8);
       i16x8_t aF34 = simd::From16<i16x8_t>(aF3, aF3, aF3, 1 << 8, aF4, aF4, aF4, 1 << 8);
       p12 = simd::ShiftRight16<8>(simd::Add16(simd::Mul16(p12, aF12), simd::From16<i16x8_t>(128)));
       p34 = simd::ShiftRight16<8>(simd::Add16(simd::Mul16(p34, aF34), simd::From16<i16x8_t>(128)));
-      u8x16_t result = simd::PackAndSaturate16To8<i16x8_t,u8x16_t>(p12, p34);
+      u8x16_t result = simd::PackAndSaturate16To8(p12, p34);
       simd::Store8(&aTargetData[targetIndex], result);
     }
   }
