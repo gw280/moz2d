@@ -44,17 +44,37 @@ public:
   void CopySurface();
   void Shadow();
   void StreamToSink();
+  void RoundtripThroughA8MakesColorsBlack();
+  void ColorMatrix();
+  void Blend();
+  void Morphology();
+  void Flood();
+  void Tile();
+  void TableTransfer();
+  void DiscreteTransfer();
+  void LinearTransfer();
+  void GammaTransfer();
+  void ConvolveMatrixNone();
+  void ConvolveMatrixWrap();
+  void OffsetFilter();
+  void DisplacementMap();
+  void Turbulence();
+  void ArithmeticCombine();
+  void Composite();
+  void GaussianBlur();
   
 protected:
   TestDrawTargetBase();
   
   void RefreshSnapshot();
   
-  void VerifyAllPixels(const mozilla::gfx::Color &aColor);
+  void VerifyAllPixels(const mozilla::gfx::Color &aColor,
+                       uint8_t aTolerance = 0);
   void VerifyPixel(const mozilla::gfx::IntPoint &aPoint,
-                   const mozilla::gfx::Color &aColor);
+                   const mozilla::gfx::Color &aColor,
+                   uint8_t aTolerance = 0);
   
-  uint32_t RGBAPixelFromColor(const mozilla::gfx::Color &aColor);
+  uint32_t BGRAPixelFromColor(const mozilla::gfx::Color &aColor);
   
   mozilla::RefPtr<mozilla::gfx::DrawTarget> mDT;
   mozilla::RefPtr<mozilla::gfx::DataSourceSurface> mDataSnapshot;
