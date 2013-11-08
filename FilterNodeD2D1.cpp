@@ -16,6 +16,20 @@
 namespace mozilla {
 namespace gfx {
 
+D2D1_COLORMATRIX_ALPHA_MODE D2DAlphaMode(uint32_t aMode)
+{
+  switch (aMode) {
+  case ALPHA_MODE_PREMULTIPLIED:
+    return D2D1_COLORMATRIX_ALPHA_MODE_PREMULTIPLIED;
+  case ALPHA_MODE_STRAIGHT:
+    return D2D1_COLORMATRIX_ALPHA_MODE_STRAIGHT;
+  default:
+    MOZ_CRASH("Unknown enum value!");
+  }
+
+  return D2D1_COLORMATRIX_ALPHA_MODE_PREMULTIPLIED;
+}
+
 D2D1_BLEND_MODE D2DBlendMode(uint32_t aMode)
 {
   switch (aMode) {
@@ -123,6 +137,11 @@ TemporaryRef<ID2D1Image> GetImageForSourceSurface(SourceSurface *aSurface)
 uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
 {
   switch (aType) {
+  case FILTER_COLOR_MATRIX:
+    if (aAttribute == ATT_COLOR_MATRIX_ALPHA_MODE) {
+      aValue = D2DAlphaMode(aValue);
+    }
+    break;
   case FILTER_BLEND:
     if (aAttribute == ATT_BLEND_BLENDMODE) {
       aValue = D2DBlendMode(aValue);
@@ -185,6 +204,7 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
   case FILTER_COLOR_MATRIX:
     switch (aIndex) {
       CONVERT_PROP(COLOR_MATRIX_MATRIX, COLORMATRIX_PROP_COLOR_MATRIX);
+      CONVERT_PROP(COLOR_MATRIX_ALPHA_MODE, COLORMATRIX_PROP_ALPHA_MODE);
     }
     break;
   case FILTER_BLEND:

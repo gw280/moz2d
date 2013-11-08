@@ -89,9 +89,16 @@ enum MorphologyFilterInputs
   IN_MORPHOLOGY_IN = 0
 };
 
+enum AlphaMode
+{
+  ALPHA_MODE_PREMULTIPLIED = 0,
+  ALPHA_MODE_STRAIGHT
+};
+
 enum ColorMatrixFilterAtts
 {
-  ATT_COLOR_MATRIX_MATRIX = 0               // Matrix5x4
+  ATT_COLOR_MATRIX_MATRIX = 0,              // Matrix5x4
+  ATT_COLOR_MATRIX_ALPHA_MODE               // AlphaMode
 };
 
 enum ColorMatrixFilterInputs
