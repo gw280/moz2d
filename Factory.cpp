@@ -161,6 +161,10 @@ ID2D1Device *Factory::mD2D1Device;
 #endif
 #endif
 
+#ifdef MOZ_ENABLE_FREETYPE
+FT_Library Factory::mFreetypeLibrary = nullptr;
+#endif
+
 DrawEventRecorder *Factory::mRecorder;
 
 bool
