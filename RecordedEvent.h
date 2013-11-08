@@ -1002,14 +1002,14 @@ public:
 
   template<typename T>
   RecordedFilterNodeSetAttribute(FilterNode *aNode, uint32_t aIndex, T aArgument, ArgType aArgType)
-    : RecordedEvent(FILTERNODESETATTRIBUTE), mIndex(aIndex), mNode(aNode), mArgType(aArgType)
+    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(aArgType)
   {
     mPayload.resize(sizeof(T));
     memcpy(&mPayload.front(), &aArgument, sizeof(T));
   }
 
   RecordedFilterNodeSetAttribute(FilterNode *aNode, uint32_t aIndex, const Float *aFloat, uint32_t aSize)
-    : RecordedEvent(FILTERNODESETATTRIBUTE), mIndex(aIndex), mNode(aNode), mArgType(TYPE_FLOAT_ARRAY)
+    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(TYPE_FLOAT_ARRAY)
   {
     mPayload.resize(sizeof(Float) * aSize);
     memcpy(&mPayload.front(), aFloat, sizeof(Float) * aSize);
@@ -1063,8 +1063,8 @@ private:
 
   ReferencePtr mNode;
   uint32_t mIndex;
-  ReferencePtr mInputSurface;
   ReferencePtr mInputFilter;
+  ReferencePtr mInputSurface;
 
   RecordedFilterNodeSetInput(std::istream &aStream);
 };
