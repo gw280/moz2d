@@ -7,6 +7,7 @@
 #include "TestPoint.h"
 #include "TestRect.h"
 #include "TestScaling.h"
+#include "TestBugs.h"
 #ifdef WIN32
 #include <d3d10_1.h>
 #ifdef USE_D2D1_1
@@ -81,7 +82,8 @@ main()
   #endif
     { new TestPoint(), "Point Tests" },
     { new TestRect(), "Rect Tests" },
-    { new TestScaling(), "Scaling Tests" }
+    { new TestScaling(), "Scaling Tests" },
+    { new TestBugs(), "Bug Tests" }
   };
 
   int totalFailures = 0;

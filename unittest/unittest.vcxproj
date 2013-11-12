@@ -139,6 +139,7 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SanityChecks.cpp" />
     <ClCompile Include="TestBase.cpp" />
+    <ClCompile Include="TestBugs.cpp" />
     <ClCompile Include="TestDrawTarget.cpp" />
     <ClCompile Include="TestPoint.cpp" />
     <ClCompile Include="TestRect.cpp" />
