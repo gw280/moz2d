@@ -1980,15 +1980,21 @@ FilterNodeConvolveMatrixSoftware::SetAttribute(uint32_t aIndex,
   Invalidate();
 }
 
-static uint8_t
+static inline uint8_t
 ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, int32_t x, int32_t y, size_t bpp, ptrdiff_t c)
 {
   return aData[y * aStride + bpp * x + c];
 }
 
+static inline int32_t
+ColorAtPoint(const uint8_t *aData, int32_t aStride, int32_t x, int32_t y)
+{
+  return *(uint32_t*)(aData + y * aStride + 4 * x);
+}
+
 // Accepts fractional x & y and does bilinear interpolation.
 // Only call this if the pixel (floor(x)+1, floor(y)+1) is accessible.
-static uint8_t
+static inline uint8_t
 ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, size_t bpp, ptrdiff_t c)
 {
   const uint32_t f = 256;
@@ -2004,6 +2010,15 @@ ColorComponentAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y, s
   const uint8_t &cuu = ColorComponentAtPoint(aData, aStride, lx + 1, ly + 1, bpp, c);
   return ((cll * tlx + cul * tux) * tly +
           (clu * tlx + cuu * tux) * tuy + f * f / 2) / (f * f);
+}
+
+static inline uint32_t
+ColorAtPoint(const uint8_t *aData, int32_t aStride, Float x, Float y)
+{
+  return ColorComponentAtPoint(aData, aStride, x, y, 4, 0) |
+         (ColorComponentAtPoint(aData, aStride, x, y, 4, 1) << 8) |
+         (ColorComponentAtPoint(aData, aStride, x, y, 4, 2) << 16) |
+         (ColorComponentAtPoint(aData, aStride, x, y, 4, 3) << 24);
 }
 
 static int32_t
@@ -2354,21 +2369,19 @@ FilterNodeDisplacementMapSoftware::Render(const IntRect& aRect)
   uint16_t xChannel = channelMap[mChannelX];
   uint16_t yChannel = channelMap[mChannelY];
 
-  double scaleOver255 = mScale / 255.0;
-  double scaleAdjustment = -0.5 * mScale;
+  float scaleOver255 = mScale / 255.0f;
+  float scaleAdjustment = -0.5f * mScale;
 
   for (int32_t y = 0; y < aRect.height; y++) {
     for (int32_t x = 0; x < aRect.width; x++) {
       uint32_t mapIndex = y * mapStride + 4 * x;
       uint32_t targIndex = y * targetStride + 4 * x;
-      Float sourceX = x +
-        scaleOver255 * mapData[mapIndex + xChannel] + scaleAdjustment;
-      Float sourceY = y +
-        scaleOver255 * mapData[mapIndex + yChannel] + scaleAdjustment;
-      for (int32_t i = 0; i < 4; i++) {
-        targetData[targIndex + i] =
-          ColorComponentAtPoint(sourceData, sourceStride, sourceX, sourceY, 4, i);
-      }
+      int32_t sourceX = x +
+        scaleOver255 * mapData[mapIndex + xChannel] + scaleAdjustment + 0.5f;
+      int32_t sourceY = y +
+        scaleOver255 * mapData[mapIndex + yChannel] + scaleAdjustment + 0.5f;
+      *(uint32_t*)(targetData + targIndex) =
+        ColorAtPoint(sourceData, sourceStride, sourceX, sourceY);
     }
   }
 
