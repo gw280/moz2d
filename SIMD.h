@@ -48,6 +48,12 @@ i32x4_t From32(int32_t a, int32_t b, int32_t c, int32_t d);
 template<typename i32x4_t>
 i32x4_t From32(int32_t a);
 
+template<typename f32x4_t>
+f32x4_t FromF32(float a, float b, float c, float d);
+
+template<typename f32x4_t>
+f32x4_t FromF32(float a);
+
 // All SIMD backends overload these functions for their SIMD types:
 
 #if 0
@@ -132,6 +138,10 @@ struct Scalaru16x8_t {
 
 struct Scalari32x4_t {
   int32_t i32[4];
+};
+
+struct Scalarf32x4_t {
+  float f32[4];
 };
 
 template<>
@@ -227,6 +237,23 @@ inline Scalari32x4_t From32<Scalari32x4_t>(int32_t a, int32_t b, int32_t c, int3
   m.i32[2] = c;
   m.i32[3] = d;
   return m;
+}
+
+template<>
+inline Scalarf32x4_t FromF32<Scalarf32x4_t>(float a, float b, float c, float d)
+{
+  Scalarf32x4_t m;
+  m.f32[0] = a;
+  m.f32[1] = b;
+  m.f32[2] = c;
+  m.f32[3] = d;
+  return m;
+}
+
+template<>
+inline Scalarf32x4_t FromF32<Scalarf32x4_t>(float a)
+{
+  return FromF32<Scalarf32x4_t>(a, a, a, a);
 }
 
 template<>
@@ -954,6 +981,18 @@ inline __m128i From32<__m128i>(int32_t a)
   return _mm_set1_epi32(a);
 }
 
+template<>
+inline __m128 FromF32<__m128>(float a, float b, float c, float d)
+{
+  return _mm_setr_ps(a, b, c, d);
+}
+
+template<>
+inline __m128 FromF32<__m128>(float a)
+{
+  return _mm_set1_ps(a);
+}
+
 template<int32_t aNumberOfBits>
 inline __m128i ShiftRight16(__m128i aM)
 {
@@ -1207,6 +1246,48 @@ inline __m128i
 Pick(__m128i mask, __m128i a, __m128i b)
 {
   return _mm_or_si128(_mm_andnot_si128(mask, a), _mm_and_si128(mask, b));
+}
+
+inline __m128 MixF32(__m128 a, __m128 b, float t)
+{
+  return _mm_add_ps(a, _mm_mul_ps(_mm_sub_ps(b, a), _mm_set1_ps(t)));
+}
+
+inline __m128 WSumF32(__m128 a, __m128 b, float wa, float wb)
+{
+  return _mm_add_ps(_mm_mul_ps(a, _mm_set1_ps(wa)), _mm_mul_ps(b, _mm_set1_ps(wb)));
+}
+
+inline __m128 AbsF32(__m128 a)
+{
+  return _mm_max_ps(_mm_sub_ps(_mm_setzero_ps(), a), a);
+}
+
+inline __m128 AddF32(__m128 a, __m128 b)
+{
+  return _mm_add_ps(a, b);
+}
+
+inline __m128 MulF32(__m128 a, __m128 b)
+{
+  return _mm_mul_ps(a, b);
+}
+
+inline __m128 DivF32(__m128 a, __m128 b)
+{
+  return _mm_div_ps(a, b);
+}
+
+template<uint8_t aIndex>
+inline __m128 SplatF32(__m128 m)
+{
+  AssertIndex<aIndex>();
+  return _mm_shuffle_ps(m, m, _MM_SHUFFLE(aIndex, aIndex, aIndex, aIndex));
+}
+
+inline __m128i F32ToI32(__m128 m)
+{
+  return _mm_cvtps_epi32(m);
 }
 
 #endif // SIMD_COMPILE_SSE2
