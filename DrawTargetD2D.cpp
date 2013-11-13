@@ -1274,7 +1274,7 @@ DrawTargetD2D::CreateFilter(FilterType aType)
 
   if (SUCCEEDED(hr)) {
     if (aType == FILTER_CONVOLVE_MATRIX) {
-      return new FilterNodeConvolveD2D1(dc);
+      return new FilterNodeConvolveD2D1(this, dc);
     }
 
     RefPtr<ID2D1Effect> effect;
@@ -1287,7 +1287,7 @@ DrawTargetD2D::CreateFilter(FilterType aType)
       return nullptr;
     }
 
-    return new FilterNodeD2D1(effect, aType);
+    return new FilterNodeD2D1(this, effect, aType);
   }
 #endif
   return FilterNodeSoftware::Create(aType);

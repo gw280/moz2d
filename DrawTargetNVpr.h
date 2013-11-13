@@ -8,6 +8,7 @@
 #define MOZILLA_GFX_DRAWTARGETNVPR_H_
 
 #include "2D.h"
+#include "Filters.h"
 #include "nvpr/GL.h"
 #include <mozilla/RefPtr.h>
 #include <mozilla/WeakPtr.h>

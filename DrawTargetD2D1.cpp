@@ -598,7 +598,7 @@ TemporaryRef<FilterNode>
 DrawTargetD2D1::CreateFilter(FilterType aType)
 {
   if (aType == FILTER_CONVOLVE_MATRIX) {
-    return new FilterNodeConvolveD2D1(mDC);
+    return new FilterNodeConvolveD2D1(this, mDC);
   }
 
   RefPtr<ID2D1Effect> effect;
@@ -611,7 +611,7 @@ DrawTargetD2D1::CreateFilter(FilterType aType)
     return nullptr;
   }
 
-  return new FilterNodeD2D1(effect, aType);
+  return new FilterNodeD2D1(this, effect, aType);
 }
 
 bool
