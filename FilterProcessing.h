@@ -47,6 +47,9 @@ public:
   static void DoUnpremultiplicationCalculation(const IntSize& aSize,
                                                uint8_t* aTargetData, int32_t aTargetStride,
                                                uint8_t* aSourceData, int32_t aSourceStride);
+  static TemporaryRef<DataSourceSurface>
+    RenderTurbulence(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                     int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
 
 protected:
   static void ExtractAlpha_Scalar(const IntSize& size, uint8_t* sourceData, int32_t sourceStride, uint8_t* alphaData, int32_t alphaStride);
@@ -71,6 +74,9 @@ protected:
   static void DoUnpremultiplicationCalculation_Scalar(const IntSize& aSize,
                                                uint8_t* aTargetData, int32_t aTargetStride,
                                                uint8_t* aSourceData, int32_t aSourceStride);
+  static TemporaryRef<DataSourceSurface>
+    RenderTurbulence_Scalar(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                            int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
 
 #ifdef USE_SSE2
   static void ExtractAlpha_SSE2(const IntSize& size, uint8_t* sourceData, int32_t sourceStride, uint8_t* alphaData, int32_t alphaStride);
@@ -94,6 +100,9 @@ protected:
   static void DoUnpremultiplicationCalculation_SSE2(const IntSize& aSize,
                                                uint8_t* aTargetData, int32_t aTargetStride,
                                                uint8_t* aSourceData, int32_t aSourceStride);
+  static TemporaryRef<DataSourceSurface>
+    RenderTurbulence_SSE2(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                          int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
 #endif
 };
 

@@ -316,5 +316,13 @@ FilterProcessing::DoUnpremultiplicationCalculation_Scalar(
   }
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::RenderTurbulence_Scalar(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                                          int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect)
+{
+   return RenderTurbulence_SIMD<simd::Scalarf32x4_t,simd::Scalari32x4_t,simd::Scalaru8x16_t>(
+     aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
+}
+
 } // namespace mozilla
 } // namespace gfx

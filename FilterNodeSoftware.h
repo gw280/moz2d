@@ -507,9 +507,6 @@ protected:
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
   virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
 
-  template<TurbulenceType aType, bool aStitchable>
-    TemporaryRef<DataSourceSurface> DoRender(const IntRect& aRect);
-
 private:
   IntRect mStitchRect;
   Size mBaseFrequency;

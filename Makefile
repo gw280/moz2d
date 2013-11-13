@@ -50,7 +50,6 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   Scale.cpp \
   ScaledFontBase.cpp \
   SourceSurfaceRawData.cpp \
-  SVGTurbulenceRenderer.cpp \
   $(NULL)
 
 PERFTEST_CPPSRCS_ALLPLATFORMS = \

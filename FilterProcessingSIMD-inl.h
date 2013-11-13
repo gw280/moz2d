@@ -6,6 +6,7 @@
 #include "FilterProcessing.h"
 
 #include "SIMD.h"
+#include "SVGTurbulenceRenderer-inl.h"
 
 namespace mozilla {
 namespace gfx {
@@ -907,6 +908,36 @@ DoUnpremultiplicationCalculation_SIMD(const IntSize& aSize,
       simd::Store8(&aTargetData[targetIndex], result);
     }
   }
+}
+
+template<typename f32x4_t, typename i32x4_t, typename u8x16_t>
+static TemporaryRef<DataSourceSurface>
+RenderTurbulence_SIMD(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                      int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect)
+{
+#define RETURN_TURBULENCE(Type, Stitch) \
+  SVGTurbulenceRenderer<Type,Stitch,f32x4_t,i32x4_t,u8x16_t> \
+    renderer(aBaseFrequency, aSeed, aNumOctaves, aTileRect); \
+  return renderer.Render(aSize, aOffset);
+
+  switch (aType) {
+    case TURBULENCE_TYPE_TURBULENCE:
+    {
+      if (aStitch) {
+        RETURN_TURBULENCE(TURBULENCE_TYPE_TURBULENCE, true);
+      }
+      RETURN_TURBULENCE(TURBULENCE_TYPE_TURBULENCE, false);
+    }
+    case TURBULENCE_TYPE_FRACTAL_NOISE:
+    {
+      if (aStitch) {
+        RETURN_TURBULENCE(TURBULENCE_TYPE_FRACTAL_NOISE, true);
+      }
+      RETURN_TURBULENCE(TURBULENCE_TYPE_FRACTAL_NOISE, false);
+    }
+  }
+  return nullptr;
+#undef RETURN_TURBULENCE
 }
 
 } // namespace mozilla

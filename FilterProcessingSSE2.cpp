@@ -95,5 +95,12 @@ FilterProcessing::DoUnpremultiplicationCalculation_SSE2(
   DoUnpremultiplicationCalculation_SIMD<__m128i,__m128i>(aSize, aTargetData, aTargetStride, aSourceData, aSourceStride);
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::RenderTurbulence_SSE2(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                                        int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect)
+{
+  return RenderTurbulence_SIMD<__m128,__m128i,__m128i>(aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
+}
+
 } // namespace mozilla
 } // namespace gfx

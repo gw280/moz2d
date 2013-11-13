@@ -197,5 +197,17 @@ FilterProcessing::DoUnpremultiplicationCalculation(const IntSize& aSize,
   }
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::RenderTurbulence(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
+                                   int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect)
+{
+  if (Factory::HasSSE2()) {
+#ifdef USE_SSE2
+    return RenderTurbulence_SSE2(aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
+#endif
+  }
+  return RenderTurbulence_Scalar(aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
+}
+
 } // namespace gfx
 } // namespace mozilla

@@ -11,7 +11,6 @@
 #include "Tools.h"
 #include "Blur.h"
 #include <map>
-#include "SVGTurbulenceRenderer.h"
 #include "FilterProcessing.h"
 
 // #define DEBUG_DUMP_SURFACES
@@ -2480,35 +2479,6 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue)
   Invalidate();
 }
 
-template<TurbulenceType aType, bool aStitchable>
-TemporaryRef<DataSourceSurface>
-FilterNodeTurbulenceSoftware::DoRender(const IntRect& aRect)
-{
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
-  if (!target) {
-    return nullptr;
-  }
-
-  uint8_t* targetData = target->GetData();
-  uint32_t stride = target->Stride();
-
-  SVGTurbulenceRenderer<aType,aStitchable,float>
-    renderer(mBaseFrequency, mSeed, mNumOctaves, Rect(mStitchRect) - mOffset);
-
-  Point offset = Point(aRect.TopLeft()) - mOffset;
-
-  for (int32_t y = 0; y < aRect.height; y++) {
-    for (int32_t x = 0; x < aRect.width; x++) {
-      int32_t targIndex = y * stride + x * 4;
-      *(uint32_t*)(targetData + targIndex) =
-        renderer.ColorAtPoint(offset + Point(x, y));
-    }
-  }
-
-  return target;
-}
-
 void
 FilterNodeTurbulenceSoftware::SetStitchRect(const IntRect &aRect)
 {
@@ -2518,19 +2488,9 @@ FilterNodeTurbulenceSoftware::SetStitchRect(const IntRect &aRect)
 TemporaryRef<DataSourceSurface>
 FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
 {
-  switch (mType) {
-    case TURBULENCE_TYPE_TURBULENCE:
-      if (mStitchable) {
-        return DoRender<TURBULENCE_TYPE_TURBULENCE, true>(aRect);
-      }
-      return DoRender<TURBULENCE_TYPE_TURBULENCE, false>(aRect);
-    case TURBULENCE_TYPE_FRACTAL_NOISE:
-      if (mStitchable) {
-        return DoRender<TURBULENCE_TYPE_FRACTAL_NOISE, true>(aRect);
-      }
-      return DoRender<TURBULENCE_TYPE_FRACTAL_NOISE, false>(aRect);
-  }
-  return nullptr;
+  return FilterProcessing::RenderTurbulence(
+    aRect.Size(), Point(aRect.TopLeft()) - mOffset, mBaseFrequency,
+    mSeed, mNumOctaves, mType, mStitchable, Rect(mStitchRect) - mOffset);
 }
 
 IntRect
