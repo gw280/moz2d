@@ -670,14 +670,6 @@ FilterNodeSoftware::GetOutput(const IntRect &aRect)
 }
 
 void
-FilterNodeSoftware::SetStitchRect(const IntRect &aRect)
-{
-  if (NumberOfSetInputs() >= 1 && mInputFilters[0]) {
-    mInputFilters[0]->SetStitchRect(aRect);
-  }
-}
-
-void
 FilterNodeSoftware::RequestRect(const IntRect &aRect)
 {
   mRequestedRect = mRequestedRect.Union(aRect);
@@ -1331,10 +1323,6 @@ FilterNodeTileSoftware::Render(const IntRect& aRect)
 {
   if (mSourceRect.IsEmpty()) {
     return nullptr;
-  }
-
-  if (NumberOfSetInputs() >= 1 && mInputFilters[0]) {
-    mInputFilters[0]->SetStitchRect(mSourceRect);
   }
 
   if (mSourceRect.Contains(aRect)) {
@@ -2276,14 +2264,6 @@ FilterNodeOffsetSoftware::GetOutput(const IntRect& aRect)
 }
 
 void
-FilterNodeOffsetSoftware::SetStitchRect(const IntRect &aRect)
-{
-  if (NumberOfSetInputs() >= 1 && mInputFilters[0]) {
-    mInputFilters[0]->SetStitchRect(aRect - mOffset);
-  }
-}
-
-void
 FilterNodeOffsetSoftware::RequestFromInputsForRect(const IntRect &aRect)
 {
   RequestInputRect(IN_OFFSET_IN, aRect - mOffset);
@@ -2477,11 +2457,6 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue)
       break;
   }
   Invalidate();
-}
-
-void
-FilterNodeTurbulenceSoftware::SetStitchRect(const IntRect &aRect)
-{
 }
 
 TemporaryRef<DataSourceSurface>

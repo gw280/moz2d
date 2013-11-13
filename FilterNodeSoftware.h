@@ -51,8 +51,6 @@ public:
   virtual void SetInput(uint32_t aIndex, SourceSurface *aSurface) MOZ_OVERRIDE;
   virtual void SetInput(uint32_t aIndex, FilterNode *aFilter) MOZ_OVERRIDE;
 
-  virtual void SetStitchRect(const IntRect &aRect);
-
   virtual void AddInvalidationListener(FilterInvalidationListener* aListener);
   virtual void RemoveInvalidationListener(FilterInvalidationListener* aListener);
 
@@ -462,7 +460,6 @@ protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
-  virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
   virtual void RequestFromInputsForRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
@@ -505,7 +502,6 @@ protected:
   virtual TemporaryRef<DataSourceSurface> Render(const IntRect& aRect) MOZ_OVERRIDE;
   virtual IntRect GetOutputRectInRect(const IntRect& aRect) MOZ_OVERRIDE;
   virtual int32_t InputIndex(uint32_t aInputEnumIndex) MOZ_OVERRIDE;
-  virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
   IntRect mRenderRect;
