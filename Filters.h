@@ -253,7 +253,7 @@ enum TurbulenceAtts
   ATT_TURBULENCE_SEED,                      // uint32_t
   ATT_TURBULENCE_STITCHABLE,                // bool
   ATT_TURBULENCE_TYPE,                      // TurbulenceType
-  ATT_TURBULENCE_OFFSET                     // Point
+  ATT_TURBULENCE_RECT                       // IntRect
 };
 
 enum TurbulenceType

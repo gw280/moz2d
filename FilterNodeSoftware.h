@@ -497,7 +497,7 @@ public:
   FilterNodeTurbulenceSoftware();
   using FilterNodeSoftware::SetAttribute;
   virtual void SetAttribute(uint32_t aIndex, const Size &aSize) MOZ_OVERRIDE;
-  virtual void SetAttribute(uint32_t aIndex, const Point &aOffset) MOZ_OVERRIDE;
+  virtual void SetAttribute(uint32_t aIndex, const IntRect &aRenderRect) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, bool aStitchable) MOZ_OVERRIDE;
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue) MOZ_OVERRIDE;
 
@@ -508,9 +508,8 @@ protected:
   virtual void SetStitchRect(const IntRect &aRect) MOZ_OVERRIDE;
 
 private:
-  IntRect mStitchRect;
+  IntRect mRenderRect;
   Size mBaseFrequency;
-  Point mOffset;
   uint32_t mNumOctaves;
   uint32_t mSeed;
   bool mStitchable;

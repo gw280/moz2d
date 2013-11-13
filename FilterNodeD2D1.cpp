@@ -312,7 +312,6 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
       CONVERT_PROP(TURBULENCE_SEED, TURBULENCE_PROP_SEED);
       CONVERT_PROP(TURBULENCE_STITCHABLE, TURBULENCE_PROP_STITCHABLE);
       CONVERT_PROP(TURBULENCE_TYPE, TURBULENCE_PROP_NOISE);
-      CONVERT_PROP(TURBULENCE_OFFSET, TURBULENCE_PROP_OFFSET);
     }
     break;
   case FILTER_ARITHMETIC_COMBINE:
@@ -582,6 +581,14 @@ FilterNodeD2D1::SetAttribute(uint32_t aIndex, const Rect &aValue)
 void
 FilterNodeD2D1::SetAttribute(uint32_t aIndex, const IntRect &aValue)
 {
+  if (mType == FILTER_TURBULENCE) {
+    MOZ_ASSERT(aIndex == ATT_TURBULENCE_RECT);
+
+    mEffect->SetValue(D2D1_TURBULENCE_PROP_OFFSET, D2D1::Vector2F(Float(aValue.x), Float(aValue.y)));
+    mEffect->SetValue(D2D1_TURBULENCE_PROP_SIZE, D2D1::Vector2F(Float(aValue.width), Float(aValue.height)));
+    return;
+  }
+
   UINT32 input = GetD2D1PropForAttribute(mType, aIndex);
   MOZ_ASSERT(input < mEffect->GetPropertyCount());
 

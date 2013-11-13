@@ -2438,11 +2438,11 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const Size &aBaseFre
 }
 
 void
-FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const Point &aOffset)
+FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, const IntRect &aRect)
 {
   switch (aIndex) {
-    case ATT_TURBULENCE_OFFSET:
-      mOffset = aOffset;
+    case ATT_TURBULENCE_RECT:
+      mRenderRect = aRect;
       break;
     default:
       MOZ_CRASH();
@@ -2482,21 +2482,20 @@ FilterNodeTurbulenceSoftware::SetAttribute(uint32_t aIndex, uint32_t aValue)
 void
 FilterNodeTurbulenceSoftware::SetStitchRect(const IntRect &aRect)
 {
-  mStitchRect = aRect;
 }
 
 TemporaryRef<DataSourceSurface>
 FilterNodeTurbulenceSoftware::Render(const IntRect& aRect)
 {
   return FilterProcessing::RenderTurbulence(
-    aRect.Size(), Point(aRect.TopLeft()) - mOffset, mBaseFrequency,
-    mSeed, mNumOctaves, mType, mStitchable, Rect(mStitchRect) - mOffset);
+    aRect.Size(), aRect.TopLeft(), mBaseFrequency,
+    mSeed, mNumOctaves, mType, mStitchable, Rect(mRenderRect));
 }
 
 IntRect
 FilterNodeTurbulenceSoftware::GetOutputRectInRect(const IntRect& aRect)
 {
-  return aRect;
+  return aRect.Intersect(mRenderRect);
 }
 
 FilterNodeArithmeticCombineSoftware::FilterNodeArithmeticCombineSoftware()
