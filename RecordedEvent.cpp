@@ -367,7 +367,7 @@ RecordedDrawTargetCreation::RecordToStream(ostream &aStream) const
 
   if (mHasExistingData) {
     MOZ_ASSERT(mExistingData);
-    MOZ_ASSERT(mExistingData.size() == mSize);
+    MOZ_ASSERT(mExistingData->GetSize() == mSize);
     RefPtr<DataSourceSurface> dataSurf = mExistingData->GetDataSurface();
     for (int y = 0; y < mSize.height; y++) {
       aStream.write((const char*)dataSurf->GetData() + y * dataSurf->Stride(),
