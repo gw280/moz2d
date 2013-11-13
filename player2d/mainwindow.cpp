@@ -455,7 +455,7 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
 
   for (int i = 0; i < ui->viewWidget->count(); i++) {
     QWidget *tab = ui->viewWidget->widget(i);
-    void *tabObjItem = qVariantValue<void*>(tab->property("objectref"));
+    void *tabObjItem = tab->property("objectref").value<void*>();
     if (objItem->GetObject() == tabObjItem) {
       ui->viewWidget->setCurrentIndex(i);
       return;
