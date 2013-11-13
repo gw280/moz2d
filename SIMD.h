@@ -81,6 +81,7 @@ void Mul16x4x2x2To32x4x2(i16x8_t aFactorsA1B1, i16x8_t aFactorsA2B2,
 // Long multiplication + pairwise addition i16 -> i32
 // See the scalar implementation for specifics.
 i32x4_t MulAdd16x8x2To32x4(i16x8_t aFactorsA, i16x8_t aFactorsB);
+i32x4_t MulAdd16x8x2To32x4(u16x8_t aFactorsA, u16x8_t aFactorsB);
 
 // Set all four 32-bit components to the value of the component at aIndex.
 template<int8_t aIndex>
@@ -109,8 +110,6 @@ u16x8_t UnpackHi8x8ToU16x8(u8x16_t m);
 i16x8_t PackAndSaturate32To16(i32x4_t m1, i32x4_t m2);
 u8x16_t PackAndSaturate16To8(i16x8_t m1, i16x8_t m2);
 u8x16_t PackAndSaturate32To8(i32x4_t m1, i32x4_t m2, i32x4_t m3, const i32x4_t& m4);
-
-template<int8_t aIndex> i16x8 SetComponent16(i16x8 aM, int32_t aValue);
 
 i32x4 FastDivideBy255(i32x4 m);
 i16x8 FastDivideBy255_16(i16x8 m);
@@ -793,6 +792,102 @@ FastDivideBy255(Scalari32x4_t m)
                                FastDivideBy255<int32_t>(m.i32[3]));
 }
 
+inline Scalaru8x16_t
+Pick(Scalaru8x16_t mask, Scalaru8x16_t a, Scalaru8x16_t b)
+{
+  return From8<Scalaru8x16_t>((a.u8[0] & (~mask.u8[0])) | (b.u8[0] & mask.u8[0]),
+                              (a.u8[1] & (~mask.u8[1])) | (b.u8[1] & mask.u8[1]),
+                              (a.u8[2] & (~mask.u8[2])) | (b.u8[2] & mask.u8[2]),
+                              (a.u8[3] & (~mask.u8[3])) | (b.u8[3] & mask.u8[3]),
+                              (a.u8[4] & (~mask.u8[4])) | (b.u8[4] & mask.u8[4]),
+                              (a.u8[5] & (~mask.u8[5])) | (b.u8[5] & mask.u8[5]),
+                              (a.u8[6] & (~mask.u8[6])) | (b.u8[6] & mask.u8[6]),
+                              (a.u8[7] & (~mask.u8[7])) | (b.u8[7] & mask.u8[7]),
+                              (a.u8[8+0] & (~mask.u8[8+0])) | (b.u8[8+0] & mask.u8[8+0]),
+                              (a.u8[8+1] & (~mask.u8[8+1])) | (b.u8[8+1] & mask.u8[8+1]),
+                              (a.u8[8+2] & (~mask.u8[8+2])) | (b.u8[8+2] & mask.u8[8+2]),
+                              (a.u8[8+3] & (~mask.u8[8+3])) | (b.u8[8+3] & mask.u8[8+3]),
+                              (a.u8[8+4] & (~mask.u8[8+4])) | (b.u8[8+4] & mask.u8[8+4]),
+                              (a.u8[8+5] & (~mask.u8[8+5])) | (b.u8[8+5] & mask.u8[8+5]),
+                              (a.u8[8+6] & (~mask.u8[8+6])) | (b.u8[8+6] & mask.u8[8+6]),
+                              (a.u8[8+7] & (~mask.u8[8+7])) | (b.u8[8+7] & mask.u8[8+7]));
+}
+
+inline Scalari32x4_t
+Pick(Scalari32x4_t mask, Scalari32x4_t a, Scalari32x4_t b)
+{
+  return From32<Scalari32x4_t>((a.i32[0] & (~mask.i32[0])) | (b.i32[0] & mask.i32[0]),
+                               (a.i32[1] & (~mask.i32[1])) | (b.i32[1] & mask.i32[1]),
+                               (a.i32[2] & (~mask.i32[2])) | (b.i32[2] & mask.i32[2]),
+                               (a.i32[3] & (~mask.i32[3])) | (b.i32[3] & mask.i32[3]));
+}
+
+inline Scalarf32x4_t MixF32(Scalarf32x4_t a, Scalarf32x4_t b, float t)
+{
+  return FromF32<Scalarf32x4_t>(a.f32[0] + (b.f32[0] - a.f32[0]) * t,
+                                a.f32[1] + (b.f32[1] - a.f32[1]) * t,
+                                a.f32[2] + (b.f32[2] - a.f32[2]) * t,
+                                a.f32[3] + (b.f32[3] - a.f32[3]) * t);
+}
+
+inline Scalarf32x4_t WSumF32(Scalarf32x4_t a, Scalarf32x4_t b, float wa, float wb)
+{
+  return FromF32<Scalarf32x4_t>(a.f32[0] * wa + b.f32[0] * wb,
+                                a.f32[1] * wa + b.f32[1] * wb,
+                                a.f32[2] * wa + b.f32[2] * wb,
+                                a.f32[3] * wa + b.f32[3] * wb);
+}
+
+inline Scalarf32x4_t AbsF32(Scalarf32x4_t a)
+{
+  return FromF32<Scalarf32x4_t>(fabs(a.f32[0]),
+                                fabs(a.f32[1]),
+                                fabs(a.f32[2]),
+                                fabs(a.f32[3]));
+}
+
+inline Scalarf32x4_t AddF32(Scalarf32x4_t a, Scalarf32x4_t b)
+{
+  return FromF32<Scalarf32x4_t>(a.f32[0] + b.f32[0],
+                                a.f32[1] + b.f32[1],
+                                a.f32[2] + b.f32[2],
+                                a.f32[3] + b.f32[3]);
+}
+
+inline Scalarf32x4_t MulF32(Scalarf32x4_t a, Scalarf32x4_t b)
+{
+  return FromF32<Scalarf32x4_t>(a.f32[0] * b.f32[0],
+                                a.f32[1] * b.f32[1],
+                                a.f32[2] * b.f32[2],
+                                a.f32[3] * b.f32[3]);
+}
+
+inline Scalarf32x4_t DivF32(Scalarf32x4_t a, Scalarf32x4_t b)
+{
+  return FromF32<Scalarf32x4_t>(a.f32[0] / b.f32[0],
+                                a.f32[1] / b.f32[1],
+                                a.f32[2] / b.f32[2],
+                                a.f32[3] / b.f32[3]);
+}
+
+template<uint8_t aIndex>
+inline Scalarf32x4_t SplatF32(Scalarf32x4_t m)
+{
+  AssertIndex<aIndex>();
+  return FromF32<Scalarf32x4_t>(m.f32[aIndex],
+                                m.f32[aIndex],
+                                m.f32[aIndex],
+                                m.f32[aIndex]);
+}
+
+inline Scalari32x4_t F32ToI32(Scalarf32x4_t m)
+{
+  return From32<Scalari32x4_t>(int32_t(floor(m.f32[0] + 0.5f)),
+                               int32_t(floor(m.f32[1] + 0.5f)),
+                               int32_t(floor(m.f32[2] + 0.5f)),
+                               int32_t(floor(m.f32[3] + 0.5f)));
+}
+
 #ifdef SIMD_COMPILE_SSE2
 
 // SSE2
@@ -1088,13 +1183,6 @@ PackAndSaturate16To8(__m128i m1, __m128i m2)
   return _mm_packus_epi16(m1, m2);
 }
 
-template<int8_t aIndex>
-inline __m128i
-SetComponent16(__m128i aM, int32_t aValue)
-{
-  return _mm_insert_epi16(aM, aValue, aIndex);
-}
-
 inline __m128i
 FastDivideBy255(__m128i m)
 {
@@ -1113,6 +1201,12 @@ FastDivideBy255_16(__m128i m)
   __m128i lo = _mm_unpacklo_epi16(m, zero);
   __m128i hi = _mm_unpackhi_epi16(m, zero);
   return _mm_packs_epi32(FastDivideBy255(lo), FastDivideBy255(hi));
+}
+
+inline __m128i
+Pick(__m128i mask, __m128i a, __m128i b)
+{
+  return _mm_or_si128(_mm_andnot_si128(mask, a), _mm_and_si128(mask, b));
 }
 
 #endif // SIMD_COMPILE_SSE2

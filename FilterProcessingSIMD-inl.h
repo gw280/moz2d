@@ -829,26 +829,19 @@ DoPremultiplicationCalculation_SIMD(const IntSize& aSize,
                                     uint8_t* aTargetData, int32_t aTargetStride,
                                     uint8_t* aSourceData, int32_t aSourceStride)
 {
+  const u8x16_t alphaMask = simd::From8<u8x16_t>(0, 0, 0, 0xff, 0, 0, 0, 0xff, 0, 0, 0, 0xff, 0, 0, 0, 0xff);
   for (int32_t y = 0; y < aSize.height; y++) {
     for (int32_t x = 0; x < aSize.width; x += 4) {
       int32_t inputIndex = y * aSourceStride + 4 * x;
       int32_t targetIndex = y * aTargetStride + 4 * x;
       u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[inputIndex]);
-      i16x8_t p12 = simd::UnpackLo8x8To16x8(p1234);
-      i16x8_t p34 = simd::UnpackHi8x8To16x8(p1234);
-
-      i16x8_t a12 = simd::Splat16<3,3>(p12);
-      a12 = simd::SetComponent16<7>(simd::SetComponent16<3>(a12, 255), 255);
-      i16x8_t a34 = simd::Splat16<3,3>(p34);
-      a34 = simd::SetComponent16<7>(simd::SetComponent16<3>(a34, 255), 255);
-
-      i32x4_t p1, p2, p3, p4;
-      simd::Mul16x4x2x2To32x4x2(p12, a12, p1, p2);
-      simd::Mul16x4x2x2To32x4x2(p34, a34, p3, p4);
-      u8x16_t result = simd::PackAndSaturate32To8(simd::FastDivideBy255(p1),
-                                                      simd::FastDivideBy255(p2),
-                                                      simd::FastDivideBy255(p3),
-                                                      simd::FastDivideBy255(p4));
+      u16x8_t p12 = simd::UnpackLo8x8ToU16x8(p1234);
+      u16x8_t p34 = simd::UnpackHi8x8ToU16x8(p1234);
+      p12 = simd::Mul16(p12, simd::Splat16<3,3>(p12));
+      p34 = simd::Mul16(p34, simd::Splat16<3,3>(p34));
+      u8x16_t result = simd::PackAndSaturate16To8(simd::FastDivideBy255_16(p12),
+                                                  simd::FastDivideBy255_16(p34));
+      result = simd::Pick(alphaMask, result, p1234);
       simd::Store8(&aTargetData[targetIndex], result);
     }
   }
