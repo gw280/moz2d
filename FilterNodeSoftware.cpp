@@ -13,7 +13,6 @@
 #include <map>
 #include "SVGTurbulenceRenderer.h"
 #include "FilterProcessing.h"
-#include "SIMD.h"
 
 // #define DEBUG_DUMP_SURFACES
 
