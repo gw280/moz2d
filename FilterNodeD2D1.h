@@ -120,17 +120,23 @@ public:
   virtual void SetAttribute(uint32_t aIndex, uint32_t aValue);
   virtual void SetAttribute(uint32_t aIndex, const IntSize &aValue);
   virtual void SetAttribute(uint32_t aIndex, const IntPoint &aValue);
+  virtual void SetAttribute(uint32_t aIndex, const IntRect &aValue);
 
 private:
   void UpdateChain();
   void UpdateOffset();
+  void UpdateSourceRect();
 
-  RefPtr<ID2D1Effect> mBorderEffect;
   RefPtr<ID2D1Image> mInput;
   RefPtr<ID2D1Effect> mInputEffect;
+  RefPtr<ID2D1Effect> mFloodEffect;
+  RefPtr<ID2D1Effect> mCompositeEffect;
+  RefPtr<ID2D1Effect> mCropEffect;
+  RefPtr<ID2D1Effect> mBorderEffect;
   ConvolveMatrixEdgeMode mEdgeMode;
   IntPoint mTarget;
   IntSize mKernelSize;
+  IntRect mSourceRect;
 };
 
 }

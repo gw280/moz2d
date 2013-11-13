@@ -636,6 +636,25 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
   : FilterNodeD2D1(aDT, nullptr, FILTER_CONVOLVE_MATRIX)
   , mEdgeMode(EDGE_MODE_DUPLICATE)
 {
+  // Correctly handling the interaction of edge mode and source rect is a bit
+  // tricky with D2D1 effects. We want the edge mode to only apply outside of
+  // the source rect (as specified by the ATT_CONVOLVE_MATRIX_SOURCE_RECT
+  // attribute). So if our input surface or filter is smaller than the source
+  // rect, we need to add transparency around it until we reach the edges of
+  // the source rect, and only then do any repeating or edge duplicating.
+  // Unfortunately, D2D1 does not have any "extend with transparency" effect.
+  // (The crop effect can only cut off parts, it can't make the output rect
+  // bigger.) And the border effect does not have a source rect attribute -
+  // it only looks at the output rect of its input filter or surface.
+  // So we use the following trick to extend the input size to the source rect:
+  // Instead of feeding the input directly into the border effect, we first
+  // composite it with a transparent flood effect (which is infinite-sized) and
+  // use a crop effect on the result in order to get the right size. Then we
+  // feed the cropped composition into the border effect, which then finally
+  // feeds into the convolve matrix effect.
+  // All of this is only necessary when our edge mode is not EDGE_MODE_NONE, so
+  // we update the filter chain dynamically in UpdateChain().
+
   HRESULT hr;
   
   hr = aDC->CreateEffect(CLSID_D2D1ConvolveMatrix, byRef(mEffect));
@@ -647,6 +666,33 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
 
   mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_BORDER_MODE, D2D1_BORDER_MODE_SOFT);
 
+  hr = aDC->CreateEffect(CLSID_D2D1Flood, byRef(mFloodEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ConvolveMatrix filter!";
+    return;
+  }
+
+  mFloodEffect->SetValue(D2D1_FLOOD_PROP_COLOR, D2D1::Vector4F(0.0f, 0.0f, 0.0f, 0.0f));
+
+  hr = aDC->CreateEffect(CLSID_D2D1Composite, byRef(mCompositeEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ConvolveMatrix filter!";
+    return;
+  }
+
+  mCompositeEffect->SetInputEffect(1, mFloodEffect)
+
+  hr = aDC->CreateEffect(CLSID_D2D1Crop, byRef(mCropEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ConvolveMatrix filter!";
+    return;
+  }
+
+  mCropEffect->SetInputEffect(0, mCompositeEffect);
+
   hr = aDC->CreateEffect(CLSID_D2D1Border, byRef(mBorderEffect));
 
   if (FAILED(hr)) {
@@ -654,7 +700,10 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
     return;
   }
 
+  mBorderEffect->SetInputEffect(0, mCropEffect);
+
   UpdateChain();
+  UpdateSourceRect();
 }
 
 void
@@ -701,7 +750,16 @@ FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, uint32_t aValue)
 void
 FilterNodeConvolveD2D1::UpdateChain()
 {
-  ID2D1Effect *firstEffect = mBorderEffect;
+  // The shape of the filter graph:
+  //
+  // EDGE_MODE_NONE:
+  // input --> convolvematrix
+  //
+  // EDGE_MODE_DUPLICATE or EDGE_MODE_WRAP:
+  // input -------v
+  // flood --> composite --> crop --> border --> convolvematrix
+
+  ID2D1Effect *firstEffect = mCompositeEffect;
   if (mEdgeMode == EDGE_MODE_NONE) {
     firstEffect = mEffect;
   } else {
@@ -753,6 +811,19 @@ FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, const IntPoint &aValue)
 }
 
 void
+FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, const IntRect &aValue)
+{
+  if (aIndex != ATT_CONVOLVE_MATRIX_SOURCE_RECT) {
+    MOZ_ASSERT(false);
+    return;
+  }
+
+  mSourceRect = aValue;
+
+  UpdateSourceRect();
+}
+
+void
 FilterNodeConvolveD2D1::UpdateOffset()
 {
   D2D1_VECTOR_2F vector =
@@ -760,6 +831,14 @@ FilterNodeConvolveD2D1::UpdateOffset()
                    (Float(mKernelSize.height) - 1.0f) / 2.0f - Float(mTarget.y));
 
   mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_OFFSET, vector);
+}
+
+void
+FilterNodeConvolveD2D1::UpdateSourceRect()
+{
+  mCropEffect->SetValue(D2D1_CROP_PROP_RECT,
+    D2D1::RectF(Float(mSourceRect.x), Float(mSourceRect.y),
+                Float(mSourceRect.XMost()), Float(mSourceRect.YMost())));
 }
 
 }
