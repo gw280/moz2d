@@ -76,7 +76,7 @@ class FilterNodeD2D1 : public FilterNode
 public:
   FilterNodeD2D1(DrawTarget* aDT, ID2D1Effect *aEffect, FilterType aType)
     : mDT(aDT)
-	, mEffect(aEffect)
+    , mEffect(aEffect)
     , mType(aType)
   {}
 
@@ -103,6 +103,9 @@ protected:
   friend class DrawTargetD2D1;
   friend class DrawTargetD2D;
   friend class FilterNodeConvolveD2D1;
+
+  virtual ID2D1Effect* InputEffect() { return mEffect.get(); }
+  virtual ID2D1Effect* OutputEffect() { return mEffect.get(); }
 
   RefPtr<DrawTarget> mDT;
   RefPtr<ID2D1Effect> mEffect;
@@ -137,6 +140,20 @@ private:
   IntPoint mTarget;
   IntSize mKernelSize;
   IntRect mSourceRect;
+};
+
+class FilterNodeComponentTransferD2D1 : public FilterNodeD2D1
+{
+public:
+  FilterNodeComponentTransferD2D1(DrawTarget *aDT, ID2D1DeviceContext *aDC, ID2D1Effect *aEffect, FilterType aType);
+
+protected:
+  virtual ID2D1Effect* InputEffect() MOZ_OVERRIDE { return mPrePremultiplyEffect.get(); }
+  virtual ID2D1Effect* OutputEffect() MOZ_OVERRIDE { return mPostUnpremultiplyEffect.get(); }
+
+private:
+  RefPtr<ID2D1Effect> mPrePremultiplyEffect;
+  RefPtr<ID2D1Effect> mPostUnpremultiplyEffect;
 };
 
 }

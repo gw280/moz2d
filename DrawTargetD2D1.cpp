@@ -126,7 +126,7 @@ DrawTargetD2D1::DrawFilter(FilterNode *aNode,
 
   PrepareForDrawing(aOptions.mCompositionOp, ColorPattern(Color()));
 
-  mDC->DrawImage(static_cast<FilterNodeD2D1*>(aNode)->mEffect, D2DPoint(aDestPoint), D2DRect(aSourceRect));
+  mDC->DrawImage(static_cast<FilterNodeD2D1*>(aNode)->OutputEffect(), D2DPoint(aDestPoint), D2DRect(aSourceRect));
 }
 
 void
@@ -611,7 +611,15 @@ DrawTargetD2D1::CreateFilter(FilterType aType)
     return nullptr;
   }
 
-  return new FilterNodeD2D1(this, effect, aType);
+  switch (aType) {
+    case FILTER_LINEAR_TRANSFER:
+    case FILTER_GAMMA_TRANSFER:
+    case FILTER_TABLE_TRANSFER:
+    case FILTER_DISCRETE_TRANSFER:
+      return new FilterNodeComponentTransferD2D1(this, mDC, effect, aType);
+    default:
+      return new FilterNodeD2D1(this, effect, aType);
+  }
 }
 
 bool

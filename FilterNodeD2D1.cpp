@@ -429,38 +429,40 @@ void
 FilterNodeD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
 {
   UINT32 input = GetD2D1InputForInput(mType, aIndex);
-  MOZ_ASSERT(input < mEffect->GetInputCount());
+  ID2D1Effect* effect = InputEffect();
+  MOZ_ASSERT(input < effect->GetInputCount());
 
   if (mType == FILTER_COMPOSITE) {
-    UINT32 inputCount = mEffect->GetInputCount();
+    UINT32 inputCount = effect->GetInputCount();
 
     if (aIndex == inputCount - 1 && aSurface == nullptr) {
-      mEffect->SetInputCount(inputCount - 1);
+      effect->SetInputCount(inputCount - 1);
     } else if (aIndex >= inputCount && aSurface) {
-      mEffect->SetInputCount(aIndex + 1);
+      effect->SetInputCount(aIndex + 1);
     }
   }
 
   RefPtr<ID2D1Image> image = GetImageForSourceSurface(mDT, aSurface);
-  mEffect->SetInput(input, image);
+  effect->SetInput(input, image);
 }
 
 void
 FilterNodeD2D1::SetInput(uint32_t aIndex, FilterNode *aFilter)
 {
   UINT32 input = GetD2D1InputForInput(mType, aIndex);
+  ID2D1Effect* effect = InputEffect();
 
   if (mType == FILTER_COMPOSITE) {
-    UINT32 inputCount = mEffect->GetInputCount();
+    UINT32 inputCount = effect->GetInputCount();
 
     if (aIndex == inputCount - 1 && aFilter == nullptr) {
-      mEffect->SetInputCount(inputCount - 1);
+      effect->SetInputCount(inputCount - 1);
     } else if (aIndex >= inputCount && aFilter) {
-      mEffect->SetInputCount(aIndex + 1);
+      effect->SetInputCount(aIndex + 1);
     }
   }
 
-   MOZ_ASSERT(input < mEffect->GetInputCount());
+   MOZ_ASSERT(input < effect->GetInputCount());
 
   if (aFilter->GetBackendType() != FILTER_BACKEND_DIRECT2D1_1) {
     gfxWarning() << "Unknown input SourceSurface set on effect.";
@@ -468,7 +470,7 @@ FilterNodeD2D1::SetInput(uint32_t aIndex, FilterNode *aFilter)
     return;
   }
 
-  mEffect->SetInputEffect(input, static_cast<FilterNodeD2D1*>(aFilter)->mEffect.get());
+  effect->SetInputEffect(input, static_cast<FilterNodeD2D1*>(aFilter)->OutputEffect());
 }
 
 void
@@ -682,7 +684,7 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
     return;
   }
 
-  mCompositeEffect->SetInputEffect(1, mFloodEffect)
+  mCompositeEffect->SetInputEffect(1, mFloodEffect.get());
 
   hr = aDC->CreateEffect(CLSID_D2D1Crop, byRef(mCropEffect));
 
@@ -691,7 +693,7 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
     return;
   }
 
-  mCropEffect->SetInputEffect(0, mCompositeEffect);
+  mCropEffect->SetInputEffect(0, mCompositeEffect.get());
 
   hr = aDC->CreateEffect(CLSID_D2D1Border, byRef(mBorderEffect));
 
@@ -700,7 +702,7 @@ FilterNodeConvolveD2D1::FilterNodeConvolveD2D1(DrawTarget *aDT, ID2D1DeviceConte
     return;
   }
 
-  mBorderEffect->SetInputEffect(0, mCropEffect);
+  mBorderEffect->SetInputEffect(0, mCropEffect.get());
 
   UpdateChain();
   UpdateSourceRect();
@@ -839,6 +841,58 @@ FilterNodeConvolveD2D1::UpdateSourceRect()
   mCropEffect->SetValue(D2D1_CROP_PROP_RECT,
     D2D1::RectF(Float(mSourceRect.x), Float(mSourceRect.y),
                 Float(mSourceRect.XMost()), Float(mSourceRect.YMost())));
+}
+
+FilterNodeComponentTransferD2D1::FilterNodeComponentTransferD2D1(DrawTarget *aDT, ID2D1DeviceContext *aDC,
+                                                                 ID2D1Effect *aEffect, FilterType aType)
+ : FilterNodeD2D1(aDT, aEffect, aType)
+{
+  // D2D1 component transfer effects do strange things when it comes to
+  // premultiplication.
+  // For our purposes we only need the transfer filters to apply straight to
+  // unpremultiplied source channels and output unpremultiplied results.
+  // However, the D2D1 effects are designed differently: They can apply to both
+  // premultiplied and unpremultiplied inputs, and they always premultiply
+  // their result - at least in those color channels that have not been
+  // disabled.
+  // In order to determine whether the input needs to be unpremultiplied as
+  // part of the transfer, the effect consults the alpha mode metadata of the
+  // input surface or the input effect. We don't have such a concept in Moz2D,
+  // and giving Moz2D users different results based on something that cannot be
+  // influenced through Moz2D APIs seems like a bad idea.
+  // We solve this by applying a premultiply effect to the input before feeding
+  // it into the transfer effect. The premultiply effect always premultiplies
+  // regardless of any alpha mode metadata on inputs, and it always marks its
+  // output as premultiplied so that the transfer effect will unpremultiply
+  // consistently. Feeding always-premultiplied input into the transfer effect
+  // also avoids another problem that would appear when individual color
+  // channels disable the transfer: In that case, the disabled channels would
+  // pass through unchanged in their unpremultiplied form and the other
+  // channels would be premultiplied, giving a mixed result.
+  // But since we now ensure that the input is premultiplied, disabled channels
+  // will pass premultiplied values through to the result, which is consistent
+  // with the enabled channels.
+  // We also add an unpremultiply effect that postprocesses the result of the
+  // transfer effect because getting unpremultiplied results from the transfer
+  // filters is part of the FilterNode API.
+  HRESULT hr;
+
+  hr = aDC->CreateEffect(CLSID_D2D1Premultiply, byRef(mPrePremultiplyEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ComponentTransfer filter!";
+    return;
+  }
+
+  hr = aDC->CreateEffect(CLSID_D2D1UnPremultiply, byRef(mPostUnpremultiplyEffect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << "Failed to create ComponentTransfer filter!";
+    return;
+  }
+
+  mEffect->SetInputEffect(0, mPrePremultiplyEffect.get());
+  mPostUnpremultiplyEffect->SetInputEffect(0, mEffect.get());
 }
 
 }
