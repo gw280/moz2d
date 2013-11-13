@@ -102,5 +102,11 @@ FilterProcessing::RenderTurbulence_SSE2(const IntSize &aSize, const Point &aOffs
   return RenderTurbulence_SIMD<__m128,__m128i,__m128i>(aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::ApplyArithmeticCombine_SSE2(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4)
+{
+  return ApplyArithmeticCombine_SIMD<__m128i,__m128i,__m128i>(aInput1, aInput2, aK1, aK2, aK3, aK4);
+}
+
 } // namespace mozilla
 } // namespace gfx

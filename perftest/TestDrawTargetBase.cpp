@@ -60,6 +60,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, CompositeA8Single200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Blend200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Blur500x500x50);
+  REGISTER_TEST(TestDrawTargetBase, ArithmeticCombine200x200x100);
 
   mGroup = GROUP_DRAWTARGETS;
 }
@@ -628,6 +629,30 @@ TestDrawTargetBase::Blur500x500x50()
     filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 40.0f);
     filter->SetInput(IN_GAUSSIAN_BLUR_IN, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
+  }
+
+  Flush();
+}
+
+void
+TestDrawTargetBase::ArithmeticCombine200x200x100()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<SourceSurface> surf = mRandom200;
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
+  dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
+  surf = dt->Snapshot();
+  Float coeffs[4] = { 0.2f, -0.5f, 0.3f, 0.1f };
+
+  for (int i = 0; i < 1000; i++) {
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
+    filter->SetAttribute(ATT_ARITHMETIC_COMBINE_COEFFICIENTS, coeffs, 4);
+    filter->SetInput(IN_ARITHMETIC_COMBINE_IN, surf);
+    filter->SetInput(IN_ARITHMETIC_COMBINE_IN2, surf);
+    mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
   }
 
   Flush();

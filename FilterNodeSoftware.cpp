@@ -2537,40 +2537,11 @@ FilterNodeArithmeticCombineSoftware::Render(const IntRect& aRect)
     GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN, aRect, NEED_COLOR_CHANNELS);
   RefPtr<DataSourceSurface> input2 =
     GetInputDataSourceSurface(IN_ARITHMETIC_COMBINE_IN2, aRect, NEED_COLOR_CHANNELS);
-  RefPtr<DataSourceSurface> target =
-    Factory::CreateDataSourceSurface(aRect.Size(), FORMAT_B8G8R8A8);
-  if (!input1 || !input2 || !target) {
+  if (!input1 || !input2) {
     return nullptr;
   }
 
-  uint8_t* source1Data = input1->GetData();
-  uint8_t* source2Data = input2->GetData();
-  uint8_t* targetData = target->GetData();
-  uint32_t source1Stride = input1->Stride();
-  uint32_t source2Stride = input2->Stride();
-  uint32_t targetStride = target->Stride();
-
-  int32_t k1 = int32_t(clamped(mK1, -255.0f, 255.0f)             * 32);
-  int32_t k2 = int32_t(clamped(mK2, -255.0f, 255.0f) * 255       * 32);
-  int32_t k3 = int32_t(clamped(mK3, -255.0f, 255.0f) * 255       * 32);
-  int32_t k4 = int32_t(clamped(mK4, -255.0f, 255.0f) * 255 * 255 * 32);
-
-  for (int32_t y = 0; y < aRect.height; y++) {
-    for (int32_t x = 0; x < aRect.width; x++) {
-      uint32_t source1Index = y * source1Stride + 4 * x;
-      uint32_t source2Index = y * source2Stride + 4 * x;
-      uint32_t targetIndex = y * targetStride + 4 * x;
-      for (int32_t i = 0; i < 4; i++) {
-        uint8_t i1 = source1Data[source1Index + i];
-        uint8_t i2 = source2Data[source2Index + i];
-        int32_t result = umin(ClampToNonZero(k1*i1*i2 + k2*i1 + k3*i2 + k4), 255 * 255 * 32);
-        targetData[targetIndex + i] =
-                   static_cast<uint8_t>(FastDivideBy255<uint32_t>(result / 32));
-      }
-    }
-  }
-
-  return target;
+  return FilterProcessing::ApplyArithmeticCombine(input1, input2, mK1, mK2, mK3, mK4);
 }
 
 void

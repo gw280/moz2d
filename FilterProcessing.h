@@ -50,6 +50,8 @@ public:
   static TemporaryRef<DataSourceSurface>
     RenderTurbulence(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
                      int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
+  static TemporaryRef<DataSourceSurface>
+    ApplyArithmeticCombine(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4);
 
 protected:
   static void ExtractAlpha_Scalar(const IntSize& size, uint8_t* sourceData, int32_t sourceStride, uint8_t* alphaData, int32_t alphaStride);
@@ -77,6 +79,8 @@ protected:
   static TemporaryRef<DataSourceSurface>
     RenderTurbulence_Scalar(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
                             int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
+  static TemporaryRef<DataSourceSurface>
+    ApplyArithmeticCombine_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4);
 
 #ifdef USE_SSE2
   static void ExtractAlpha_SSE2(const IntSize& size, uint8_t* sourceData, int32_t sourceStride, uint8_t* alphaData, int32_t alphaStride);
@@ -103,6 +107,8 @@ protected:
   static TemporaryRef<DataSourceSurface>
     RenderTurbulence_SSE2(const IntSize &aSize, const Point &aOffset, const Size &aBaseFrequency,
                           int32_t aSeed, int aNumOctaves, TurbulenceType aType, bool aStitch, const Rect &aTileRect);
+  static TemporaryRef<DataSourceSurface>
+    ApplyArithmeticCombine_SSE2(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4);
 #endif
 };
 

@@ -324,5 +324,11 @@ FilterProcessing::RenderTurbulence_Scalar(const IntSize &aSize, const Point &aOf
      aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::ApplyArithmeticCombine_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4)
+{
+  return ApplyArithmeticCombine_SIMD<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>(aInput1, aInput2, aK1, aK2, aK3, aK4);
+}
+
 } // namespace mozilla
 } // namespace gfx

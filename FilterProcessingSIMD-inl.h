@@ -940,5 +940,76 @@ RenderTurbulence_SIMD(const IntSize &aSize, const Point &aOffset, const Size &aB
 #undef RETURN_TURBULENCE
 }
 
+template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
+static TemporaryRef<DataSourceSurface>
+ApplyArithmeticCombine_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
+                            Float aK1, Float aK2, Float aK3, Float aK4)
+{
+  IntSize size = aInput1->GetSize();
+  RefPtr<DataSourceSurface> target =
+  Factory::CreateDataSourceSurface(size, FORMAT_B8G8R8A8);
+  if (!target) {
+    return nullptr;
+  }
+
+  uint8_t* source1Data = aInput1->GetData();
+  uint8_t* source2Data = aInput2->GetData();
+  uint8_t* targetData = target->GetData();
+  uint32_t source1Stride = aInput1->Stride();
+  uint32_t source2Stride = aInput2->Stride();
+  uint32_t targetStride = target->Stride();
+
+  i16x8_t k1 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK1, -255.0f, 255.0f) * 32 + 0.5f)));
+  i16x8_t k2 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK2, -255.0f, 255.0f) * 32 + 0.5f)));
+  i16x8_t k3 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK3, -255.0f, 255.0f) * 32 + 0.5f)));
+  i16x8_t k4 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK4, -127.0f, 127.0f) * 255 + 0.5f)));
+
+  i16x8_t thirtyTwo = simd::FromI16<i16x8_t>(32);
+  i16x8_t k2And3 = simd::InterleaveLo16(k2, k3);
+  i16x8_t k1And4 = simd::InterleaveLo16(k1, k4);
+
+  for (int32_t y = 0; y < size.height; y++) {
+    for (int32_t x = 0; x < size.width; x += 4) {
+      uint32_t source1Index = y * source1Stride + 4 * x;
+      uint32_t source2Index = y * source2Stride + 4 * x;
+      uint32_t targetIndex = y * targetStride + 4 * x;
+      u8x16_t in1 = simd::Load8<u8x16_t>(&source1Data[source1Index]);
+      u8x16_t in2 = simd::Load8<u8x16_t>(&source2Data[source2Index]);
+      i16x8_t in1_12 = simd::UnpackLo8x8ToI16x8(in1);
+      i16x8_t in1_34 = simd::UnpackHi8x8ToI16x8(in1);
+      i16x8_t in2_12 = simd::UnpackLo8x8ToI16x8(in2);
+      i16x8_t in2_34 = simd::UnpackHi8x8ToI16x8(in2);
+      i32x4_t inProd1, inProd2, inProd3, inProd4;
+      simd::Mul16x4x2x2To32x4x2(in1_12, in2_12, inProd1, inProd2);
+      simd::Mul16x4x2x2To32x4x2(in1_34, in2_34, inProd3, inProd4);
+      i16x8_t inProd12 = simd::PackAndSaturate32To16(simd::FastDivideBy255(inProd1), simd::FastDivideBy255(inProd2));
+      i16x8_t inProd34 = simd::PackAndSaturate32To16(simd::FastDivideBy255(inProd3), simd::FastDivideBy255(inProd4));
+      i16x8_t inProd1AndThirtyTwo = simd::InterleaveLo16(inProd12, thirtyTwo);
+      i16x8_t inProd2AndThirtyTwo = simd::InterleaveHi16(inProd12, thirtyTwo);
+      i16x8_t inProd3AndThirtyTwo = simd::InterleaveLo16(inProd34, thirtyTwo);
+      i16x8_t inProd4AndThirtyTwo = simd::InterleaveHi16(inProd34, thirtyTwo);
+      i32x4_t inProd1AndK4 = simd::MulAdd16x8x2To32x4(k1And4, inProd1AndThirtyTwo);
+      i32x4_t inProd2AndK4 = simd::MulAdd16x8x2To32x4(k1And4, inProd2AndThirtyTwo);
+      i32x4_t inProd3AndK4 = simd::MulAdd16x8x2To32x4(k1And4, inProd3AndThirtyTwo);
+      i32x4_t inProd4AndK4 = simd::MulAdd16x8x2To32x4(k1And4, inProd4AndThirtyTwo);
+      i16x8_t in12_1 = simd::InterleaveLo16(in1_12, in2_12);
+      i16x8_t in12_2 = simd::InterleaveHi16(in1_12, in2_12);
+      i16x8_t in12_3 = simd::InterleaveLo16(in1_34, in2_34);
+      i16x8_t in12_4 = simd::InterleaveHi16(in1_34, in2_34);
+      i32x4_t inTimesK2K3_1 = simd::MulAdd16x8x2To32x4(in12_1, k2And3);
+      i32x4_t inTimesK2K3_2 = simd::MulAdd16x8x2To32x4(in12_2, k2And3);
+      i32x4_t inTimesK2K3_3 = simd::MulAdd16x8x2To32x4(in12_3, k2And3);
+      i32x4_t inTimesK2K3_4 = simd::MulAdd16x8x2To32x4(in12_4, k2And3);
+      i32x4_t result1 = simd::ShiftRight32<5>(simd::Add32(inProd1AndK4, inTimesK2K3_1));
+      i32x4_t result2 = simd::ShiftRight32<5>(simd::Add32(inProd2AndK4, inTimesK2K3_2));
+      i32x4_t result3 = simd::ShiftRight32<5>(simd::Add32(inProd3AndK4, inTimesK2K3_3));
+      i32x4_t result4 = simd::ShiftRight32<5>(simd::Add32(inProd4AndK4, inTimesK2K3_4));
+      simd::Store8(&targetData[targetIndex], simd::PackAndSaturate32To8(result1, result2, result3, result4));
+    }
+  }
+
+  return target;
+}
+
 } // namespace mozilla
 } // namespace gfx

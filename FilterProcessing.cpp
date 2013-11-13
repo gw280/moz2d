@@ -209,5 +209,16 @@ FilterProcessing::RenderTurbulence(const IntSize &aSize, const Point &aOffset, c
   return RenderTurbulence_Scalar(aSize, aOffset, aBaseFrequency, aSeed, aNumOctaves, aType, aStitch, aTileRect);
 }
 
+TemporaryRef<DataSourceSurface>
+FilterProcessing::ApplyArithmeticCombine(DataSourceSurface* aInput1, DataSourceSurface* aInput2, Float aK1, Float aK2, Float aK3, Float aK4)
+{
+  if (Factory::HasSSE2()) {
+#ifdef USE_SSE2
+    return ApplyArithmeticCombine_SSE2(aInput1, aInput2, aK1, aK2, aK3, aK4);
+#endif
+  }
+  return ApplyArithmeticCombine_Scalar(aInput1, aInput2, aK1, aK2, aK3, aK4);
+}
+
 } // namespace gfx
 } // namespace mozilla
