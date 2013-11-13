@@ -349,6 +349,11 @@ RecordedDrawTargetCreation::PlayEvent(Translator *aTranslator) const
   RefPtr<DrawTarget> newDT =
     aTranslator->GetReferenceDrawTarget()->CreateSimilarDrawTarget(mSize, mFormat);
   aTranslator->AddDrawTarget(mRefPtr, newDT);
+
+  if (mHasExistingData) {
+    Rect dataRect(0, 0, mExistingData->GetSize().width, mExistingData->GetSize().height);
+    newDT->DrawSurface(mExistingData, dataRect, dataRect);
+  }
 }
 
 void
@@ -358,6 +363,17 @@ RecordedDrawTargetCreation::RecordToStream(ostream &aStream) const
   WriteElement(aStream, mBackendType);
   WriteElement(aStream, mSize);
   WriteElement(aStream, mFormat);
+  WriteElement(aStream, mHasExistingData);
+
+  if (mHasExistingData) {
+    MOZ_ASSERT(mExistingData);
+    MOZ_ASSERT(mExistingData.size() == mSize);
+    RefPtr<DataSourceSurface> dataSurf = mExistingData->GetDataSurface();
+    for (int y = 0; y < mSize.height; y++) {
+      aStream.write((const char*)dataSurf->GetData() + y * dataSurf->Stride(),
+                    BytesPerPixel(mFormat) * mSize.width);
+    }
+  }
 }
 
 RecordedDrawTargetCreation::RecordedDrawTargetCreation(istream &aStream)
@@ -367,6 +383,16 @@ RecordedDrawTargetCreation::RecordedDrawTargetCreation(istream &aStream)
   ReadElement(aStream, mBackendType);
   ReadElement(aStream, mSize);
   ReadElement(aStream, mFormat);
+  ReadElement(aStream, mHasExistingData);
+
+  if (mHasExistingData) {
+    RefPtr<DataSourceSurface> dataSurf = Factory::CreateDataSourceSurface(mSize, mFormat);
+    for (int y = 0; y < mSize.height; y++) {
+      aStream.read((char*)dataSurf->GetData() + y * dataSurf->Stride(),
+                    BytesPerPixel(mFormat) * mSize.width);
+    }
+    mExistingData = dataSurf;
+  }
 }
 
 void
