@@ -50,7 +50,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(TestDrawTargetBase, DrawShadow10x10LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, DrawShadow200x200LargeRadius);
   REGISTER_TEST(TestDrawTargetBase, CreateRandom200);
-  REGISTER_TEST(TestDrawTargetBase, DrawTurbulence500x500);
+  REGISTER_TEST(TestDrawTargetBase, DrawTurbulence500x500x10);
   REGISTER_TEST(TestDrawTargetBase, DrawMorphologyFilter200x200x100Radius40);
   REGISTER_TEST(TestDrawTargetBase, Premultiply200x200x1000);
   REGISTER_TEST(TestDrawTargetBase, Unpremultiply200x200x1000);
@@ -416,7 +416,7 @@ TestDrawTargetBase::CreateRandom200()
 }
 
 void
-TestDrawTargetBase::DrawTurbulence500x500()
+TestDrawTargetBase::DrawTurbulence500x500x10()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 

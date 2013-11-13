@@ -55,7 +55,7 @@ public:
   void DrawShadow10x10LargeRadius();
   void DrawShadow200x200LargeRadius();
   void CreateRandom200();
-  void DrawTurbulence500x500();
+  void DrawTurbulence500x500x10();
   void DrawMorphologyFilter200x200x100Radius40();
   void Premultiply200x200x1000();
   void Unpremultiply200x200x1000();
