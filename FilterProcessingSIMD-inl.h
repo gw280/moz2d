@@ -304,7 +304,6 @@ ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
       i16x8_t d_bbbbgggg1234, d_rrrraaaa1234;
       UnpackAndShuffleComponents(s1234, s_bbbbgggg1234, s_rrrraaaa1234);
       UnpackAndShuffleComponents(d1234, d_bbbbgggg1234, d_rrrraaaa1234);
-      // Shuffle for double high
       i16x8_t s_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(s_rrrraaaa1234);
       i16x8_t d_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(d_rrrraaaa1234);
       i32x4_t blendedB, blendedG, blendedR, blendedA;
