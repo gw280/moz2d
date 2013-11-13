@@ -63,8 +63,8 @@ i16x8_t Add16(i16x8_t aM1, i16x8_t aM2);
 i32x4_t Add32(i32x4_t aM1, i32x4_t aM2);
 i16x8_t Sub16(i16x8_t aM1, i16x8_t aM2);
 i32x4_t Sub32(i32x4_t aM1, i32x4_t aM2);
-i16x8_t Min16(i16x8_t aM1, i16x8_t aM2);
-i16x8_t Max16(i16x8_t aM1, i16x8_t aM2);
+u8x16_t Min8(u8x16_t aM1, iu8x16_t aM2);
+u8x16_t Max8(u8x16_t aM1, iu8x16_t aM2);
 i32x4_t Min32(i32x4_t aM1, i32x4_t aM2);
 i32x4_t Max32(i32x4_t aM1, i32x4_t aM2);
 
@@ -308,20 +308,28 @@ umax(int32_t a, int32_t b)
   return a - ((a - b) & -(a < b));
 }
 
-inline Scalari16x8_t Min16(Scalari16x8_t aM1, Scalari16x8_t aM2)
+inline Scalaru8x16_t Min8(Scalaru8x16_t aM1, Scalaru8x16_t aM2)
 {
-  return From16<Scalari16x8_t>(umin(aM1.i16[0], aM2.i16[0]), umin(aM1.i16[1], aM2.i16[1]),
-                               umin(aM1.i16[2], aM2.i16[2]), umin(aM1.i16[3], aM2.i16[3]),
-                               umin(aM1.i16[4], aM2.i16[4]), umin(aM1.i16[5], aM2.i16[5]),
-                               umin(aM1.i16[6], aM2.i16[6]), umin(aM1.i16[7], aM2.i16[7]));
+  return From8<Scalaru8x16_t>(umin(aM1.u8[0], aM2.u8[0]), umin(aM1.u8[1], aM2.u8[1]),
+                              umin(aM1.u8[2], aM2.u8[2]), umin(aM1.u8[3], aM2.u8[3]),
+                              umin(aM1.u8[4], aM2.u8[4]), umin(aM1.u8[5], aM2.u8[5]),
+                              umin(aM1.u8[6], aM2.u8[6]), umin(aM1.u8[7], aM2.u8[7]),
+                              umin(aM1.u8[8+0], aM2.u8[8+0]), umin(aM1.u8[8+1], aM2.u8[8+1]),
+                              umin(aM1.u8[8+2], aM2.u8[8+2]), umin(aM1.u8[8+3], aM2.u8[8+3]),
+                              umin(aM1.u8[8+4], aM2.u8[8+4]), umin(aM1.u8[8+5], aM2.u8[8+5]),
+                              umin(aM1.u8[8+6], aM2.u8[8+6]), umin(aM1.u8[8+7], aM2.u8[8+7]));
 }
 
-inline Scalari16x8_t Max16(Scalari16x8_t aM1, Scalari16x8_t aM2)
+inline Scalaru8x16_t Max8(Scalaru8x16_t aM1, Scalaru8x16_t aM2)
 {
-  return From16<Scalari16x8_t>(umax(aM1.i16[0], aM2.i16[0]), umax(aM1.i16[1], aM2.i16[1]),
-                               umax(aM1.i16[2], aM2.i16[2]), umax(aM1.i16[3], aM2.i16[3]),
-                               umax(aM1.i16[4], aM2.i16[4]), umax(aM1.i16[5], aM2.i16[5]),
-                               umax(aM1.i16[6], aM2.i16[6]), umax(aM1.i16[7], aM2.i16[7]));
+  return From8<Scalaru8x16_t>(umax(aM1.u8[0], aM2.u8[0]), umax(aM1.u8[1], aM2.u8[1]),
+                              umax(aM1.u8[2], aM2.u8[2]), umax(aM1.u8[3], aM2.u8[3]),
+                              umax(aM1.u8[4], aM2.u8[4]), umax(aM1.u8[5], aM2.u8[5]),
+                              umax(aM1.u8[6], aM2.u8[6]), umax(aM1.u8[7], aM2.u8[7]),
+                              umax(aM1.u8[8+0], aM2.u8[8+0]), umax(aM1.u8[8+1], aM2.u8[8+1]),
+                              umax(aM1.u8[8+2], aM2.u8[8+2]), umax(aM1.u8[8+3], aM2.u8[8+3]),
+                              umax(aM1.u8[8+4], aM2.u8[8+4]), umax(aM1.u8[8+5], aM2.u8[8+5]),
+                              umax(aM1.u8[8+6], aM2.u8[8+6]), umax(aM1.u8[8+7], aM2.u8[8+7]));
 }
 
 inline Scalari32x4_t Min32(Scalari32x4_t aM1, Scalari32x4_t aM2)
@@ -883,18 +891,14 @@ inline __m128i Sub32(__m128i aM1, __m128i aM2)
   return _mm_sub_epi32(aM1, aM2);
 }
 
-inline __m128i Min16(__m128i aM1, __m128i aM2)
+inline __m128i Min8(__m128i aM1, __m128i aM2)
 {
-  __m128i m1_minus_m2 = _mm_sub_epi16(aM1, aM2);
-  __m128i m1_greater_than_m2 = _mm_cmpgt_epi16(aM1, aM2);
-  return _mm_sub_epi16(aM1, _mm_and_si128(m1_minus_m2, m1_greater_than_m2));
+  return _mm_min_epu8(aM1, aM2);
 }
 
-inline __m128i Max16(__m128i aM1, __m128i aM2)
+inline __m128i Max8(__m128i aM1, __m128i aM2)
 {
-  __m128i m1_minus_m2 = _mm_sub_epi16(aM1, aM2);
-  __m128i m2_greater_than_m1 = _mm_cmpgt_epi16(aM2, aM1);
-  return _mm_sub_epi16(aM1, _mm_and_si128(m1_minus_m2, m2_greater_than_m1));
+  return _mm_max_epu8(aM1, aM2);
 }
 
 inline __m128i Min32(__m128i aM1, __m128i aM2)
@@ -1047,18 +1051,11 @@ InterleaveLo32(__m128i m1, __m128i m2)
   return _mm_unpacklo_epi32(m1, m2);
 }
 
+template<uint8_t aNumBytes>
 inline __m128i
-GetMiddleTwo16From8(__m128i aM)
+Rotate8(__m128i a1234, __m128i a5678)
 {
-  return UnpackLo8x8To16x8(Shuffle32<0,3,2,1>(aM));
-}
-
-inline __m128i
-GetOverlappingTwo16From8(__m128i aM1, __m128i aM2)
-{
-  __m128i p4123 = Shuffle32<2,1,0,3>(aM1);
-  __m128i p4516 = InterleaveLo32(p4123, aM2);
-  return UnpackLo8x8To16x8(p4516);
+  return _mm_or_si128(_mm_srli_si128(a1234, aNumBytes), _mm_slli_si128(a5678, 16 - aNumBytes));
 }
 
 inline __m128i

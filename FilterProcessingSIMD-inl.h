@@ -338,13 +338,12 @@ ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2,
   }
 }
 
-
-template<MorphologyOperator Operator, typename i16x8_t>
-static i16x8_t
-Morph16(i16x8_t a, i16x8_t b)
+template<MorphologyOperator Operator, typename u8x16_t>
+static u8x16_t
+Morph8(u8x16_t a, u8x16_t b)
 {
   return Operator == MORPHOLOGY_OPERATOR_ERODE ?
-    simd::Min16(a, b) : simd::Max16(a, b);
+    simd::Min8(a, b) : simd::Max8(a, b);
 }
 
 template<MorphologyOperator op, typename i16x8_t, typename u8x16_t>
@@ -367,31 +366,22 @@ inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSource
     for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4, kernelStartX += 4) {
       int32_t sourceIndex = y * aSourceStride + 4 * kernelStartX;
       u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t m12 = simd::UnpackLo8x8To16x8(p1234);
-      i16x8_t m34 = simd::UnpackHi8x8To16x8(p1234);
+      u8x16_t m1234 = p1234;
 
       for (int32_t i = 4; i < completeKernelSizeForFourPixels; i += 4) {
-        i16x8_t p23 = simd::GetMiddleTwo16From8(p1234);
-        i16x8_t p34 = simd::UnpackHi8x8To16x8(p1234);
         u8x16_t p5678 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex + 4 * i]);
-        i16x8_t p45 = simd::GetOverlappingTwo16From8(p1234, p5678);
-        i16x8_t p56 = simd::UnpackLo8x8To16x8(p5678);
-        m12 = Morph16<op,i16x8_t>(m12, p23);
-        m12 = Morph16<op,i16x8_t>(m12, p34);
-        m34 = Morph16<op,i16x8_t>(m34, p45);
-        m34 = Morph16<op,i16x8_t>(m34, p56);
-        if (completeKernelSizeForFourPixels % 4 == 0) {
-          i16x8_t p67 = simd::GetMiddleTwo16From8(p5678);
-          i16x8_t p78 = simd::UnpackHi8x8To16x8(p5678);
-          m12 = Morph16<op,i16x8_t>(m12, p45);
-          m12 = Morph16<op,i16x8_t>(m12, p56);
-          m34 = Morph16<op,i16x8_t>(m34, p67);
-          m34 = Morph16<op,i16x8_t>(m34, p78);
+        u8x16_t p2345 = simd::Rotate8<4>(p1234, p5678);
+        u8x16_t p3456 = simd::Rotate8<8>(p1234, p5678);
+        m1234 = Morph8<op,u8x16_t>(m1234, p2345);
+        m1234 = Morph8<op,u8x16_t>(m1234, p3456);
+        if (i + 2 < completeKernelSizeForFourPixels) {
+          u8x16_t p4567 = simd::Rotate8<12>(p1234, p5678);
+          m1234 = Morph8<op,u8x16_t>(m1234, p4567);
+          m1234 = Morph8<op,u8x16_t>(m1234, p5678);
         }
         p1234 = p5678;
       }
 
-      u8x16_t m1234 = simd::PackAndSaturate16To8(m12, m34);
       int32_t destIndex = y * aDestStride + 4 * x;
       simd::Store8(&aDestData[destIndex], m1234);
     }
@@ -428,23 +418,16 @@ static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceSt
     for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4) {
       int32_t sourceIndex = startY * aSourceStride + 4 * x;
       u8x16_t u = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-      i16x8_t u_lo = simd::UnpackLo8x8To16x8(u);
-      i16x8_t u_hi = simd::UnpackHi8x8To16x8(u);
       sourceIndex += aSourceStride;
       for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
         u8x16_t u2 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-        i16x8_t u2_lo = simd::UnpackLo8x8To16x8(u2);
-        i16x8_t u2_hi = simd::UnpackHi8x8To16x8(u2);
         if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-          u_lo = simd::Min16(u_lo, u2_lo);
-          u_hi = simd::Min16(u_hi, u2_hi);
+          u = simd::Min8(u, u2);
         } else {
-          u_lo = simd::Max16(u_lo, u2_lo);
-          u_hi = simd::Max16(u_hi, u2_hi);
+          u = simd::Max8(u, u2);
         }
       }
 
-      u = simd::PackAndSaturate16To8(u_lo, u_hi);
       int32_t destIndex = y * aDestStride + 4 * x;
       simd::Store8(&aDestData[destIndex], u);
     }
