@@ -234,7 +234,7 @@ void
 FilterProcessing::ApplyComposition_Scalar(DataSourceSurface* aSource, DataSourceSurface* aDest,
                                           CompositeOperator aOperator)
 {
-  return ApplyComposition_SIMD<simd::Scalari32x4_t,simd::Scalari16x8_t,simd::Scalaru8x16_t>(aSource, aDest, aOperator);
+  return ApplyComposition_SIMD<simd::Scalari32x4_t,simd::Scalaru16x8_t,simd::Scalaru8x16_t>(aSource, aDest, aOperator);
 }
 
 void
