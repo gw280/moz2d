@@ -996,6 +996,7 @@ RenderTurbulence_SIMD(const IntSize &aSize, const Point &aOffset, const Size &aB
 #undef RETURN_TURBULENCE
 }
 
+// k1 * in1 * in2 + k2 * in1 + k3 * in2 + k4
 template<typename i32x4_t, typename i16x8_t>
 static MOZ_ALWAYS_INLINE i16x8_t
 ArithmeticCombineTwoPixels(i16x8_t in1, i16x8_t in2,
@@ -1006,12 +1007,12 @@ ArithmeticCombineTwoPixels(i16x8_t in1, i16x8_t in2,
   simd::Mul16x4x2x2To32x4x2(in1, in2, inProd_1, inProd_2);
   i16x8_t inProd = simd::PackAndSaturate32To16(simd::FastDivideBy255(inProd_1), simd::FastDivideBy255(inProd_2));
 
-  // Calculate k1 * ((in1 * in2) / 255) + (k4/32) * 32
-  i16x8_t thirtyTwo = simd::FromI16<i16x8_t>(32);
-  i16x8_t inProd1AndThirtyTwo = simd::InterleaveLo16(inProd, thirtyTwo);
-  i16x8_t inProd2AndThirtyTwo = simd::InterleaveHi16(inProd, thirtyTwo);
-  i32x4_t inProdTimesK1PlusK4_1 = simd::MulAdd16x8x2To32x4(k1And4, inProd1AndThirtyTwo);
-  i32x4_t inProdTimesK1PlusK4_2 = simd::MulAdd16x8x2To32x4(k1And4, inProd2AndThirtyTwo);
+  // Calculate k1 * ((in1 * in2) / 255) + (k4/128) * 128
+  i16x8_t oneTwentyEight = simd::FromI16<i16x8_t>(128);
+  i16x8_t inProd1AndOneTwentyEight = simd::InterleaveLo16(inProd, oneTwentyEight);
+  i16x8_t inProd2AndOneTwentyEight = simd::InterleaveHi16(inProd, oneTwentyEight);
+  i32x4_t inProdTimesK1PlusK4_1 = simd::MulAdd16x8x2To32x4(k1And4, inProd1AndOneTwentyEight);
+  i32x4_t inProdTimesK1PlusK4_2 = simd::MulAdd16x8x2To32x4(k1And4, inProd2AndOneTwentyEight);
 
   // Calculate k2 * in1 + k3 * in2
   i16x8_t in12_1 = simd::InterleaveLo16(in1, in2);
@@ -1020,8 +1021,8 @@ ArithmeticCombineTwoPixels(i16x8_t in1, i16x8_t in2,
   i32x4_t inTimesK2K3_2 = simd::MulAdd16x8x2To32x4(k2And3, in12_2);
 
   // Sum everything up and truncate the fractional part.
-  i32x4_t result_1 = simd::ShiftRight32<5>(simd::Add32(inProdTimesK1PlusK4_1, inTimesK2K3_1));
-  i32x4_t result_2 = simd::ShiftRight32<5>(simd::Add32(inProdTimesK1PlusK4_2, inTimesK2K3_2));
+  i32x4_t result_1 = simd::ShiftRight32<7>(simd::Add32(inProdTimesK1PlusK4_1, inTimesK2K3_1));
+  i32x4_t result_2 = simd::ShiftRight32<7>(simd::Add32(inProdTimesK1PlusK4_2, inTimesK2K3_2));
   return simd::PackAndSaturate32To16(result_1, result_2);
 }
 
@@ -1051,14 +1052,14 @@ ApplyArithmeticCombine_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInpu
   // result = (k1 * in1 * in2) / 255 + k2 * in1 + k3 * in2 + k4 * 255
   //
   // We want the whole calculation to happen in integer, with 16-bit factors.
-  // So we convert our factors to fixed-point with precision 1.10.5.
-  // K4 is premultiplied with 255, and it will be multiplied with 32 later
-  // during the actual calculation, because premultiplying it with 255 * 32
-  // would overflow or constrain its range even further.
+  // So we convert our factors to fixed-point with precision 1.8.7.
+  // K4 is premultiplied with 255, and it will be multiplied with 128 later
+  // during the actual calculation, because premultiplying it with 255 * 128
+  // would overflow int16.
 
-  i16x8_t k1 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK1, -255.0f, 255.0f) * 32 + 0.5f)));
-  i16x8_t k2 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK2, -255.0f, 255.0f) * 32 + 0.5f)));
-  i16x8_t k3 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK3, -255.0f, 255.0f) * 32 + 0.5f)));
+  i16x8_t k1 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK1, -255.0f, 255.0f) * 128 + 0.5f)));
+  i16x8_t k2 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK2, -255.0f, 255.0f) * 128 + 0.5f)));
+  i16x8_t k3 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK3, -255.0f, 255.0f) * 128 + 0.5f)));
   i16x8_t k4 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK4, -128.0f, 128.0f) * 255 + 0.5f)));
 
   i16x8_t k1And4 = simd::InterleaveLo16(k1, k4);
