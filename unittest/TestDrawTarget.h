@@ -56,6 +56,7 @@ public:
   void GammaTransfer();
   void ConvolveMatrixNone();
   void ConvolveMatrixWrap();
+  void ConvolveMatrixOffset();
   void OffsetFilter();
   void DisplacementMap();
   void Turbulence();

@@ -52,6 +52,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(GammaTransfer);
   REGISTER_TEST(ConvolveMatrixNone);
   REGISTER_TEST(ConvolveMatrixWrap);
+  REGISTER_TEST(ConvolveMatrixOffset);
   REGISTER_TEST(OffsetFilter);
   REGISTER_TEST(DisplacementMap);
   REGISTER_TEST(Turbulence);
@@ -980,12 +981,67 @@ TestDrawTargetBase::ConvolveMatrixWrap()
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, Size(1.0f, 1.0f));
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(1, 0));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_SOURCE_RECT, IntRect(IntPoint(), src->GetSize()));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
   RefreshSnapshot();
 
   VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void
+TestDrawTargetBase::ConvolveMatrixOffset()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(100, 100), FORMAT_B8G8R8A8);
+  dt->FillRect(Rect(50, 50, 1, 1), ColorPattern(Color(0, 1, 0, 1)));
+  RefPtr<SourceSurface> src = dt->Snapshot();
+
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+  filter->SetInput(0, src);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_DUPLICATE);
+
+  Float kernel[] = { 0.0f, 0.0f, 0.0f,
+                     0.0f, 1.0f, 0.0f,
+                     0.0f, 0.0f, 0.0f };
+
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel, 9);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(3, 3));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_PRESERVE_ALPHA, false);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_DIVISOR, 1.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.0f);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, Size(1.0f, 1.0f));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(1, 1));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_SOURCE_RECT, IntRect(0, 0, 100, 100));
+
+  mDT->DrawFilter(filter, Rect(20, 20, 80, 80), Point(20, 20));
+
+  RefreshSnapshot();
+
+  VerifyPixel(IntPoint(50, 50), Color(0, 1, 0, 1));
+  VerifyPixel(IntPoint(49, 50), Color(0, 0, 0, 0));
+  VerifyPixel(IntPoint(51, 50), Color(0, 0, 0, 0));
+  VerifyPixel(IntPoint(50, 49), Color(0, 0, 0, 0));
+  VerifyPixel(IntPoint(50, 51), Color(0, 0, 0, 0));
+
+
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+
+  Float kernel2[1] = { 1.0f };
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_MATRIX, kernel2, 1);
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_SIZE, IntSize(1, 1));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(0, 0));
+
+  mDT->DrawFilter(filter, Rect(20, 20, 80, 80), Point(20, 20));
+
+  RefreshSnapshot();
+
+  VerifyPixel(IntPoint(50, 50), Color(0, 1, 0, 1));
+  VerifyPixel(IntPoint(49, 50), Color(0, 0, 0, 0));
+  VerifyPixel(IntPoint(51, 50), Color(0, 0, 0, 0));
+  VerifyPixel(IntPoint(50, 49), Color(0, 0, 0, 0));
 }
 
 void

@@ -880,7 +880,7 @@ FilterNodeConvolveD2D1::SetAttribute(uint32_t aIndex, const IntSize &aValue)
   mKernelSize = aValue;
 
   mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_SIZE_X, aValue.width);
-  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_SIZE_X, aValue.height);
+  mEffect->SetValue(D2D1_CONVOLVEMATRIX_PROP_KERNEL_SIZE_Y, aValue.height);
 
   UpdateOffset();
 }
