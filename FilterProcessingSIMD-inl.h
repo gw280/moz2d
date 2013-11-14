@@ -374,6 +374,8 @@ Morph8(u8x16_t a, u8x16_t b)
     simd::Min8(a, b) : simd::Max8(a, b);
 }
 
+// Set every pixel to the per-component minimum or maximum of the pixels around
+// it that are up to aRadius pixels away from it (horizontally).
 template<MorphologyOperator op, typename i16x8_t, typename u8x16_t>
 inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
                                            uint8_t* aDestData, int32_t aDestStride,
@@ -389,9 +391,18 @@ inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSource
   int32_t completeKernelSizeForFourPixels = kernelSize + 3;
   MOZ_ASSERT(completeKernelSizeForFourPixels % 4 == 0 ||
              completeKernelSizeForFourPixels % 4 == 2);
+
+  // aSourceData[0] and aDestData[-aRadius] are both aligned to 16 bytes, just
+  // the way we need them to be.
+
   for (int32_t y = aDestRect.y; y < aDestRect.YMost(); y++) {
     int32_t kernelStartX = aDestRect.x - aRadius;
     for (int32_t x = aDestRect.x; x < aDestRect.XMost(); x += 4, kernelStartX += 4) {
+      // We process four pixels (16 color values) at a time.
+      // aSourceData[0] points to the pixel located at aDestRect.TopLeft();
+      // source values can be read beyond that because the source is extended
+      // by aRadius pixels.
+
       int32_t sourceIndex = y * aSourceStride + 4 * kernelStartX;
       u8x16_t p1234 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
       u8x16_t m1234 = p1234;
@@ -431,13 +442,15 @@ inline void ApplyMorphologyHorizontal_SIMD(uint8_t* aSourceData, int32_t aSource
   }
 }
 
-template<MorphologyOperator Operator, typename i16x8_t, typename u8x16_t>
+// Set every pixel to the per-component minimum or maximum of the pixels around
+// it that are up to aRadius pixels away from it (vertically).
+template<MorphologyOperator op, typename i16x8_t, typename u8x16_t>
 static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceStride,
                                          uint8_t* aDestData, int32_t aDestStride,
                                          const IntRect& aDestRect, int32_t aRadius)
 {
-  static_assert(Operator == MORPHOLOGY_OPERATOR_ERODE ||
-                Operator == MORPHOLOGY_OPERATOR_DILATE,
+  static_assert(op == MORPHOLOGY_OPERATOR_ERODE ||
+                op == MORPHOLOGY_OPERATOR_DILATE,
                 "unexpected morphology operator");
 
   int32_t startY = aDestRect.y - aRadius;
@@ -449,11 +462,7 @@ static void ApplyMorphologyVertical_SIMD(uint8_t* aSourceData, int32_t aSourceSt
       sourceIndex += aSourceStride;
       for (int32_t iy = startY + 1; iy <= endY; iy++, sourceIndex += aSourceStride) {
         u8x16_t u2 = simd::Load8<u8x16_t>(&aSourceData[sourceIndex]);
-        if (Operator == MORPHOLOGY_OPERATOR_ERODE) {
-          u = simd::Min8(u, u2);
-        } else {
-          u = simd::Max8(u, u2);
-        }
+        u = Morph8<op,u8x16_t>(u, u2);
       }
 
       int32_t destIndex = y * aDestStride + 4 * x;
