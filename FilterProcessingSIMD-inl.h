@@ -124,13 +124,13 @@ ExtractAlpha_SIMD(const IntSize& size, uint8_t* sourceData, int32_t sourceStride
       u8x16_t bgrabgrabgrabgra4 = simd::FromZero8<u8x16_t>();
 
       bgrabgrabgrabgra1 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
-      if (4 * (x + 4) <= sourceStride) {
+      if (4 * (x + 4) < sourceStride) {
         bgrabgrabgrabgra2 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 4]);
       }
-      if (4 * (x + 8) <= sourceStride) {
+      if (4 * (x + 8) < sourceStride) {
         bgrabgrabgrabgra3 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 8]);
       }
-      if (4 * (x + 12) <= sourceStride) {
+      if (4 * (x + 12) < sourceStride) {
         bgrabgrabgrabgra4 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 12]);
       }
 
@@ -749,13 +749,13 @@ SeparateColorChannels_SIMD(const IntSize &size, uint8_t* sourceData, int32_t sou
       u8x16_t bgrabgrabgrabgra4 = simd::FromZero8<u8x16_t>();
 
       bgrabgrabgrabgra1 = simd::Load8<u8x16_t>(&sourceData[sourceIndex]);
-      if (4 * (x + 4) <= sourceStride) {
+      if (4 * (x + 4) < sourceStride) {
         bgrabgrabgrabgra2 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 4]);
       }
-      if (4 * (x + 8) <= sourceStride) {
+      if (4 * (x + 8) < sourceStride) {
         bgrabgrabgrabgra3 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 8]);
       }
-      if (4 * (x + 12) <= sourceStride) {
+      if (4 * (x + 12) < sourceStride) {
         bgrabgrabgrabgra4 = simd::Load8<u8x16_t>(&sourceData[sourceIndex + 4 * 12]);
       }
 
@@ -810,13 +810,13 @@ CombineColorChannels_SIMD(const IntSize &size, int32_t resultStride, uint8_t* re
       u8x16_t bgrabgrabgrabgra4 = simd::InterleaveHi8(brbrbrbrbrbrbrbr2, gagagagagagagaga2);
 
       simd::Store8(&resultData[resultIndex], bgrabgrabgrabgra1);
-      if (4 * (x + 4) <= resultStride) {
+      if (4 * (x + 4) < resultStride) {
         simd::Store8(&resultData[resultIndex + 4 * 4], bgrabgrabgrabgra2);
       }
-      if (4 * (x + 8) <= resultStride) {
+      if (4 * (x + 8) < resultStride) {
         simd::Store8(&resultData[resultIndex + 8 * 4], bgrabgrabgrabgra3);
       }
-      if (4 * (x + 12) <= resultStride) {
+      if (4 * (x + 12) < resultStride) {
         simd::Store8(&resultData[resultIndex + 12 * 4], bgrabgrabgrabgra4);
       }
     }
