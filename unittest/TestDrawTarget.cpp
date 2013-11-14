@@ -666,27 +666,27 @@ TestDrawTargetBase::Blend()
 
   RefreshSnapshot();
 
-  VerifyPixel(IntPoint(0, 0), Color(0, 0.25f, 0, 1.0f));
-  VerifyPixel(IntPoint(1, 0), Color(0.25f, 0, 0.25, 1.0f));
-  VerifyPixel(IntPoint(2, 0), Color(0, 0.0625f, 0.393f, 1.0f));
-  VerifyPixel(IntPoint(3, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+  VerifyPixel(IntPoint(0, 0), Color(0, 0.25f, 0, 1.0f), 1);
+  VerifyPixel(IntPoint(1, 0), Color(0.25f, 0, 0.25, 1.0f), 1);
+  VerifyPixel(IntPoint(2, 0), Color(0, 0.0625f, 0.393f, 1.0f), 1);
+  VerifyPixel(IntPoint(3, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f), 1);
 
   // alphablending: Float alpha = 1 - (1 - destAlpha) * (1 - sourceAlpha);
-  VerifyPixel(IntPoint(4, 0), Color(0, 0, 0, 0.75f));
-  VerifyPixel(IntPoint(5, 0), Color(0, 0, 0, 0.860f));
-  VerifyPixel(IntPoint(6, 0), Color(0, 0, 0, 0.233f));
-  VerifyPixel(IntPoint(7, 0), Color(0, 0, 0, 0.437f));
+  VerifyPixel(IntPoint(4, 0), Color(0, 0, 0, 0.75f), 1);
+  VerifyPixel(IntPoint(5, 0), Color(0, 0, 0, 0.860f), 1);
+  VerifyPixel(IntPoint(6, 0), Color(0, 0, 0, 0.233f), 1);
+  VerifyPixel(IntPoint(7, 0), Color(0, 0, 0, 0.437f), 1);
 
   // XXX need testcases with two different inputs
-  VerifyPixel(IntPoint(8+0, 0), Color(0, 0.25f, 0, 1.0f));
-  VerifyPixel(IntPoint(8+2, 0), Color(0.25f, 0, 0.25, 1.0f));
-  VerifyPixel(IntPoint(8+5, 0), Color(0, 0.0625f, 0.393f, 1.0f));
-  VerifyPixel(IntPoint(8+6, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f));
+  VerifyPixel(IntPoint(8+0, 0), Color(0, 0.25f, 0, 1.0f), 1);
+  VerifyPixel(IntPoint(8+2, 0), Color(0.25f, 0, 0.25, 1.0f), 1);
+  VerifyPixel(IntPoint(8+5, 0), Color(0, 0.0625f, 0.393f, 1.0f), 1);
+  VerifyPixel(IntPoint(8+6, 0), Color(0.0157f, 0.0625f, 0.25f, 1.0f), 1);
 
-  VerifyPixel(IntPoint(8+1, 0), Color(0, 0, 0, 0.75f));
-  VerifyPixel(IntPoint(8+3, 0), Color(0, 0, 0, 0.860f));
-  VerifyPixel(IntPoint(8+4, 0), Color(0, 0, 0, 0.233f));
-  VerifyPixel(IntPoint(8+7, 0), Color(0, 0, 0, 0.437f));
+  VerifyPixel(IntPoint(8+1, 0), Color(0, 0, 0, 0.75f), 1);
+  VerifyPixel(IntPoint(8+3, 0), Color(0, 0, 0, 0.860f), 1);
+  VerifyPixel(IntPoint(8+4, 0), Color(0, 0, 0, 0.233f), 1);
+  VerifyPixel(IntPoint(8+7, 0), Color(0, 0, 0, 0.437f), 1);
 }
 
 void
