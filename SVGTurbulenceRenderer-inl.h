@@ -188,38 +188,25 @@ SVGTurbulenceRenderer<Type,Stitch,f32x4_t,i32x4_t,u8x16_t>::CreateStitchInfo(con
   return stitch;
 }
 
-template<typename T>
-static inline T
-SCurve(T t)
+static MOZ_ALWAYS_INLINE Float
+SCurve(Float t)
 {
   return t * t * (3 - 2 * t);
 }
 
-static inline Point
+static MOZ_ALWAYS_INLINE Point
 SCurve(Point t)
 {
   return Point(SCurve(t.x), SCurve(t.y));
 }
 
-template<typename S>
-static inline S
-BiMix(S aa, S ab, S ba, S bb, Point s)
+template<typename f32x4_t>
+static MOZ_ALWAYS_INLINE f32x4_t
+BiMix(const f32x4_t& aa, const f32x4_t& ab,
+      const f32x4_t& ba, const f32x4_t& bb, Point s)
 {
   return simd::MixF32(simd::MixF32(aa, ab, s.x),
                       simd::MixF32(ba, bb, s.x), s.y);
-}
-
-template<typename f32x4_t>
-static inline f32x4_t
-Interpolate(f32x4_t qua0, f32x4_t qua1, f32x4_t qub0, f32x4_t qub1,
-            f32x4_t qva0, f32x4_t qva1, f32x4_t qvb0, f32x4_t qvb1,
-            Point r)
-{
-  return BiMix(simd::WSumF32(qua0, qua1, r.x, r.y),
-               simd::WSumF32(qva0, qva1, r.x - 1, r.y),
-               simd::WSumF32(qub0, qub1, r.x, r.y - 1),
-               simd::WSumF32(qvb0, qvb1, r.x - 1, r.y - 1),
-               SCurve(r));
 }
 
 template<TurbulenceType Type, bool Stitch, typename f32x4_t, typename i32x4_t, typename u8x16_t>
@@ -258,8 +245,11 @@ SVGTurbulenceRenderer<Type,Stitch,f32x4_t,i32x4_t,u8x16_t>::Noise2(Point aVec, c
   const f32x4_t* qva = mGradient[(j + b0.y) & sBM];
   const f32x4_t* qvb = mGradient[(j + b1.y) & sBM];
 
-  return Interpolate(qua[0], qua[1], qub[0], qub[1],
-                     qva[0], qva[1], qvb[0], qvb[1], fractionalOffset);
+  return BiMix(simd::WSumF32(qua[0], qua[1], r.x, r.y),
+               simd::WSumF32(qva[0], qva[1], r.x - 1, r.y),
+               simd::WSumF32(qub[0], qub[1], r.x, r.y - 1),
+               simd::WSumF32(qvb[0], qvb[1], r.x - 1, r.y - 1),
+               SCurve(r));
 }
 
 template<typename f32x4_t, typename i32x4_t, typename u8x16_t>
