@@ -68,8 +68,7 @@ DrawTargetWidget::InitDT()
   } else
 #endif
   {
-    mDTData = (unsigned char*)malloc(width()*height()*4);
-    mDT = Factory::CreateDrawTargetForData(mType, mDTData, IntSize(width(),height()), width()*4, FORMAT_B8G8R8X8);
+    mDT = Factory::CreateDrawTarget(mType, IntSize(width(),height()), FORMAT_B8G8R8X8);
   }
 }
 
@@ -126,7 +125,9 @@ DrawTargetWidget::redraw()
   if (mDT && mDT->GetType() != BACKEND_DIRECT2D) {
     QPainter painter(this);
 
-    QImage qimage(mDTData, width(), height(), QImage::Format_RGB32);
+    RefPtr<SourceSurface> srcSurf = mDT->Snapshot();
+    RefPtr<DataSourceSurface> dataSrc = srcSurf->GetDataSurface();
+    QImage qimage(dataSrc->GetData(), width(), height(), dataSrc->Stride(), QImage::Format_RGB32);
     painter.drawImage(QRect(0,0,width(), height()), qimage);
   }
 }

@@ -1,6 +1,8 @@
 #include "gradientstopsview.h"
 #include "ui_gradientstopsview.h"
 
+#include "mainwindow.h"
+
 using namespace mozilla;
 using namespace mozilla::gfx;
 
@@ -12,13 +14,20 @@ GradientStopsView::GradientStopsView(ReferencePtr aRefPtr, mozilla::gfx::Transla
 {
   ui->setupUi(this);
   ui->dtWidget->InitDT();
+  ui->dtWidget->SwitchToBackend(MainWindow::mMainBackend);
 
+  connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));
   connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
 }
 
 GradientStopsView::~GradientStopsView()
 {
   delete ui;
+}
+
+void
+GradientStopsView::EventChanged()
+{
 }
 
 void

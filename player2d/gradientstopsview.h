@@ -19,6 +19,13 @@ public:
     
 public slots:
     void UpdateView();
+
+protected slots:
+    void EventChanged();
+
+signals:
+    void SwitchingBackend(uint32_t aType);
+
 private:
     Ui::GradientStopsView *ui;
     mozilla::gfx::Translator *mTranslator;

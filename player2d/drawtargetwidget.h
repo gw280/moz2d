@@ -48,7 +48,6 @@ private:
 #endif
 
   mozilla::gfx::BackendType mType;
-  unsigned char* mDTData;
   MainWindow *mMainWindow;
 };
 

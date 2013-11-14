@@ -130,6 +130,11 @@ MainWindow::MainWindow(QWidget *parent) :
   ui->menuBackend->actions()[0]->toggle();
   ui->menuSimulationBackend->actions()[0]->toggle();
 
+  QWidget *targetWidget = new QWidget();
+  ui->viewWidget->addTab(targetWidget, "Event Target");
+  targetWidget->setLayout(new QHBoxLayout(targetWidget));
+  targetWidget->layout()->setContentsMargins(0, 0, 0, 0);
+
   connect(&mPBManager, SIGNAL(EventDisablingUpdated(int32_t)), this, SLOT(UpdateEventColor(int32_t)));
   ui->objectTree->setContextMenuPolicy(Qt::CustomContextMenu);
   connect(ui->objectTree, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(ObjectContextMenu(const QPoint &)));
@@ -378,52 +383,53 @@ void MainWindow::on_actionOpen_Recording_triggered()
   DefaultArrangement();
 }
 
-void MainWindow::FocusView(ReferencePtr aEvent)
+void MainWindow::SetTargetView(ReferencePtr aEvent)
 {
+  ObjectItem *objItem = nullptr;
+
   QStringList list;
-  {
-    PlaybackManager::DTMap::iterator iter = mPBManager.mDrawTargets.begin();
-
-    for (;mPBManager.mDrawTargets.end() != iter; iter++) {
-      if (iter->first == aEvent) {
-        MainWindow::on_objectTree_itemDoubleClicked(new DrawTargetItem(list, ui->objectTree, iter->first, &mPBManager), 0);
-        return;
-      }
-    }
+  if (mPBManager.mDrawTargets.count(aEvent)) {
+    objItem = new DrawTargetItem(list, ui->objectTree, aEvent, &mPBManager);
+  } else if (mPBManager.mPaths.count(aEvent)) {
+    objItem = new PathItem(list, ui->objectTree, aEvent, &mPBManager);
+  } else if (mPBManager.mSourceSurfaces.count(aEvent)) {
+    objItem = new SourceSurfaceItem(list, ui->objectTree, aEvent, &mPBManager);
+  } else if (mPBManager.mGradientStops.count(aEvent)) {
+    objItem = new GradientStopsItem(list, ui->objectTree, aEvent, &mPBManager);
   }
 
-  {
-    PlaybackManager::PathMap::iterator iter = mPBManager.mPaths.begin();
+  QWidget* targetWidget = ui->viewWidget->widget(0);
 
-    for (;mPBManager.mPaths.end() != iter; iter++) {
-      if (iter->first == aEvent) {
-        MainWindow::on_objectTree_itemDoubleClicked(new PathItem(list, ui->objectTree, iter->first, &mPBManager), 0);
-        return;
-      }
+  QWidget* currentTarget = targetWidget->findChild<QWidget*>();
+
+  if (currentTarget) {
+    uint64_t tabObjItem = currentTarget->property("objectref").value<uint64_t>();
+    if (aEvent.mLongPtr == tabObjItem) {
+      return;
     }
+
+    targetWidget->layout()->removeWidget(currentTarget);
+
+    delete currentTarget;
   }
 
-  {
-    PlaybackManager::SourceSurfaceMap::iterator iter = mPBManager.mSourceSurfaces.begin();
-
-    for (;mPBManager.mSourceSurfaces.end() != iter; iter++) {
-      if (iter->first == aEvent) {
-        MainWindow::on_objectTree_itemDoubleClicked(new SourceSurfaceItem(list, ui->objectTree, iter->first, &mPBManager), 0);
-        return;
-      }
-    }
+  if (!objItem) {
+    return;
   }
 
-  {
-    PlaybackManager::GradientStopsMap::iterator iter = mPBManager.mGradientStops.begin();
+  QWidget* newTarget = objItem->CreateViewWidget();
 
-    for (;mPBManager.mGradientStops.end() != iter; iter++) {
-      if (iter->first == aEvent) {
-        MainWindow::on_objectTree_itemDoubleClicked(new GradientStopsItem(list, ui->objectTree, iter->first, &mPBManager), 0);
-        return;
-      }
-    }
+  if (!newTarget) {
+    return;
   }
+
+  newTarget->setProperty("objectref", qVariantFromValue<uint64_t>(aEvent.mLongPtr));
+  newTarget->setParent(targetWidget);
+  targetWidget->layout()->addWidget(newTarget);
+
+  QObject::connect(this, SIGNAL(UpdateViews()), newTarget, SLOT(UpdateView()));
+  QObject::connect(this, SIGNAL(EventChange()), newTarget, SLOT(EventChanged()));
+  QObject::connect(this, SIGNAL(SwitchingBackend(uint32_t)), newTarget, SIGNAL(SwitchingBackend(uint32_t)));
 }
 
 void MainWindow::on_treeWidget_itemSelectionChanged()
@@ -446,7 +452,9 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
   UpdateObjects();
   EventChange();
 
-  FocusView(mPBManager.mRecordedEvents[idx]->GetObject());
+  SetTargetView(mPBManager.mRecordedEvents[idx]->GetObject());
+
+  activateWindow();
 }
 
 void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
