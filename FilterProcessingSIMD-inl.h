@@ -12,11 +12,9 @@ namespace mozilla {
 namespace gfx {
 
 // Fast approximate division by 255. It has the property that
-// for all 0 <= n <= 255*255, FAST_DIVIDE_BY_255(n) == n/255.
+// for all 0 <= v <= 255*255, FastDivideBy255(v) == v/255.
 // But it only uses two adds and two shifts instead of an
 // integer division (which is expensive on many processors).
-//
-// equivalent to v/255
 template<class B, class A>
 static B FastDivideBy255(A v)
 {
@@ -81,6 +79,8 @@ ConvertToB8G8R8A8_SIMD(SourceSurface* aSurface)
           int32_t inputIndex = y * inputStride + x;
           int32_t outputIndex = y * outputStride + 4 * x;
           u8x16_t p1To16 = simd::Load8<u8x16_t>(&inputData[inputIndex]);
+          // Turn AAAAAAAAAAAAAAAA into four chunks of 000A000A000A000A by
+          // interleaving with 0000000000000000 twice.
           u8x16_t zero = simd::FromZero8<u8x16_t>();
           u8x16_t p1To8 = simd::InterleaveLo8(zero, p1To16);
           u8x16_t p9To16 = simd::InterleaveHi8(zero, p1To16);
@@ -89,14 +89,14 @@ ConvertToB8G8R8A8_SIMD(SourceSurface* aSurface)
           u8x16_t p9To12 = simd::InterleaveLo8(zero, p9To16);
           u8x16_t p13To16 = simd::InterleaveHi8(zero, p9To16);
           simd::Store8(&outputData[outputIndex], p1To4);
-          if (outputStride > (x + 4) * 4) {
-            simd::Store8(&outputData[outputIndex+16], p5To8);
+          if ((x + 4) * 4 < outputStride) {
+            simd::Store8(&outputData[outputIndex + 4 * 4], p5To8);
           }
-          if (outputStride > (x + 8) * 4) {
-            simd::Store8(&outputData[outputIndex+32], p9To12);
+          if ((x + 8) * 4 < outputStride) {
+            simd::Store8(&outputData[outputIndex + 4 * 8], p9To12);
           }
-          if (outputStride > (x + 12) * 4) {
-            simd::Store8(&outputData[outputIndex+48], p13To16);
+          if ((x + 12) * 4 < outputStride) {
+            simd::Store8(&outputData[outputIndex + 4 * 12], p13To16);
           }
         }
       }
@@ -115,6 +115,7 @@ ExtractAlpha_SIMD(const IntSize& size, uint8_t* sourceData, int32_t sourceStride
   for (int32_t y = 0; y < size.height; y++) {
     for (int32_t x = 0; x < size.width; x += 16) {
       // Process 16 pixels at a time.
+      // Turn up to four chunks of BGRABGRABGRABGRA into one chunk of AAAAAAAAAAAAAAAA.
       int32_t sourceIndex = y * sourceStride + 4 * x;
       int32_t targetIndex = y * alphaStride + x;
 
@@ -151,6 +152,13 @@ ExtractAlpha_SIMD(const IntSize& size, uint8_t* sourceData, int32_t sourceStride
   }
 }
 
+// This function calculates the result color values for four pixels, but for
+// only two color channels - either b & r or g & a. However, the a result will
+// not be used.
+// source and dest each contain 8 values, either bbbb gggg or rrrr aaaa.
+// sourceAlpha and destAlpha are of the form aaaa aaaa, where each aaaa is the
+// alpha of all four pixels (and both aaaa's are the same).
+// blendendComponent1 and blendedComponent2 are the out parameters.
 template<typename i16x8_t, typename i32x4_t, uint32_t aBlendMode>
 inline void
 BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
@@ -236,14 +244,23 @@ BlendTwoComponentsOfFourPixels(i16x8_t source, i16x8_t sourceAlpha,
   }
 }
 
+// The alpha channel is subject to a different calculation than the RGB
+// channels, and this calculation is the same for all blend modes:
+// resultAlpha * 255 = 255 * 255 - (255 - sourceAlpha) * (255 - destAlpha)
 template<typename i16x8_t, typename i32x4_t>
 inline i32x4_t
 BlendAlphaOfFourPixels(i16x8_t s_rrrraaaa1234, i16x8_t d_rrrraaaa1234)
 {
-  i16x8_t destAlpha = simd::InterleaveHi16(d_rrrraaaa1234, simd::FromI16<i16x8_t>(2 * 255));
-  i16x8_t sourceAlpha = simd::InterleaveHi16(s_rrrraaaa1234, simd::FromI16<i16x8_t>(0));
-  i16x8_t f1 = simd::Sub16(destAlpha, simd::FromI16<i16x8_t>(255));
-  i16x8_t f2 = simd::Sub16(simd::FromI16<i16x8_t>(255), sourceAlpha);
+  // We're using MulAdd16x8x2To32x4, so we need to interleave our factors
+  // appropriately. The calculation is rewritten as follows:
+  // resultAlpha[0] * 255 = 255 * 255 - (255 - sourceAlpha[0]) * (255 - destAlpha[0])
+  //                      = 255 * 255 + (255 - sourceAlpha[0]) * (destAlpha[0] - 255)
+  //                      = (255 - 0) * (510 - 255) + (255 - sourceAlpha[0]) * (destAlpha[0] - 255)
+  //                      = MulAdd(255 - IntLv(0, sourceAlpha), IntLv(510, destAlpha) - 255)[0]
+  i16x8_t zeroInterleavedWithSourceAlpha = simd::InterleaveHi16(simd::FromI16<i16x8_t>(0), s_rrrraaaa1234);
+  i16x8_t fiveTenInterleavedWithDestAlpha = simd::InterleaveHi16(simd::FromI16<i16x8_t>(510), d_rrrraaaa1234);
+  i16x8_t f1 = simd::Sub16(simd::FromI16<i16x8_t>(255), zeroInterleavedWithSourceAlpha);
+  i16x8_t f2 = simd::Sub16(fiveTenInterleavedWithDestAlpha, simd::FromI16<i16x8_t>(255));
   return simd::FastDivideBy255(simd::MulAdd16x8x2To32x4(f1, f2));
 }
 
@@ -252,6 +269,7 @@ inline void
 UnpackAndShuffleComponents(u8x16_t bgrabgrabgrabgra1234,
                            i16x8_t& bbbbgggg1234, i16x8_t& rrrraaaa1234)
 {
+  // bgrabgrabgrabgra1234 -> bbbbgggg1234, rrrraaaa1234
   i16x8_t bgrabgra12 = simd::UnpackLo8x8ToI16x8(bgrabgrabgrabgra1234);
   i16x8_t bgrabgra34 = simd::UnpackHi8x8ToI16x8(bgrabgrabgrabgra1234);
   i16x8_t bbggrraa13 = simd::InterleaveLo16(bgrabgra12, bgrabgra34);
@@ -265,6 +283,7 @@ inline u8x16_t
 ShuffleAndPackComponents(i32x4_t bbbb1234, i32x4_t gggg1234,
                          i32x4_t rrrr1234, const i32x4_t& aaaa1234)
 {
+  // bbbb1234, gggg1234, rrrr1234, aaaa1234 -> bgrabgrabgrabgra1234
   i16x8_t bbbbgggg1234 = simd::PackAndSaturate32To16(bbbb1234, gggg1234);
   i16x8_t rrrraaaa1234 = simd::PackAndSaturate32To16(rrrr1234, aaaa1234);
   i16x8_t brbrbrbr1234 = simd::InterleaveLo16(bbbbgggg1234, rrrraaaa1234);
@@ -301,15 +320,23 @@ ApplyBlending_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
       u8x16_t s1234 = simd::Load8<u8x16_t>(&source2Data[source2Index]);
       u8x16_t d1234 = simd::Load8<u8x16_t>(&source1Data[source1Index]);
 
+      // The blending calculation for the RGB channels all need access to the
+      // alpha channel of their pixel, and the alpha calculation is different,
+      // so it makes sense to separate by channel.
+
       i16x8_t s_bbbbgggg1234, s_rrrraaaa1234;
       i16x8_t d_bbbbgggg1234, d_rrrraaaa1234;
       UnpackAndShuffleComponents(s1234, s_bbbbgggg1234, s_rrrraaaa1234);
       UnpackAndShuffleComponents(d1234, d_bbbbgggg1234, d_rrrraaaa1234);
       i16x8_t s_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(s_rrrraaaa1234);
       i16x8_t d_aaaaaaaa1234 = simd::Shuffle32<3,2,3,2>(d_rrrraaaa1234);
+
+      // We only use blendedB, blendedG and blendedR.
       i32x4_t blendedB, blendedG, blendedR, blendedA;
       BlendTwoComponentsOfFourPixels<i16x8_t,i32x4_t,mode>(s_bbbbgggg1234, s_aaaaaaaa1234, d_bbbbgggg1234, d_aaaaaaaa1234, blendedB, blendedG);
       BlendTwoComponentsOfFourPixels<i16x8_t,i32x4_t,mode>(s_rrrraaaa1234, s_aaaaaaaa1234, d_rrrraaaa1234, d_aaaaaaaa1234, blendedR, blendedA);
+
+      // Throw away blendedA and overwrite it with the correct blended alpha.
       blendedA = BlendAlphaOfFourPixels<i16x8_t,i32x4_t>(s_rrrraaaa1234, d_rrrraaaa1234);
 
       u8x16_t result1234 = ShuffleAndPackComponents<i32x4_t,i16x8_t,u8x16_t>(blendedB, blendedG, blendedR, blendedA);
