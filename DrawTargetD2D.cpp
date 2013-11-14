@@ -1273,29 +1273,7 @@ DrawTargetD2D::CreateFilter(FilterType aType)
   HRESULT hr = mRT->QueryInterface((ID2D1DeviceContext**)byRef(dc));
 
   if (SUCCEEDED(hr)) {
-    if (aType == FILTER_CONVOLVE_MATRIX) {
-      return new FilterNodeConvolveD2D1(this, dc);
-    }
-
-    RefPtr<ID2D1Effect> effect;
-    HRESULT hr;
-  
-    hr = dc->CreateEffect(GetCLDIDForFilterType(aType), byRef(effect));
-
-    if (FAILED(hr)) {
-      gfxWarning() << *this << ": Failed to create effect for FilterType: " << hr;
-      return nullptr;
-    }
-
-    switch (aType) {
-      case FILTER_LINEAR_TRANSFER:
-      case FILTER_GAMMA_TRANSFER:
-      case FILTER_TABLE_TRANSFER:
-      case FILTER_DISCRETE_TRANSFER:
-        return new FilterNodeComponentTransferD2D1(this, dc, effect, aType);
-      default:
-        return new FilterNodeD2D1(this, effect, aType);
-    }
+    return FilterNodeD2D1::Create(this, dc, aType);
   }
 #endif
   return FilterNodeSoftware::Create(aType);

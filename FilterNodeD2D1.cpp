@@ -425,6 +425,92 @@ GetD2D1PropsForIntSize(uint32_t aType, uint32_t aIndex, UINT32 *aPropWidth, UINT
   return false;
 }
 
+static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
+{
+  switch (aType) {
+  case FILTER_COLOR_MATRIX:
+    return CLSID_D2D1ColorMatrix;
+  case FILTER_BLEND:
+    return CLSID_D2D1Blend;
+  case FILTER_MORPHOLOGY:
+    return CLSID_D2D1Morphology;
+  case FILTER_FLOOD:
+    return CLSID_D2D1Flood;
+  case FILTER_TILE:
+    return CLSID_D2D1Tile;
+  case FILTER_TABLE_TRANSFER:
+    return CLSID_D2D1TableTransfer;
+  case FILTER_LINEAR_TRANSFER:
+    return CLSID_D2D1LinearTransfer;
+  case FILTER_DISCRETE_TRANSFER:
+    return CLSID_D2D1DiscreteTransfer;
+  case FILTER_GAMMA_TRANSFER:
+    return CLSID_D2D1GammaTransfer;
+  case FILTER_OFFSET:
+    return CLSID_D2D12DAffineTransform;
+  case FILTER_DISPLACEMENT_MAP:
+    return CLSID_D2D1DisplacementMap;
+  case FILTER_TURBULENCE:
+    return CLSID_D2D1Turbulence;
+  case FILTER_ARITHMETIC_COMBINE:
+    return CLSID_D2D1ArithmeticComposite;
+  case FILTER_COMPOSITE:
+    return CLSID_D2D1Composite;
+  case FILTER_GAUSSIAN_BLUR:
+    return CLSID_D2D1GaussianBlur;
+  case FILTER_DIRECTIONAL_BLUR:
+    return CLSID_D2D1DirectionalBlur;
+  case FILTER_POINT_DIFFUSE:
+    return CLSID_D2D1PointDiffuse;
+  case FILTER_POINT_SPECULAR:
+    return CLSID_D2D1PointSpecular;
+  case FILTER_SPOT_DIFFUSE:
+    return CLSID_D2D1SpotDiffuse;
+  case FILTER_SPOT_SPECULAR:
+    return CLSID_D2D1SpotSpecular;
+  case FILTER_DISTANT_DIFFUSE:
+    return CLSID_D2D1DistantDiffuse;
+  case FILTER_DISTANT_SPECULAR:
+    return CLSID_D2D1DistantSpecular;
+  case FILTER_CROP:
+    return CLSID_D2D1Crop;
+  case FILTER_PREMULTIPLY:
+    return CLSID_D2D1Premultiply;
+  case FILTER_UNPREMULTIPLY:
+    return CLSID_D2D1UnPremultiply;
+  }
+  return GUID_NULL;
+}
+
+/* static */
+TemporaryRef<FilterNode>
+FilterNodeD2D1::Create(DrawTarget* aDT, ID2D1DeviceContext *aDC, FilterType aType)
+{
+  if (aType == FILTER_CONVOLVE_MATRIX) {
+    return new FilterNodeConvolveD2D1(aDT, aDC);
+  }
+
+  RefPtr<ID2D1Effect> effect;
+  HRESULT hr;
+
+  hr = aDC->CreateEffect(GetCLDIDForFilterType(aType), byRef(effect));
+
+  if (FAILED(hr)) {
+    gfxWarning() << *aDT << ": Failed to create effect for FilterType: " << hr;
+    return nullptr;
+  }
+
+  switch (aType) {
+    case FILTER_LINEAR_TRANSFER:
+    case FILTER_GAMMA_TRANSFER:
+    case FILTER_TABLE_TRANSFER:
+    case FILTER_DISCRETE_TRANSFER:
+      return new FilterNodeComponentTransferD2D1(aDT, aDC, effect, aType);
+    default:
+      return new FilterNodeD2D1(aDT, effect, aType);
+  }
+}
+
 void
 FilterNodeD2D1::SetInput(uint32_t aIndex, SourceSurface *aSurface)
 {

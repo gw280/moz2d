@@ -597,29 +597,7 @@ DrawTargetD2D1::CreateGradientStops(GradientStop *rawStops, uint32_t aNumStops, 
 TemporaryRef<FilterNode>
 DrawTargetD2D1::CreateFilter(FilterType aType)
 {
-  if (aType == FILTER_CONVOLVE_MATRIX) {
-    return new FilterNodeConvolveD2D1(this, mDC);
-  }
-
-  RefPtr<ID2D1Effect> effect;
-  HRESULT hr;
-  
-  hr = mDC->CreateEffect(GetCLDIDForFilterType(aType), byRef(effect));
-
-  if (FAILED(hr)) {
-    gfxWarning() << *this << ": Failed to create effect for FilterType: " << hr;
-    return nullptr;
-  }
-
-  switch (aType) {
-    case FILTER_LINEAR_TRANSFER:
-    case FILTER_GAMMA_TRANSFER:
-    case FILTER_TABLE_TRANSFER:
-    case FILTER_DISCRETE_TRANSFER:
-      return new FilterNodeComponentTransferD2D1(this, mDC, effect, aType);
-    default:
-      return new FilterNodeD2D1(this, effect, aType);
-  }
+  return FilterNodeD2D1::Create(this, mDC, aType);
 }
 
 bool

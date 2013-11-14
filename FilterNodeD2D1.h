@@ -14,66 +14,11 @@
 namespace mozilla {
 namespace gfx {
 
-static inline REFCLSID GetCLDIDForFilterType(FilterType aType)
-{
-  switch (aType) {
-  case FILTER_COLOR_MATRIX:
-    return CLSID_D2D1ColorMatrix;
-  case FILTER_BLEND:
-    return CLSID_D2D1Blend;
-  case FILTER_MORPHOLOGY:
-    return CLSID_D2D1Morphology;
-  case FILTER_FLOOD:
-    return CLSID_D2D1Flood;
-  case FILTER_TILE:
-    return CLSID_D2D1Tile;
-  case FILTER_TABLE_TRANSFER:
-    return CLSID_D2D1TableTransfer;
-  case FILTER_LINEAR_TRANSFER:
-    return CLSID_D2D1LinearTransfer;
-  case FILTER_DISCRETE_TRANSFER:
-    return CLSID_D2D1DiscreteTransfer;
-  case FILTER_GAMMA_TRANSFER:
-    return CLSID_D2D1GammaTransfer;
-  case FILTER_OFFSET:
-    return CLSID_D2D12DAffineTransform;
-  case FILTER_DISPLACEMENT_MAP:
-    return CLSID_D2D1DisplacementMap;
-  case FILTER_TURBULENCE:
-    return CLSID_D2D1Turbulence;
-  case FILTER_ARITHMETIC_COMBINE:
-    return CLSID_D2D1ArithmeticComposite;
-  case FILTER_COMPOSITE:
-    return CLSID_D2D1Composite;
-  case FILTER_GAUSSIAN_BLUR:
-    return CLSID_D2D1GaussianBlur;
-  case FILTER_DIRECTIONAL_BLUR:
-    return CLSID_D2D1DirectionalBlur;
-  case FILTER_POINT_DIFFUSE:
-    return CLSID_D2D1PointDiffuse;
-  case FILTER_POINT_SPECULAR:
-    return CLSID_D2D1PointSpecular;
-  case FILTER_SPOT_DIFFUSE:
-    return CLSID_D2D1SpotDiffuse;
-  case FILTER_SPOT_SPECULAR:
-    return CLSID_D2D1SpotSpecular;
-  case FILTER_DISTANT_DIFFUSE:
-    return CLSID_D2D1DistantDiffuse;
-  case FILTER_DISTANT_SPECULAR:
-    return CLSID_D2D1DistantSpecular;
-  case FILTER_CROP:
-    return CLSID_D2D1Crop;
-  case FILTER_PREMULTIPLY:
-    return CLSID_D2D1Premultiply;
-  case FILTER_UNPREMULTIPLY:
-    return CLSID_D2D1UnPremultiply;
-  }
-  return GUID_NULL;
-}
-
 class FilterNodeD2D1 : public FilterNode
 {
 public:
+  static TemporaryRef<FilterNode> Create(DrawTarget* aDT, ID2D1DeviceContext *aDC, FilterType aType);
+
   FilterNodeD2D1(DrawTarget* aDT, ID2D1Effect *aEffect, FilterType aType)
     : mDT(aDT)
     , mEffect(aEffect)
