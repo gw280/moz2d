@@ -232,7 +232,7 @@ SVGTurbulenceRenderer<Type,Stitch,f32x4_t,i32x4_t,u8x16_t>::Noise2(Point aVec, c
   // aVec is guaranteed to be non-negative, so casting to int32_t always
   // rounds towards negative infinity.
   IntPoint topLeftLatticePoint(int32_t(aVec.x), int32_t(aVec.y));
-  Point fractionalOffset = aVec - topLeftLatticePoint;
+  Point r = aVec - topLeftLatticePoint; // fractional offset
 
   IntPoint b0 = AdjustForStitch(topLeftLatticePoint, aStitchInfo);
   IntPoint b1 = AdjustForStitch(b0 + IntPoint(1, 1), aStitchInfo);
