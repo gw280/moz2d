@@ -1056,7 +1056,7 @@ TestDrawTargetBase::Turbulence()
   filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, uint32_t(1));
   filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
   filter->SetAttribute(ATT_TURBULENCE_TYPE, uint32_t(TURBULENCE_TYPE_FRACTAL_NOISE));
-
+  filter->SetAttribute(ATT_TURBULENCE_RECT, IntRect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
