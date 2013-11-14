@@ -428,6 +428,7 @@ TestDrawTargetBase::DrawTurbulence500x500x10()
     filter->SetAttribute(ATT_TURBULENCE_SEED, 0u);
     filter->SetAttribute(ATT_TURBULENCE_STITCHABLE, false);
     filter->SetAttribute(ATT_TURBULENCE_TYPE, (uint32_t)TURBULENCE_TYPE_TURBULENCE);
+    filter->SetAttribute(ATT_TURBULENCE_RECT, IntRect(0, 0, 500, 500));
 
     mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
   }
