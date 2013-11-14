@@ -2157,11 +2157,11 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
   maxResultAbs = std::max(maxResultAbs, 1.0f);
 
   Float idealFactor = Float(INT32_MAX / 2.0 / maxResultAbs / 255.0);
-  MOZ_ASSERT(255 * (maxResultAbs * idealFactor) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
+  MOZ_ASSERT(255.0 * (maxResultAbs * idealFactor) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
   int32_t shiftL, shiftR;
   TranslateFloatToShifts(idealFactor, shiftL, shiftR);
   Float factorFromShifts = Float(1 << shiftL) / Float(1 << shiftR);
-  MOZ_ASSERT(255 * (maxResultAbs * factorFromShifts) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
+  MOZ_ASSERT(255.0 * (maxResultAbs * factorFromShifts) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
 
   int32_t* intKernel = new int32_t[kernel.size()];
   for (size_t i = 0; i < kernel.size(); i++) {
