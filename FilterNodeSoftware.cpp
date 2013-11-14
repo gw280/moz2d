@@ -2100,19 +2100,19 @@ MaxVectorSum(const std::vector<Float> &aVector)
 // Returns shiftL and shiftR in such a way that
 // a << shiftL >> shiftR is roughly a * aFloat.
 static void
-TranslateFloatToShifts(Float aFloat, int32_t &aShiftL, int32_t &aShiftR)
+TranslateDoubleToShifts(double aDouble, int32_t &aShiftL, int32_t &aShiftR)
 {
   aShiftL = 0;
   aShiftR = 0;
-  if (aFloat <= 0) {
+  if (aDouble <= 0) {
     MOZ_CRASH();
   }
-  if (aFloat < 1) {
-    while (1 << (aShiftR + 1) < 1 / aFloat) {
+  if (aDouble < 1) {
+    while (1 << (aShiftR + 1) < 1 / aDouble) {
       aShiftR++;
     }
   } else {
-    while (1 << (aShiftL + 1) < aFloat) {
+    while (1 << (aShiftL + 1) < aDouble) {
       aShiftL++;
     }
   }
@@ -2156,12 +2156,12 @@ FilterNodeConvolveMatrixSoftware::DoRender(const IntRect& aRect,
                                 MaxVectorSum(ScaledVector(kernel, -1)) - mBias);
   maxResultAbs = std::max(maxResultAbs, 1.0f);
 
-  Float idealFactor = Float(INT32_MAX / 2.0 / maxResultAbs / 255.0);
-  MOZ_ASSERT(255.0 * (maxResultAbs * idealFactor) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
+  double idealFactor = INT32_MAX / 2.0 / maxResultAbs / 255.0 * 0.999;
+  MOZ_ASSERT(255.0 * maxResultAbs * idealFactor <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
   int32_t shiftL, shiftR;
-  TranslateFloatToShifts(idealFactor, shiftL, shiftR);
-  Float factorFromShifts = Float(1 << shiftL) / Float(1 << shiftR);
-  MOZ_ASSERT(255.0 * (maxResultAbs * factorFromShifts) <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
+  TranslateDoubleToShifts(idealFactor, shiftL, shiftR);
+  double factorFromShifts = Float(1 << shiftL) / Float(1 << shiftR);
+  MOZ_ASSERT(255.0 * maxResultAbs * factorFromShifts <= INT32_MAX / 2.0, "badly chosen float-to-int scale");
 
   int32_t* intKernel = new int32_t[kernel.size()];
   for (size_t i = 0; i < kernel.size(); i++) {
