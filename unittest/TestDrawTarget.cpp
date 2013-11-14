@@ -944,6 +944,7 @@ TestDrawTargetBase::ConvolveMatrixNone()
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_BIAS, 0.f);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_KERNEL_UNIT_LENGTH, Size(1.0f, 1.0f));
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_TARGET, IntPoint(0, 0));
+  filter->SetAttribute(ATT_CONVOLVE_MATRIX_SOURCE_RECT, IntRect(IntPoint(), src->GetSize()));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
