@@ -12,6 +12,7 @@
 #include "Blur.h"
 #include <map>
 #include "FilterProcessing.h"
+#include "mozilla/PodOperations.h"
 
 // #define DEBUG_DUMP_SURFACES
 
@@ -219,9 +220,7 @@ ClearDataSourceSurface(DataSourceSurface *aSurface)
 {
   size_t numBytes = aSurface->GetSize().height * aSurface->Stride();
   uint8_t* data = aSurface->GetData();
-  for (size_t i = 0; i < numBytes; i++) {
-    data[i] = 0;
-  }
+  PodZero(data, numBytes);
 }
 
 static ptrdiff_t
@@ -252,17 +251,13 @@ CopyRect(DataSourceSurface* aSrc, DataSourceSurface* aDest,
 
   if (BytesPerPixel(aSrc->GetFormat()) == 4) {
     for (int32_t y = 0; y < aSrcRect.height; y++) {
-      for (int32_t x = 0; x < aSrcRect.width; x++) {
-        *((int32_t*)destData + x) = *((int32_t*)sourceData + x);
-      }
+      PodCopy((int32_t*)destData, (int32_t*)sourceData, aSrcRect.width);
       sourceData += sourceStride;
       destData += destStride;
     }
   } else if (BytesPerPixel(aSrc->GetFormat()) == 1) {
     for (int32_t y = 0; y < aSrcRect.height; y++) {
-      for (int32_t x = 0; x < aSrcRect.width; x++) {
-        destData[x] = sourceData[x];
-      }
+      PodCopy(destData, sourceData, aSrcRect.width);
       sourceData += sourceStride;
       destData += destStride;
     }
@@ -285,22 +280,24 @@ FillRectWithPixel(DataSourceSurface *aSurface, const IntRect &aFillRect, IntPoin
   uint8_t* sourcePixelData = data + DataOffset(aSurface, aPixelPos);
   int32_t stride = aSurface->Stride();
   data += DataOffset(aSurface, aFillRect.TopLeft());
-  if (BytesPerPixel(aSurface->GetFormat()) == 4) {
+  int bpp = BytesPerPixel(aSurface->GetFormat());
+
+  // Fill the first row by hand.
+  if (bpp == 4) {
     uint32_t sourcePixel = *(uint32_t*)sourcePixelData;
-    for (int32_t y = 0; y < aFillRect.height; y++) {
-      for (int32_t x = 0; x < aFillRect.width; x++) {
-        *((uint32_t*)data + x) = sourcePixel;
-      }
-      data += stride;
+    for (int32_t x = 0; x < aFillRect.width; x++) {
+      *((uint32_t*)data + x) = sourcePixel;
     }
   } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
     uint8_t sourcePixel = *sourcePixelData;
-    for (int32_t y = 0; y < aFillRect.height; y++) {
-      for (int32_t x = 0; x < aFillRect.width; x++) {
-        data[x] = sourcePixel;
-      }
-      data += stride;
+    for (int32_t x = 0; x < aFillRect.width; x++) {
+      data[x] = sourcePixel;
     }
+  }
+
+  // Copy the first row into the other rows.
+  for (int32_t y = 1; y < aFillRect.height; y++) {
+    PodCopy(data + y * stride, data, aFillRect.width * bpp);
   }
 }
 
@@ -315,16 +312,12 @@ FillRectWithVerticallyRepeatingHorizontalStrip(DataSourceSurface *aSurface,
   data += DataOffset(aSurface, aFillRect.TopLeft());
   if (BytesPerPixel(aSurface->GetFormat()) == 4) {
     for (int32_t y = 0; y < aFillRect.height; y++) {
-      for (int32_t x = 0; x < aFillRect.width; x++) {
-        *((uint32_t*)data + x) = *((uint32_t*)sampleData + x);
-      }
+      PodCopy((uint32_t*)data, (uint32_t*)sampleData, aFillRect.width);
       data += stride;
     }
   } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
     for (int32_t y = 0; y < aFillRect.height; y++) {
-      for (int32_t x = 0; x < aFillRect.width; x++) {
-        data[x] = sampleData[x];
-      }
+      PodCopy(data, sampleData, aFillRect.width);
       data += stride;
     }
   }
