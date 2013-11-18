@@ -197,6 +197,7 @@
     <ClInclude Include="nvpr\ShadowShaders.h" />
     <ClInclude Include="nvpr\WGL.h" />
     <ClInclude Include="nvpr\WGLDefs.h" />
+    <ClInclude Include="PathAnalysis.h" />
     <ClInclude Include="PathBuilderNVpr.h" />
     <ClInclude Include="PathCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -273,6 +274,7 @@
     <ClCompile Include="nvpr\ShaderProgram.cpp" />
     <ClCompile Include="nvpr\ShadowShaders.cpp" />
     <ClCompile Include="nvpr\WGL.cpp" />
+    <ClCompile Include="Path.cpp" />
     <ClCompile Include="PathBuilderNVpr.cpp" />
     <ClCompile Include="PathCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>

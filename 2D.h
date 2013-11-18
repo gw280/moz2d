@@ -401,6 +401,7 @@ public:
 };
 
 class PathBuilder;
+class FlattenedPath;
 
 /* The path class is used to create (sets of) figures of any shape that can be
  * filled or stroked to a DrawTarget
@@ -408,7 +409,7 @@ class PathBuilder;
 class Path : public RefCounted<Path>
 {
 public:
-  virtual ~Path() {}
+  virtual ~Path();
   
   virtual BackendType GetBackendType() const = 0;
 
@@ -462,13 +463,19 @@ public:
    * point is where the path was terminated, and the new point is where the
    * cumulation of the length will resume.
    */
-  virtual Float ComputeLength() { return 0; }
+  virtual Float ComputeLength();
 
   /* This computes the point and the tangent vector on the path at a certain
    * distance traveled along the path, ignoring moves.
    */
   virtual Point ComputePointAtLength(Float aLength,
-                                     Point* aTangent) { return Point(); }
+                                     Point* aTangent = nullptr);
+
+protected:
+  Path();
+  void EnsureFlattenedPath();
+
+  RefPtr<FlattenedPath> mFlattenedPath;
 };
 
 /* The PathBuilder class allows path creation. Once finish is called on the
