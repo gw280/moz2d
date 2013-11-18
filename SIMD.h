@@ -128,13 +128,12 @@ struct Scalaru8x16_t {
   uint8_t u8[16];
 };
 
-struct Scalari16x8_t {
+union Scalari16x8_t {
   int16_t i16[8];
+  uint16_t u16[8];
 };
 
-struct Scalaru16x8_t {
-  int16_t u16[8];
-};
+typedef Scalari16x8_t Scalaru16x8_t;
 
 struct Scalari32x4_t {
   int32_t i32[4];
@@ -278,14 +277,6 @@ inline Scalari32x4_t ShiftRight32(Scalari32x4_t aM)
                                aM.i32[2] >> aNumberOfBits, aM.i32[3] >> aNumberOfBits);
 }
 
-inline Scalari16x8_t Add16(Scalari16x8_t aM1, Scalari16x8_t aM2)
-{
-  return FromI16<Scalari16x8_t>(aM1.i16[0] + aM2.i16[0], aM1.i16[1] + aM2.i16[1],
-                               aM1.i16[2] + aM2.i16[2], aM1.i16[3] + aM2.i16[3],
-                               aM1.i16[4] + aM2.i16[4], aM1.i16[5] + aM2.i16[5],
-                               aM1.i16[6] + aM2.i16[6], aM1.i16[7] + aM2.i16[7]);
-}
-
 inline Scalaru16x8_t Add16(Scalaru16x8_t aM1, Scalaru16x8_t aM2)
 {
   return FromU16<Scalaru16x8_t>(aM1.u16[0] + aM2.u16[0], aM1.u16[1] + aM2.u16[1],
@@ -298,14 +289,6 @@ inline Scalari32x4_t Add32(Scalari32x4_t aM1, Scalari32x4_t aM2)
 {
   return From32<Scalari32x4_t>(aM1.i32[0] + aM2.i32[0], aM1.i32[1] + aM2.i32[1],
                                aM1.i32[2] + aM2.i32[2], aM1.i32[3] + aM2.i32[3]);
-}
-
-inline Scalari16x8_t Sub16(Scalari16x8_t aM1, Scalari16x8_t aM2)
-{
-  return FromI16<Scalari16x8_t>(aM1.i16[0] - aM2.i16[0], aM1.i16[1] - aM2.i16[1],
-                               aM1.i16[2] - aM2.i16[2], aM1.i16[3] - aM2.i16[3],
-                               aM1.i16[4] - aM2.i16[4], aM1.i16[5] - aM2.i16[5],
-                               aM1.i16[6] - aM2.i16[6], aM1.i16[7] - aM2.i16[7]);
 }
 
 inline Scalaru16x8_t Sub16(Scalaru16x8_t aM1, Scalaru16x8_t aM2)
@@ -370,21 +353,12 @@ inline Scalari32x4_t Max32(Scalari32x4_t aM1, Scalari32x4_t aM2)
                                umax(aM1.i32[2], aM2.i32[2]), umax(aM1.i32[3], aM2.i32[3]));
 }
 
-inline Scalari16x8_t Mul16(Scalari16x8_t aM1, Scalari16x8_t aM2)
-{
-  // We only want the lower 16 bits of each 32-bit result.
-  return FromI16<Scalari16x8_t>(aM1.i16[0] * aM2.i16[0], aM1.i16[1] * aM2.i16[1],
-                               aM1.i16[2] * aM2.i16[2], aM1.i16[3] * aM2.i16[3],
-                               aM1.i16[4] * aM2.i16[4], aM1.i16[5] * aM2.i16[5],
-                               aM1.i16[6] * aM2.i16[6], aM1.i16[7] * aM2.i16[7]);
-}
-
 inline Scalaru16x8_t Mul16(Scalaru16x8_t aM1, Scalaru16x8_t aM2)
 {
-  return FromU16<Scalaru16x8_t>(aM1.u16[0] * aM2.u16[0], aM1.u16[1] * aM2.u16[1],
-                               aM1.u16[2] * aM2.u16[2], aM1.u16[3] * aM2.u16[3],
-                               aM1.u16[4] * aM2.u16[4], aM1.u16[5] * aM2.u16[5],
-                               aM1.u16[6] * aM2.u16[6], aM1.u16[7] * aM2.u16[7]);
+  return FromU16<Scalaru16x8_t>(uint16_t(int32_t(aM1.u16[0]) * int32_t(aM2.u16[0])), uint16_t(int32_t(aM1.u16[1]) * int32_t(aM2.u16[1])),
+                                uint16_t(int32_t(aM1.u16[2]) * int32_t(aM2.u16[2])), uint16_t(int32_t(aM1.u16[3]) * int32_t(aM2.u16[3])),
+                                uint16_t(int32_t(aM1.u16[4]) * int32_t(aM2.u16[4])), uint16_t(int32_t(aM1.u16[5]) * int32_t(aM2.u16[5])),
+                                uint16_t(int32_t(aM1.u16[6]) * int32_t(aM2.u16[6])), uint16_t(int32_t(aM1.u16[7]) * int32_t(aM2.u16[7])));
 }
 
 inline void Mul16x4x2x2To32x4x2(Scalari16x8_t aFactorsA1B1,
@@ -409,15 +383,6 @@ inline Scalari32x4_t MulAdd16x8x2To32x4(Scalari16x8_t aFactorsA,
                                aFactorsA.i16[2] * aFactorsB.i16[2] + aFactorsA.i16[3] * aFactorsB.i16[3],
                                aFactorsA.i16[4] * aFactorsB.i16[4] + aFactorsA.i16[5] * aFactorsB.i16[5],
                                aFactorsA.i16[6] * aFactorsB.i16[6] + aFactorsA.i16[7] * aFactorsB.i16[7]);
-}
-
-inline Scalari32x4_t MulAdd16x8x2To32x4(Scalaru16x8_t aFactorsA,
-                                        Scalaru16x8_t aFactorsB)
-{
-  return From32<Scalari32x4_t>(aFactorsA.u16[0] * aFactorsB.u16[0] + aFactorsA.u16[1] * aFactorsB.u16[1],
-                               aFactorsA.u16[2] * aFactorsB.u16[2] + aFactorsA.u16[3] * aFactorsB.u16[3],
-                               aFactorsA.u16[4] * aFactorsB.u16[4] + aFactorsA.u16[5] * aFactorsB.u16[5],
-                               aFactorsA.u16[6] * aFactorsB.u16[6] + aFactorsA.u16[7] * aFactorsB.u16[7]);
 }
 
 template<int8_t aIndex>
@@ -491,25 +456,6 @@ inline Scalari16x8_t ShuffleHi16(Scalari16x8_t aM)
 }
 
 template<int8_t aIndexLo, int8_t aIndexHi>
-inline Scalari16x8_t Splat16(Scalari16x8_t aM)
-{
-  AssertIndex<aIndexLo>();
-  AssertIndex<aIndexHi>();
-  Scalari16x8_t m;
-  int16_t chosenValueLo = aM.i16[aIndexLo];
-  m.i16[0] = chosenValueLo;
-  m.i16[1] = chosenValueLo;
-  m.i16[2] = chosenValueLo;
-  m.i16[3] = chosenValueLo;
-  int16_t chosenValueHi = aM.i16[4 + aIndexHi];
-  m.i16[4] = chosenValueHi;
-  m.i16[5] = chosenValueHi;
-  m.i16[6] = chosenValueHi;
-  m.i16[7] = chosenValueHi;
-  return m;
-}
-
-template<int8_t aIndexLo, int8_t aIndexHi>
 inline Scalaru16x8_t Splat16(Scalaru16x8_t aM)
 {
   AssertIndex<aIndexLo>();
@@ -546,25 +492,11 @@ InterleaveHi8(Scalaru8x16_t m1, Scalaru8x16_t m2)
                               m1.u8[8+6], m2.u8[8+6], m1.u8[8+7], m2.u8[8+7]);
 }
 
-inline Scalari16x8_t
-InterleaveLo16(Scalari16x8_t m1, Scalari16x8_t m2)
-{
-  return FromI16<Scalari16x8_t>(m1.i16[0], m2.i16[0], m1.i16[1], m2.i16[1],
-                               m1.i16[2], m2.i16[2], m1.i16[3], m2.i16[3]);
-}
-
 inline Scalaru16x8_t
 InterleaveLo16(Scalaru16x8_t m1, Scalaru16x8_t m2)
 {
   return FromU16<Scalaru16x8_t>(m1.u16[0], m2.u16[0], m1.u16[1], m2.u16[1],
                                m1.u16[2], m2.u16[2], m1.u16[3], m2.u16[3]);
-}
-
-inline Scalari16x8_t
-InterleaveHi16(Scalari16x8_t m1, Scalari16x8_t m2)
-{
-  return FromI16<Scalari16x8_t>(m1.i16[4], m2.i16[4], m1.i16[5], m2.i16[5],
-                               m1.i16[6], m2.i16[6], m1.i16[7], m2.i16[7]);
 }
 
 inline Scalaru16x8_t
@@ -613,31 +545,15 @@ UnpackHi8x8ToI16x8(Scalaru8x16_t aM)
 inline Scalaru16x8_t
 UnpackLo8x8ToU16x8(Scalaru8x16_t aM)
 {
-  Scalaru16x8_t m;
-  m.u16[0] = aM.u8[0];
-  m.u16[1] = aM.u8[1];
-  m.u16[2] = aM.u8[2];
-  m.u16[3] = aM.u8[3];
-  m.u16[4] = aM.u8[4];
-  m.u16[5] = aM.u8[5];
-  m.u16[6] = aM.u8[6];
-  m.u16[7] = aM.u8[7];
-  return m;
+  return FromU16<Scalaru16x8_t>(uint16_t(aM.u8[0]), uint16_t(aM.u8[1]), uint16_t(aM.u8[2]), uint16_t(aM.u8[3]),
+                                uint16_t(aM.u8[4]), uint16_t(aM.u8[5]), uint16_t(aM.u8[6]), uint16_t(aM.u8[7]));
 }
 
 inline Scalaru16x8_t
 UnpackHi8x8ToU16x8(Scalaru8x16_t aM)
 {
-  Scalaru16x8_t m;
-  m.u16[0] = aM.u8[8+0];
-  m.u16[1] = aM.u8[8+1];
-  m.u16[2] = aM.u8[8+2];
-  m.u16[3] = aM.u8[8+3];
-  m.u16[4] = aM.u8[8+4];
-  m.u16[5] = aM.u8[8+5];
-  m.u16[6] = aM.u8[8+6];
-  m.u16[7] = aM.u8[8+7];
-  return m;
+  return FromU16<Scalaru16x8_t>(aM.u8[8+0], aM.u8[8+1], aM.u8[8+2], aM.u8[8+3],
+                                aM.u8[8+4], aM.u8[8+5], aM.u8[8+6], aM.u8[8+7]);
 }
 
 template<uint8_t aNumBytes>
@@ -749,29 +665,6 @@ PackAndSaturate16To8(Scalari16x8_t m1, Scalari16x8_t m2)
   return m;
 }
 
-inline Scalaru8x16_t
-PackAndSaturate16To8(Scalaru16x8_t m1, Scalaru16x8_t m2)
-{
-  Scalaru8x16_t m;
-  m.u8[0]  = SaturateTo8(m1.u16[0]);
-  m.u8[1]  = SaturateTo8(m1.u16[1]);
-  m.u8[2]  = SaturateTo8(m1.u16[2]);
-  m.u8[3]  = SaturateTo8(m1.u16[3]);
-  m.u8[4]  = SaturateTo8(m1.u16[4]);
-  m.u8[5]  = SaturateTo8(m1.u16[5]);
-  m.u8[6]  = SaturateTo8(m1.u16[6]);
-  m.u8[7]  = SaturateTo8(m1.u16[7]);
-  m.u8[8]  = SaturateTo8(m2.u16[0]);
-  m.u8[9]  = SaturateTo8(m2.u16[1]);
-  m.u8[10] = SaturateTo8(m2.u16[2]);
-  m.u8[11] = SaturateTo8(m2.u16[3]);
-  m.u8[12] = SaturateTo8(m2.u16[4]);
-  m.u8[13] = SaturateTo8(m2.u16[5]);
-  m.u8[14] = SaturateTo8(m2.u16[6]);
-  m.u8[15] = SaturateTo8(m2.u16[7]);
-  return m;
-}
-
 // Fast approximate division by 255. It has the property that
 // for all 0 <= n <= 255*255, FAST_DIVIDE_BY_255(n) == n/255.
 // But it only uses two adds and two shifts instead of an
@@ -784,30 +677,17 @@ inline B FastDivideBy255(A v)
   return ((v << 8) + v + 255) >> 16;
 }
 
-inline Scalari16x8_t
-FastDivideBy255_16(Scalari16x8_t m)
-{
-  return FromI16<Scalari16x8_t>(FastDivideBy255<int16_t>(uint16_t(m.i16[0])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[1])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[2])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[3])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[4])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[5])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[6])),
-                               FastDivideBy255<int16_t>(uint16_t(m.i16[7])));
-}
-
 inline Scalaru16x8_t
 FastDivideBy255_16(Scalaru16x8_t m)
 {
-  return FromU16<Scalaru16x8_t>(FastDivideBy255<uint16_t>(uint16_t(m.u16[0])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[1])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[2])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[3])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[4])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[5])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[6])),
-                               FastDivideBy255<uint16_t>(uint16_t(m.u16[7])));
+  return FromU16<Scalaru16x8_t>(FastDivideBy255<uint16_t>(int32_t(m.u16[0])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[1])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[2])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[3])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[4])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[5])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[6])),
+                                FastDivideBy255<uint16_t>(int32_t(m.u16[7])));
 }
 
 inline Scalari32x4_t
