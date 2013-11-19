@@ -30,7 +30,7 @@ public:
   virtual QWidget *CreateViewWidget() = 0;
 
   virtual QString GetTitle() const { return ""; }
-  mozilla::gfx::ReferencePtr GetObject() { return mRefPtr; }
+  mozilla::gfx::ReferencePtr GetObjectRef() { return mRefPtr; }
 
 protected:
   mozilla::gfx::ReferencePtr mRefPtr;

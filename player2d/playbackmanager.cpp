@@ -5,7 +5,6 @@
 #ifdef WIN32
 #include <d3d10_1.h>
 
-#undef GetObject
 #endif
 
 using namespace mozilla;
@@ -107,7 +106,7 @@ PlaybackManager::PlaybackToEvent(int aID)
 bool
 PlaybackManager::IsClipPush(uint32_t aID, int32_t aRefID)
 {
-  if (aRefID != -1 && mRecordedEvents[aID]->GetObject() != mRecordedEvents[aRefID]->GetObject()) {
+  if (aRefID != -1 && mRecordedEvents[aID]->GetObjectRef() != mRecordedEvents[aRefID]->GetObjectRef()) {
     return false;
   }
   return mRecordedEvents[aID]->GetType() == RecordedEvent::PUSHCLIP ||
@@ -117,7 +116,7 @@ PlaybackManager::IsClipPush(uint32_t aID, int32_t aRefID)
 bool
 PlaybackManager::IsClipPop(uint32_t aID, int32_t aRefID)
 {
-  if (aRefID != -1 && mRecordedEvents[aID]->GetObject() != mRecordedEvents[aRefID]->GetObject()) {
+  if (aRefID != -1 && mRecordedEvents[aID]->GetObjectRef() != mRecordedEvents[aRefID]->GetObjectRef()) {
     return false;
   }
   return mRecordedEvents[aID]->GetType() == RecordedEvent::POPCLIP;

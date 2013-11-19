@@ -181,7 +181,7 @@ public:
 
   virtual std::string GetName() const = 0;
 
-  virtual ReferencePtr GetObject() const = 0;
+  virtual ReferencePtr GetObjectRef() const = 0;
 
   virtual ReferencePtr GetDestinedDT() { return nullptr; }
 
@@ -214,7 +214,7 @@ protected:
   RecordedDrawingEvent(EventType aType, std::istream &aStream);
   virtual void RecordToStream(std::ostream &aStream) const;
 
-  virtual ReferencePtr GetObject() const;
+  virtual ReferencePtr GetObjectRef() const;
 
   ReferencePtr mDT;
 };
@@ -233,7 +233,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
 
   virtual std::string GetName() const { return "DrawTarget Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 
   ReferencePtr mRefPtr;
   BackendType mBackendType;
@@ -260,7 +260,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
 
   virtual std::string GetName() const { return "DrawTarget Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 
   ReferencePtr mRefPtr;
 
@@ -653,7 +653,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "Path Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -677,7 +677,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "Path Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -703,7 +703,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "SourceSurface Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -730,7 +730,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "SourceSurface Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -756,7 +756,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "GradientStops Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -782,7 +782,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "GradientStops Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -804,7 +804,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "Snapshot"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -835,7 +835,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "ScaledFont Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 
   void SetFontData(const uint8_t *aData, uint32_t aSize, uint32_t aIndex, Float aGlyphSize);
 
@@ -864,7 +864,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
   
   virtual std::string GetName() const { return "ScaledFont Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 

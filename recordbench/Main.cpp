@@ -184,7 +184,7 @@ main(int argc, char *argv[], char *envp[])
       retainedObjectCreations.push_back(newEvent);
 
       if (eventType == RecordedEvent::DRAWTARGETCREATION) {
-        ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+        ReferencePtr drawTargetId = newEvent.recordedEvent->GetObjectRef();
         RetainedDrawTargetData data(newEvent.eventID);
         retainedDrawTargets[drawTargetId].push_back(data);
       }
@@ -203,12 +203,12 @@ main(int argc, char *argv[], char *envp[])
 
     if (sRetainDrawTargets && (eventType == RecordedEvent::PUSHCLIP ||
                                eventType == RecordedEvent::PUSHCLIPRECT)) {
-      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObjectRef();
       retainedDrawTargets[drawTargetId].back().mEndClipDepth++;
     }
 
     if (sRetainDrawTargets && eventType == RecordedEvent::POPCLIP) {
-      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObject();
+      ReferencePtr drawTargetId = newEvent.recordedEvent->GetObjectRef();
       retainedDrawTargets[drawTargetId].back().mEndClipDepth--;
     }
 

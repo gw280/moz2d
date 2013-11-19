@@ -22,8 +22,6 @@ using namespace std;
 using namespace mozilla;
 using namespace mozilla::gfx;
 
-#undef GetObject
-
 ID3D10Device1 *MainWindow::sDevice = NULL;
 BackendType MainWindow::mMainBackend = BACKEND_NONE;
 
@@ -236,7 +234,7 @@ MainWindow::FilterToObject(ReferencePtr aObject)
   foreach(QTreeWidgetItem *item, mEventItems) {
     int64_t idx = static_cast<EventItem*>(item)->mID;
 
-    if (mPBManager.mRecordedEvents[idx]->GetObject() != aObject) {
+    if (mPBManager.mRecordedEvents[idx]->GetObjectRef() != aObject) {
       item->setHidden(true);
     } else {
       item->setHidden(false);
@@ -359,7 +357,7 @@ void MainWindow::on_actionOpen_Recording_triggered()
 
     QStringList list;
     list.push_back(QString::number(i));
-    list.push_back(QString::fromStdString(StringFromPtr(newEvent->GetObject())));
+    list.push_back(QString::fromStdString(StringFromPtr(newEvent->GetObjectRef())));
     list.push_back(QString::fromStdString(newEvent->GetName()));
     EventItem *item =
       new EventItem(list, ui->treeWidget, i++);
@@ -367,10 +365,10 @@ void MainWindow::on_actionOpen_Recording_triggered()
     mPBManager.AddEvent(newEvent);
     mEventItems.push_back(item);
 
-    if (mObjects.find(newEvent->GetObject()) == mObjects.end()) {
-      objects.push_back(newEvent->GetObject());
+    if (mObjects.find(newEvent->GetObjectRef()) == mObjects.end()) {
+      objects.push_back(newEvent->GetObjectRef());
     }
-    mObjects.insert(newEvent->GetObject());
+    mObjects.insert(newEvent->GetObjectRef());
   }
 
   qSort(objects);
@@ -452,7 +450,7 @@ void MainWindow::on_treeWidget_itemSelectionChanged()
   UpdateObjects();
   EventChange();
 
-  SetTargetView(mPBManager.mRecordedEvents[idx]->GetObject());
+  SetTargetView(mPBManager.mRecordedEvents[idx]->GetObjectRef());
 
   activateWindow();
 }
@@ -464,7 +462,7 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
   for (int i = 0; i < ui->viewWidget->count(); i++) {
     QWidget *tab = ui->viewWidget->widget(i);
     void *tabObjItem = tab->property("objectref").value<void*>();
-    if (objItem->GetObject() == tabObjItem) {
+    if (objItem->GetObjectRef() == tabObjItem) {
       ui->viewWidget->setCurrentIndex(i);
       return;
     }
@@ -474,7 +472,7 @@ void MainWindow::on_objectTree_itemDoubleClicked(QTreeWidgetItem *item, int)
   if (!newTab) {
     return;
   }
-  newTab->setProperty("objectref", qVariantFromValue<void*>(objItem->GetObject()));
+  newTab->setProperty("objectref", qVariantFromValue<void*>(objItem->GetObjectRef()));
   ui->viewWidget->addTab(newTab, objItem->GetTitle());
   ui->viewWidget->setCurrentIndex(ui->viewWidget->count() - 1);
 
@@ -597,11 +595,11 @@ MainWindow::FilterByCurrentObject()
     return;
   }
 
-  FilterToObject(objItem->GetObject());
+  FilterToObject(objItem->GetObjectRef());
   for (int i = 1; i < ui->comboBox->count(); i++) {
     ReferencePtr obj = (void*)(ui->comboBox->itemData(i).toULongLong());
 
-    if (obj == objItem->GetObject()) {
+    if (obj == objItem->GetObjectRef()) {
       ui->comboBox->setCurrentIndex(i);
       break;
     }
