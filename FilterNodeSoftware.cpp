@@ -199,15 +199,6 @@ umin(unsigned a, unsigned b)
   return a - ((a - b) & -(a > b));
 }
 
-// from xpcom/string/public/nsAlgorithm.h
-template <class T>
-inline const T&
-clamped(const T& a, const T& min, const T& max)
-{
-  MOZ_ASSERT(max >= min, "clamped(): max must be greater than or equal to min");
-  return std::min(std::max(a, min), max);
-}
-
 // from xpcom/ds/nsMathUtils.h
 static int32_t
 NS_lround(double x)
@@ -1054,8 +1045,8 @@ FilterNodeMorphologySoftware::SetAttribute(uint32_t aIndex,
                                            const IntSize &aRadii)
 {
   MOZ_ASSERT(aIndex == ATT_MORPHOLOGY_RADII);
-  mRadii.width = clamped(aRadii.width, 0, 100000);
-  mRadii.height = clamped(aRadii.height, 0, 100000);
+  mRadii.width = std::min(std::max(aRadii.width, 0), 100000);
+  mRadii.height = std::min(std::max(aRadii.height, 0), 100000);
   Invalidate();
 }
 
@@ -3255,10 +3246,10 @@ SpecularLightingSoftware::SetAttribute(uint32_t aIndex, Float aValue)
 {
   switch (aIndex) {
     case ATT_SPECULAR_LIGHTING_SPECULAR_CONSTANT:
-      mSpecularConstant = clamped(aValue, 0.0f, 255.0f);
+      mSpecularConstant = std::min(std::max(aValue, 0.0f), 255.0f);
       break;
     case ATT_SPECULAR_LIGHTING_SPECULAR_EXPONENT:
-      mSpecularExponent = clamped(aValue, 1.0f, 128.0f);
+      mSpecularExponent = std::min(std::max(aValue, 1.0f), 128.0f);
       break;
     default:
       return false;

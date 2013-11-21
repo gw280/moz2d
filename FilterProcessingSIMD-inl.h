@@ -513,15 +513,6 @@ ColorMatrixMultiply(i16x8_t p, i16x8_t rows_bg, i16x8_t rows_ra, const i32x4_t& 
   return sum;
 }
 
-// from xpcom/string/public/nsAlgorithm.h
-template <class T>
-inline const T&
-clamped(const T& a, const T& min, const T& max)
-{
-  MOZ_ASSERT(max >= min, "clamped(): max must be greater than or equal to min");
-  return std::min(std::max(a, min), max);
-}
-
 template<typename i32x4_t, typename i16x8_t, typename u8x16_t>
 static TemporaryRef<DataSourceSurface>
 ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
@@ -539,8 +530,8 @@ ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   int32_t targetStride = target->Stride();
 
   const int16_t factor = 128;
-  const int16_t floatElementMax = INT16_MAX / factor; // 255
-  static_assert((floatElementMax * factor) <= INT16_MAX, "badly chosen float-to-int scale");
+  const Float floatElementMax = INT16_MAX / factor; // 255
+  MOZ_ASSERT((floatElementMax * factor) <= INT16_MAX, "badly chosen float-to-int scale");
 
   const Float *floats = &aMatrix._11;
 
@@ -560,7 +551,7 @@ ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   for (size_t rowIndex = 0; rowIndex < 4; rowIndex++) {
     for (size_t colIndex = 0; colIndex < 4; colIndex++) {
       const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
-      Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -floatElementMax, floatElementMax);
+      Float clampedFloatMatrixElement = std::min(std::max(floatMatrixElement, -floatElementMax), floatElementMax);
       int16_t scaledIntMatrixElement = int16_t(clampedFloatMatrixElement * factor + 0.5);
       int8_t bg_or_ra = componentOffsets[rowIndex] / 2;
       int8_t g_or_a = componentOffsets[rowIndex] % 2;
@@ -574,7 +565,7 @@ ApplyColorMatrix_SIMD(DataSourceSurface* aInput, const Matrix5x4 &aMatrix)
   for (size_t colIndex = 0; colIndex < 4; colIndex++) {
     size_t rowIndex = 4;
     const Float& floatMatrixElement = floats[rowIndex * 4 + colIndex];
-    Float clampedFloatMatrixElement = clamped<Float>(floatMatrixElement, -biasMax, biasMax);
+    Float clampedFloatMatrixElement = std::min(std::max(floatMatrixElement, -biasMax), biasMax);
     int32_t scaledIntMatrixElement = int32_t(clampedFloatMatrixElement * factor * 255 + 0.5);
     rowBias[componentOffsets[colIndex]] = scaledIntMatrixElement;
   }
@@ -1057,10 +1048,10 @@ ApplyArithmeticCombine_SIMD(DataSourceSurface* aInput1, DataSourceSurface* aInpu
   // during the actual calculation, because premultiplying it with 255 * 128
   // would overflow int16.
 
-  i16x8_t k1 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK1, -255.0f, 255.0f) * 128 + 0.5f)));
-  i16x8_t k2 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK2, -255.0f, 255.0f) * 128 + 0.5f)));
-  i16x8_t k3 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK3, -255.0f, 255.0f) * 128 + 0.5f)));
-  i16x8_t k4 = simd::FromI16<i16x8_t>(int16_t(floorf(clamped(aK4, -128.0f, 128.0f) * 255 + 0.5f)));
+  i16x8_t k1 = simd::FromI16<i16x8_t>(int16_t(floorf(std::min(std::max(aK1, -255.0f), 255.0f) * 128 + 0.5f)));
+  i16x8_t k2 = simd::FromI16<i16x8_t>(int16_t(floorf(std::min(std::max(aK2, -255.0f), 255.0f) * 128 + 0.5f)));
+  i16x8_t k3 = simd::FromI16<i16x8_t>(int16_t(floorf(std::min(std::max(aK3, -255.0f), 255.0f) * 128 + 0.5f)));
+  i16x8_t k4 = simd::FromI16<i16x8_t>(int16_t(floorf(std::min(std::max(aK4, -128.0f), 128.0f) * 255 + 0.5f)));
 
   i16x8_t k1And4 = simd::InterleaveLo16(k1, k4);
   i16x8_t k2And3 = simd::InterleaveLo16(k2, k3);
