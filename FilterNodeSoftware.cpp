@@ -256,9 +256,7 @@ FillRectWithPixel(DataSourceSurface *aSurface, const IntRect &aFillRect, IntPoin
     }
   } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
     uint8_t sourcePixel = *sourcePixelData;
-    for (int32_t x = 0; x < aFillRect.width; x++) {
-      data[x] = sourcePixel;
-    }
+    memset(data, sourcePixel, aFillRect.width);
   }
 
   // Copy the first row into the other rows.
@@ -309,10 +307,8 @@ FillRectWithHorizontallyRepeatingVerticalStrip(DataSourceSurface *aSurface,
     }
   } else if (BytesPerPixel(aSurface->GetFormat()) == 1) {
     for (int32_t y = 0; y < aFillRect.height; y++) {
-      int8_t sampleColor = *sampleData;
-      for (int32_t x = 0; x < aFillRect.width; x++) {
-        data[x] = sampleColor;
-      }
+      uint8_t sampleColor = *sampleData;
+      memset(data, sampleColor, aFillRect.width);
       data += stride;
       sampleData += stride;
     }
