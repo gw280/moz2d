@@ -2630,25 +2630,6 @@ FilterNodeCompositeSoftware::GetOutputRectInRect(const IntRect& aRect)
   return rect;
 }
 
-static uint32_t
-GetBlurBoxSize(double aStdDev)
-{
-  MOZ_ASSERT(aStdDev >= 0, "Negative standard deviations not allowed");
-
-  double size = aStdDev*3*sqrt(2*M_PI)/4;
-  // Doing super-large blurs accurately isn't very important.
-  uint32_t max = 1024;
-  if (size > max)
-    return max;
-  return uint32_t(floor(size + 0.5));
-}
-
-static void
-InflateRectForBlurDXY(IntRect* aRect, uint32_t aDX, uint32_t aDY)
-{
-  aRect->Inflate(3*(aDX/2), 3*(aDY/2));
-}
-
 int32_t
 FilterNodeBlurXYSoftware::InputIndex(uint32_t aInputEnumIndex)
 {
@@ -2662,10 +2643,9 @@ TemporaryRef<DataSourceSurface>
 FilterNodeBlurXYSoftware::Render(const IntRect& aRect)
 {
   Size sigmaXY = StdDeviationXY();
-  uint32_t dx = GetBlurBoxSize(sigmaXY.width);
-  uint32_t dy = GetBlurBoxSize(sigmaXY.height);
+  IntSize d = AlphaBoxBlur::CalculateBlurRadius(Point(sigmaXY.width, sigmaXY.height));
 
-  if (dx == 0 && dy == 0) {
+  if (d.width == 0 && d.height == 0) {
     return GetInputDataSourceSurface(IN_GAUSSIAN_BLUR_IN, aRect);
   }
 
@@ -2708,10 +2688,9 @@ IntRect
 FilterNodeBlurXYSoftware::InflatedSourceOrDestRect(const IntRect &aDestRect)
 {
   Size sigmaXY = StdDeviationXY();
-  uint32_t dx = GetBlurBoxSize(sigmaXY.width);
-  uint32_t dy = GetBlurBoxSize(sigmaXY.height);
+  IntSize d = AlphaBoxBlur::CalculateBlurRadius(Point(sigmaXY.width, sigmaXY.height));
   IntRect srcRect = aDestRect;
-  InflateRectForBlurDXY(&srcRect, dx, dy);
+  srcRect.Inflate(d);
   return srcRect;
 }
 
