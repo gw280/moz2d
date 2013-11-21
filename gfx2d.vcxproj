@@ -204,6 +204,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="PathD2D.h" />
+    <ClInclude Include="PathHelpers.h" />
     <ClInclude Include="PathNVpr.h" />
     <ClInclude Include="PathRecording.h" />
     <ClInclude Include="PathSkia.h">
@@ -281,6 +282,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="PathD2D.cpp" />
+    <ClCompile Include="PathHelpers.cpp" />
     <ClCompile Include="PathNVpr.cpp" />
     <ClCompile Include="PathRecording.cpp" />
     <ClCompile Include="PathSkia.cpp">
