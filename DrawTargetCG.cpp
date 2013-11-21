@@ -9,6 +9,7 @@
 #include "Tools.h"
 #include <vector>
 #include "QuartzSupport.h"
+#include "FilterNodeSoftware.h"
 
 //CG_EXTERN void CGContextSetCompositeOperation (CGContextRef, PrivateCGCompositeMode);
 
@@ -330,6 +331,22 @@ DrawTargetCG::MaskSurface(const Pattern &aSource,
 
   CGContextRestoreGState(mCg);
 
+}
+
+TemporaryRef<FilterNode>
+DrawTargetCG::CreateFilter(FilterType aType)
+{
+  return FilterNodeSoftware::Create(aType);
+}
+
+void
+DrawTargetCG::DrawFilter(FilterNode *aNode,
+                         const Rect &aSourceRect,
+                         const Point &aDestPoint,
+                         const DrawOptions &aOptions)
+{
+  FilterNodeSoftware* filter = static_cast<FilterNodeSoftware*>(aNode);
+  filter->Draw(this, aSourceRect, aDestPoint, aOptions);
 }
 
 static CGColorRef ColorToCGColor(CGColorSpaceRef aColorSpace, const Color& aColor)

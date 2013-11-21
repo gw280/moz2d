@@ -34,6 +34,7 @@ public:
   typedef mozilla::gfx::DrawTarget DrawTarget;
   typedef mozilla::gfx::Path Path;
   typedef mozilla::gfx::SourceSurface SourceSurface;
+  typedef mozilla::gfx::FilterNode FilterNode;
   typedef mozilla::gfx::GradientStops GradientStops;
   typedef mozilla::gfx::ScaledFont ScaledFont;
 
@@ -41,6 +42,7 @@ public:
   virtual DrawTarget *LookupDrawTarget(mozilla::gfx::ReferencePtr aRefPtr);
   virtual Path *LookupPath(mozilla::gfx::ReferencePtr aRefPtr);
   virtual SourceSurface *LookupSourceSurface(mozilla::gfx::ReferencePtr aRefPtr);
+  virtual FilterNode *LookupFilterNode(mozilla::gfx::ReferencePtr aRefPtr);
   virtual GradientStops *LookupGradientStops(mozilla::gfx::ReferencePtr aRefPtr);
   virtual ScaledFont *LookupScaledFont(mozilla::gfx::ReferencePtr aRefPtr);
   virtual DrawTarget *GetReferenceDrawTarget() { return mBaseDT; }
@@ -55,6 +57,8 @@ public:
   virtual void RemoveGradientStops(mozilla::gfx::ReferencePtr aRefPtr) { mGradientStops.erase(aRefPtr); }
   virtual void AddScaledFont(mozilla::gfx::ReferencePtr aRefPtr, ScaledFont *aStops) { mScaledFonts[aRefPtr] = aStops; }
   virtual void RemoveScaledFont(mozilla::gfx::ReferencePtr aRefPtr) { mScaledFonts.erase(aRefPtr); }
+  virtual void AddFilterNode(mozilla::gfx::ReferencePtr aRefPtr, FilterNode *aNode) { mFilterNodes[aRefPtr] = aNode; }
+  virtual void RemoveFilterNode(mozilla::gfx::ReferencePtr aRefPtr) { mFilterNodes.erase(aRefPtr); }
 
 
   void SetBaseDT(DrawTarget *aBaseDT) { mBaseDT = aBaseDT; }
@@ -76,12 +80,14 @@ public:
   typedef std::map<void*, mozilla::RefPtr<SourceSurface> > SourceSurfaceMap;
   typedef std::map<void*, mozilla::RefPtr<GradientStops> > GradientStopsMap;
   typedef std::map<void*, mozilla::RefPtr<ScaledFont> > ScaledFontMap;
+  typedef std::map<void*, mozilla::RefPtr<FilterNode> > FilterNodeMap;
 
   DTMap mDrawTargets;
   PathMap mPaths;
   SourceSurfaceMap mSourceSurfaces;
   GradientStopsMap mGradientStops;
   ScaledFontMap mScaledFonts;
+  FilterNodeMap mFilterNodes;
   std::vector<mozilla::gfx::RecordedEvent*> mRecordedEvents;
   hash_set<uint32_t> mDisabledEvents;
 signals:
