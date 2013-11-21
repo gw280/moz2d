@@ -174,18 +174,6 @@ private:
 
 } // unnamed namespace
 
-// Fast approximate division by 255. It has the property that
-// for all 0 <= n <= 255*255, FAST_DIVIDE_BY_255(n) == n/255.
-// But it only uses two adds and two shifts instead of an
-// integer division (which is expensive on many processors).
-//
-// equivalent to v/255
-template<class B, class A>
-static B FastDivideBy255(A v)
-{
-  return ((v << 8) + v + 255) >> 16;
-}
-
 // Constant-time max and min functions for unsigned arguments
 static unsigned
 umax(unsigned a, unsigned b)
@@ -3280,11 +3268,14 @@ SpecularLightingSoftware::LightPixel(const Point3D &aNormal,
     uint8_t components[4];
   } color = { aColor };
   color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] =
-    umin(FastDivideBy255<uint16_t>(specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] >> 8), 255U);
+    umin(FilterProcessing::FastDivideBy255<uint16_t>(
+      specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_B] >> 8), 255U);
   color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] =
-    umin(FastDivideBy255<uint16_t>(specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] >> 8), 255U);
+    umin(FilterProcessing::FastDivideBy255<uint16_t>(
+      specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_G] >> 8), 255U);
   color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] =
-    umin(FastDivideBy255<uint16_t>(specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] >> 8), 255U);
+    umin(FilterProcessing::FastDivideBy255<uint16_t>(
+      specularNHi * color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_R] >> 8), 255U);
 
   color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
     umax(color.components[B8G8R8A8_COMPONENT_BYTEOFFSET_B],

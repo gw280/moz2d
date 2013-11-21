@@ -89,12 +89,12 @@ ApplyBlending_Scalar(DataSourceSurface* aInput1, DataSourceSurface* aInput2)
           default:
             MOZ_CRASH();
         }
-        val = umin(FastDivideBy255<unsigned>(val), 255U);
+        val = umin(FilterProcessing::FastDivideBy255<unsigned>(val), 255U);
         targetData[targetIndex + i] = static_cast<uint8_t>(val);
       }
       uint32_t alpha = 255 * 255 - (255 - qa) * (255 - qb);
       targetData[targetIndex + B8G8R8A8_COMPONENT_BYTEOFFSET_A] =
-        FastDivideBy255<uint8_t>(alpha);
+        FilterProcessing::FastDivideBy255<uint8_t>(alpha);
     }
   }
 

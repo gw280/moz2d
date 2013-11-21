@@ -20,6 +20,17 @@ const ptrdiff_t B8G8R8A8_COMPONENT_BYTEOFFSET_A = 3;
 class FilterProcessing
 {
 public:
+
+  // Fast approximate division by 255. It has the property that
+  // for all 0 <= v <= 255*255, FastDivideBy255(v) == v/255.
+  // But it only uses two adds and two shifts instead of an
+  // integer division (which is expensive on many processors).
+  template<class B, class A>
+  static B FastDivideBy255(A v)
+  {
+    return ((v << 8) + v + 255) >> 16;
+  }
+
   static TemporaryRef<DataSourceSurface> ExtractAlpha(DataSourceSurface* aSource);
   static TemporaryRef<DataSourceSurface> ConvertToB8G8R8A8(SourceSurface* aSurface);
   static TemporaryRef<DataSourceSurface> ApplyBlending(DataSourceSurface* aInput1, DataSourceSurface* aInput2, BlendMode aBlendMode);
