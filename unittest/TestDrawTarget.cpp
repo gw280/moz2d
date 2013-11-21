@@ -1049,7 +1049,7 @@ TestDrawTargetBase::OffsetFilter()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_OFFSET);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TRANSFORM);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), FORMAT_B8G8R8A8);
 
@@ -1059,7 +1059,7 @@ TestDrawTargetBase::OffsetFilter()
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);
 
-  filter->SetAttribute(ATT_OFFSET_OFFSET, IntPoint(-100, -100));
+  filter->SetAttribute(ATT_TRANSFORM_MATRIX, Matrix().Translate(-100, -100));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
