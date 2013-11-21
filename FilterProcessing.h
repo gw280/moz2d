@@ -123,6 +123,19 @@ protected:
 #endif
 };
 
+// Constant-time max and min functions for unsigned arguments
+static inline unsigned
+umax(unsigned a, unsigned b)
+{
+  return a - ((a - b) & -(a < b));
+}
+
+static inline unsigned
+umin(unsigned a, unsigned b)
+{
+  return a - ((a - b) & -(a > b));
+}
+
 } // namespace gfx
 } // namespace mozilla
 

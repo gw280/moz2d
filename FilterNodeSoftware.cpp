@@ -174,19 +174,6 @@ private:
 
 } // unnamed namespace
 
-// Constant-time max and min functions for unsigned arguments
-static unsigned
-umax(unsigned a, unsigned b)
-{
-  return a - ((a - b) & -(a < b));
-}
-
-static unsigned
-umin(unsigned a, unsigned b)
-{
-  return a - ((a - b) & -(a > b));
-}
-
 // from xpcom/ds/nsMathUtils.h
 static int32_t
 NS_lround(double x)

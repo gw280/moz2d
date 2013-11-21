@@ -10,19 +10,6 @@
 namespace mozilla {
 namespace gfx {
 
-// Constant-time max and min functions for unsigned arguments
-static unsigned
-umax(unsigned a, unsigned b)
-{
-  return a - ((a - b) & -(a < b));
-}
-
-static unsigned
-umin(unsigned a, unsigned b)
-{
-  return a - ((a - b) & -(a > b));
-}
-
 void
 FilterProcessing::ExtractAlpha_Scalar(const IntSize& size, uint8_t* sourceData, int32_t sourceStride, uint8_t* alphaData, int32_t alphaStride)
 {
