@@ -8,6 +8,7 @@
 
 #include "ScaledFontBase.h"
 #include "ScaledFontCairo.h"
+#include "FilterNodeSoftware.h"
 
 #include "core/SkDevice.h"
 #include "core/SkTypeface.h"
@@ -163,6 +164,26 @@ DrawTargetSkia::PurgeTextureCaches()
 
 #endif
 
+static SkBitmap
+GetBitmapForSurface(SourceSurface *aSurface)
+{
+  switch (aSurface->GetType()) {
+  case SURFACE_SKIA:
+    return static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  case SURFACE_DATA:
+    {
+      DataSourceSurface* surf = static_cast<DataSourceSurface*>(aSurface);
+      SkBitmap tmp;
+      tmp.setConfig(GfxFormatToSkiaConfig(surf->GetFormat()),
+                    surf->GetSize().width, surf->GetSize().height, surf->Stride());
+      tmp.setPixels(surf->GetData());
+      return tmp;
+    }
+  default:
+    MOZ_CRASH("Non-skia SourceSurfaces need to be DataSourceSurfaces");
+  }
+}
+
 DrawTargetSkia::DrawTargetSkia()
   : mSnapshot(nullptr)
 {
@@ -257,7 +278,7 @@ void SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, Float aAlpha = 1.
     }
     case PATTERN_SURFACE: {
       const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
-      const SkBitmap& bitmap = static_cast<SourceSurfaceSkia*>(pat.mSurface.get())->GetBitmap();
+      const SkBitmap& bitmap = GetBitmapForSurface(pat.mSurface);
 
       SkShader::TileMode mode = ExtendModeToTileMode(pat.mExtendMode);
       SkShader* shader = SkShader::CreateBitmapShader(bitmap, mode, mode);
@@ -346,10 +367,6 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
                             const DrawSurfaceOptions &aSurfOptions,
                             const DrawOptions &aOptions)
 {
-  if (aSurface->GetType() != SURFACE_SKIA) {
-    return;
-  }
-
   if (aSource.IsEmpty()) {
     return;
   }
@@ -368,7 +385,7 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
   SkRect sourceBoundingRect = RectToSkRect(boundingSource);
   SkIRect sourceBoundingIRect = RectToSkIRect(boundingSource);
 
-  const SkBitmap& bitmap = static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  const SkBitmap& bitmap = GetBitmapForSurface(aSurface);
  
   AutoPaintSetup paint(mCanvas.get(), aOptions);
   if (aSurfOptions.mFilter == FILTER_POINT) {
@@ -396,6 +413,16 @@ DrawTargetSkia::DrawSurface(SourceSurface *aSurface,
 }
 
 void
+DrawTargetSkia::DrawFilter(FilterNode *aNode,
+                           const Rect &aSourceRect,
+                           const Point &aDestPoint,
+                           const DrawOptions &aOptions)
+{
+  FilterNodeSoftware* filter = static_cast<FilterNodeSoftware*>(aNode);
+  filter->Draw(this, aSourceRect, aDestPoint, aOptions);
+}
+
+void
 DrawTargetSkia::DrawSurfaceWithShadow(SourceSurface *aSurface,
                                       const Point &aDest,
                                       const Color &aColor,
@@ -409,7 +436,7 @@ DrawTargetSkia::DrawSurfaceWithShadow(SourceSurface *aSurface,
 
   uint32_t blurFlags = SkBlurMaskFilter::kHighQuality_BlurFlag |
                        SkBlurMaskFilter::kIgnoreTransform_BlurFlag;
-  const SkBitmap& bitmap = static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  const SkBitmap& bitmap = GetBitmapForSurface(aSurface);
   SkShader* shader = SkShader::CreateBitmapShader(bitmap, SkShader::kClamp_TileMode, SkShader::kClamp_TileMode);
   SkMatrix matrix;
   matrix.reset();
@@ -697,7 +724,7 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
 
   MarkChanged();
 
-  const SkBitmap& bitmap = static_cast<SourceSurfaceSkia*>(aSurface)->GetBitmap();
+  const SkBitmap& bitmap = GetBitmapForSurface(aSurface);
 
   mCanvas->save();
   mCanvas->resetMatrix();
@@ -870,6 +897,12 @@ DrawTargetSkia::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops, Ex
   std::stable_sort(stops.begin(), stops.end());
   
   return new GradientStopsSkia(stops, aNumStops, aExtendMode);
+}
+
+TemporaryRef<FilterNode>
+DrawTargetSkia::CreateFilter(FilterType aType)
+{
+  return FilterNodeSoftware::Create(aType);
 }
 
 void

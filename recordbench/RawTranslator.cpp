@@ -1,4 +1,5 @@
 #include "RawTranslator.h"
+#include "Filters.h"
 #include <map>
 #include <vector>
 
@@ -98,16 +99,19 @@ private:
   virtual DrawTarget *LookupDrawTarget(ReferencePtr aRefPtr) { return LookupObject(mDrawTargets, aRefPtr); }
   virtual Path *LookupPath(ReferencePtr aRefPtr) { return LookupObject(mPaths, aRefPtr); }
   virtual SourceSurface *LookupSourceSurface(ReferencePtr aRefPtr) { return LookupObject(mSourceSurfaces, aRefPtr); }
+  virtual FilterNode *LookupFilterNode(ReferencePtr aRefPtr) { return LookupObject(mFilterNodes, aRefPtr); }
   virtual GradientStops *LookupGradientStops(ReferencePtr aRefPtr) { return LookupObject(mGradientStops, aRefPtr); }
   virtual ScaledFont *LookupScaledFont(ReferencePtr aRefPtr) { return LookupObject(mScaledFonts, aRefPtr); }
   virtual void AddDrawTarget(ReferencePtr aRefPtr, DrawTarget *aDT) { AddObject(mDrawTargets, aRefPtr, aDT); }
   virtual void AddPath(ReferencePtr aRefPtr, Path *aPath) { AddObject(mPaths, aRefPtr, aPath); }
   virtual void AddSourceSurface(ReferencePtr aRefPtr, SourceSurface *aSurface) { AddObject(mSourceSurfaces, aRefPtr, aSurface); }
+  virtual void AddFilterNode(ReferencePtr aRefPtr, FilterNode *aFilter) { AddObject(mFilterNodes, aRefPtr, aFilter); }
   virtual void AddGradientStops(ReferencePtr aRefPtr, GradientStops *aStops) { AddObject(mGradientStops, aRefPtr, aStops); }
   virtual void AddScaledFont(ReferencePtr aRefPtr, ScaledFont *aScaledFont) { AddObject(mScaledFonts, aRefPtr, aScaledFont); }
   virtual void RemoveDrawTarget(ReferencePtr aRefPtr) { RemoveObject(mDrawTargets, aRefPtr); }
   virtual void RemovePath(ReferencePtr aRefPtr) { RemoveObject(mPaths, aRefPtr); }
   virtual void RemoveSourceSurface(ReferencePtr aRefPtr) { RemoveObject(mSourceSurfaces, aRefPtr); }
+  virtual void RemoveFilterNode(ReferencePtr aRefPtr) { RemoveObject(mFilterNodes, aRefPtr); }
   virtual void RemoveGradientStops(ReferencePtr aRefPtr) { RemoveObject(mGradientStops, aRefPtr); }
   virtual void RemoveScaledFont(ReferencePtr aRefPtr) { RemoveObject(mScaledFonts, aRefPtr); }
 
@@ -121,6 +125,7 @@ private:
   typename MapType<DrawTarget, RetainDrawTargets>::Type mDrawTargets;
   typename MapType<Path, RetainPaths>::Type mPaths;
   typename MapType<SourceSurface, RetainSourceSurfaces>::Type mSourceSurfaces;
+  typename MapType<FilterNode, RETAIN>::Type mFilterNodes;
   typename MapType<GradientStops, RetainGradientStops>::Type mGradientStops;
   typename MapType<ScaledFont, RETAIN>::Type mScaledFonts;
 };
