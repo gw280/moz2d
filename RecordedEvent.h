@@ -792,7 +792,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
 
   virtual std::string GetName() const { return "FilterNode Creation"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -815,7 +815,7 @@ public:
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
 
   virtual std::string GetName() const { return "FilterNode Destruction"; }
-  virtual ReferencePtr GetObject() const { return mRefPtr; }
+  virtual ReferencePtr GetObjectRef() const { return mRefPtr; }
 private:
   friend class RecordedEvent;
 
@@ -1025,7 +1025,7 @@ public:
 
   virtual std::string GetName() const { return "SetAttribute"; }
 
-  virtual ReferencePtr GetObject() const { return mNode; }
+  virtual ReferencePtr GetObjectRef() const { return mNode; }
 
 private:
   friend class RecordedEvent;
@@ -1060,7 +1060,7 @@ public:
 
   virtual std::string GetName() const { return "SetInput"; }
 
-  virtual ReferencePtr GetObject() const { return mNode; }
+  virtual ReferencePtr GetObjectRef() const { return mNode; }
 
 private:
   friend class RecordedEvent;
