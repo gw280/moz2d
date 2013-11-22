@@ -23,7 +23,7 @@ namespace gfx {
 const uint16_t kMajorRevision = 3;
 // A change in minor revision means additions of new events. New streams will
 // not play in older players.
-const uint16_t kMinorRevision = 1;
+const uint16_t kMinorRevision = 2;
 
 struct ReferencePtr
 {
@@ -69,9 +69,12 @@ inline std::string StringFromPtr(ReferencePtr aPtr)
 class Translator
 {
 public:
+  virtual ~Translator() {}
+
   virtual DrawTarget *LookupDrawTarget(ReferencePtr aRefPtr) = 0;
   virtual Path *LookupPath(ReferencePtr aRefPtr) = 0;
   virtual SourceSurface *LookupSourceSurface(ReferencePtr aRefPtr) = 0;
+  virtual FilterNode *LookupFilterNode(ReferencePtr aRefPtr) = 0;
   virtual GradientStops *LookupGradientStops(ReferencePtr aRefPtr) = 0;
   virtual ScaledFont *LookupScaledFont(ReferencePtr aRefPtr) = 0;
   virtual void AddDrawTarget(ReferencePtr aRefPtr, DrawTarget *aDT) = 0;
@@ -80,6 +83,8 @@ public:
   virtual void RemovePath(ReferencePtr aRefPtr) = 0;
   virtual void AddSourceSurface(ReferencePtr aRefPtr, SourceSurface *aPath) = 0;
   virtual void RemoveSourceSurface(ReferencePtr aRefPtr) = 0;
+  virtual void AddFilterNode(mozilla::gfx::ReferencePtr aRefPtr, FilterNode *aSurface) = 0;
+  virtual void RemoveFilterNode(mozilla::gfx::ReferencePtr aRefPtr) = 0;
   virtual void AddGradientStops(ReferencePtr aRefPtr, GradientStops *aPath) = 0;
   virtual void RemoveGradientStops(ReferencePtr aRefPtr) = 0;
   virtual void AddScaledFont(ReferencePtr aRefPtr, ScaledFont *aScaledFont) = 0;
@@ -161,7 +166,12 @@ public:
     SNAPSHOT,
     SCALEDFONTCREATION,
     SCALEDFONTDESTRUCTION,
-    MASKSURFACE
+    MASKSURFACE,
+    FILTERNODECREATION,
+    FILTERNODEDESTRUCTION,
+    DRAWFILTER,
+    FILTERNODESETATTRIBUTE,
+    FILTERNODESETINPUT
   };
   static const uint32_t kTotalEventTypes = RecordedEvent::SCALEDFONTDESTRUCTION + 1;
 
@@ -642,6 +652,34 @@ private:
   CompositionOp mOp;
 };
 
+class RecordedDrawFilter : public RecordedDrawingEvent {
+public:
+  RecordedDrawFilter(DrawTarget *aDT, ReferencePtr aNode,
+                     const Rect &aSourceRect,
+                     const Point &aDestPoint,
+                     const DrawOptions &aOptions)
+    : RecordedDrawingEvent(DRAWFILTER, aDT), mNode(aNode), mSourceRect(aSourceRect)
+    , mDestPoint(aDestPoint), mOptions(aOptions)
+  {
+  }
+
+  virtual void PlayEvent(Translator *aTranslator) const;
+
+  virtual void RecordToStream(std::ostream &aStream) const;
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
+  
+  virtual std::string GetName() const { return "DrawFilter"; }
+private:
+  friend class RecordedEvent;
+
+  RecordedDrawFilter(std::istream &aStream);
+
+  ReferencePtr mNode;
+  Rect mSourceRect;
+  Point mDestPoint;
+  DrawOptions mOptions;
+};
+
 class RecordedPathCreation : public RecordedEvent {
 public:
   RecordedPathCreation(PathRecording *aPath);
@@ -737,6 +775,53 @@ private:
   ReferencePtr mRefPtr;
 
   RecordedSourceSurfaceDestruction(std::istream &aStream);
+};
+
+class RecordedFilterNodeCreation : public RecordedEvent {
+public:
+  RecordedFilterNodeCreation(ReferencePtr aRefPtr, FilterType aType)
+    : RecordedEvent(FILTERNODECREATION), mRefPtr(aRefPtr), mType(aType)
+  {
+  }
+
+  ~RecordedFilterNodeCreation();
+
+  virtual void PlayEvent(Translator *aTranslator) const;
+
+  virtual void RecordToStream(std::ostream &aStream) const;
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
+  
+  virtual std::string GetName() const { return "FilterNode Creation"; }
+  virtual ReferencePtr GetObject() const { return mRefPtr; }
+private:
+  friend class RecordedEvent;
+
+  ReferencePtr mRefPtr;
+  FilterType mType;
+
+  RecordedFilterNodeCreation(std::istream &aStream);
+};
+
+class RecordedFilterNodeDestruction : public RecordedEvent {
+public:
+  RecordedFilterNodeDestruction(ReferencePtr aRefPtr)
+    : RecordedEvent(FILTERNODEDESTRUCTION), mRefPtr(aRefPtr)
+  {
+  }
+
+  virtual void PlayEvent(Translator *aTranslator) const;
+
+  virtual void RecordToStream(std::ostream &aStream) const;
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
+  
+  virtual std::string GetName() const { return "FilterNode Destruction"; }
+  virtual ReferencePtr GetObject() const { return mRefPtr; }
+private:
+  friend class RecordedEvent;
+
+  ReferencePtr mRefPtr;
+
+  RecordedFilterNodeDestruction(std::istream &aStream);
 };
 
 class RecordedGradientStopsCreation : public RecordedEvent {
@@ -898,6 +983,94 @@ private:
   ReferencePtr mRefMask;
   Point mOffset;
   DrawOptions mOptions;
+};
+
+class RecordedFilterNodeSetAttribute : public RecordedEvent
+{
+public:
+  enum ArgType {
+    TYPE_UINT32,
+    TYPE_BOOL,
+    TYPE_FLOAT,
+    TYPE_SIZE,
+    TYPE_INTSIZE,
+    TYPE_INTPOINT,
+    TYPE_RECT,
+    TYPE_INTRECT,
+    TYPE_POINT,
+    TYPE_MATRIX5X4,
+    TYPE_POINT3D,
+    TYPE_COLOR,
+    TYPE_FLOAT_ARRAY
+  };
+
+  template<typename T>
+  RecordedFilterNodeSetAttribute(FilterNode *aNode, uint32_t aIndex, T aArgument, ArgType aArgType)
+    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(aArgType)
+  {
+    mPayload.resize(sizeof(T));
+    memcpy(&mPayload.front(), &aArgument, sizeof(T));
+  }
+
+  RecordedFilterNodeSetAttribute(FilterNode *aNode, uint32_t aIndex, const Float *aFloat, uint32_t aSize)
+    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(TYPE_FLOAT_ARRAY)
+  {
+    mPayload.resize(sizeof(Float) * aSize);
+    memcpy(&mPayload.front(), aFloat, sizeof(Float) * aSize);
+  }
+
+  virtual void PlayEvent(Translator *aTranslator) const;
+  virtual void RecordToStream(std::ostream &aStream) const;
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
+
+  virtual std::string GetName() const { return "SetAttribute"; }
+
+  virtual ReferencePtr GetObject() const { return mNode; }
+
+private:
+  friend class RecordedEvent;
+
+  ReferencePtr mNode;
+
+  uint32_t mIndex;
+  ArgType mArgType;
+  std::vector<uint8_t> mPayload;
+
+  RecordedFilterNodeSetAttribute(std::istream &aStream);
+};
+
+class RecordedFilterNodeSetInput : public RecordedEvent
+{
+public:
+  RecordedFilterNodeSetInput(FilterNode* aNode, uint32_t aIndex, FilterNode* aInputNode)
+    : RecordedEvent(FILTERNODESETINPUT), mNode(aNode), mIndex(aIndex)
+    , mInputFilter(aInputNode), mInputSurface(nullptr)
+  {
+  }
+
+  RecordedFilterNodeSetInput(FilterNode *aNode, uint32_t aIndex, SourceSurface *aInputSurface)
+    : RecordedEvent(FILTERNODESETINPUT), mNode(aNode), mIndex(aIndex)
+    , mInputFilter(nullptr), mInputSurface(aInputSurface)
+  {
+  }
+
+  virtual void PlayEvent(Translator *aTranslator) const;
+  virtual void RecordToStream(std::ostream &aStream) const;
+  virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
+
+  virtual std::string GetName() const { return "SetInput"; }
+
+  virtual ReferencePtr GetObject() const { return mNode; }
+
+private:
+  friend class RecordedEvent;
+
+  ReferencePtr mNode;
+  uint32_t mIndex;
+  ReferencePtr mInputFilter;
+  ReferencePtr mInputSurface;
+
+  RecordedFilterNodeSetInput(std::istream &aStream);
 };
 
 }

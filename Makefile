@@ -4,10 +4,10 @@
 OBJDIR_RELEASE=release
 OBJDIR_DEBUG=debug
 INCLUDES=.
-CXXFLAGS=-std=gnu++0x
-DEBUGFLAGS=-g
+CXXFLAGS=-std=gnu++0x -Wall
+DEBUGFLAGS=-g -DDEBUG
 RELEASEFLAGS=-O3
-DEFINES=
+DEFINES=USE_SSE2
 
 MOZ2D_CAIRO=true
 
@@ -38,6 +38,10 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   DrawTargetDual.cpp \
   DrawTargetRecording.cpp \
   Factory.cpp \
+  FilterNodeSoftware.cpp \
+  FilterProcessing.cpp \
+  FilterProcessingScalar.cpp \
+  FilterProcessingSSE2.cpp \
   ImageScaling.cpp \
   ImageScalingSSE2.cpp \
   Matrix.cpp \

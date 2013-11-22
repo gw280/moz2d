@@ -32,13 +32,11 @@ class TestBase
 {
 public:
   TestBase() {}
+  virtual ~TestBase() {}
 
   typedef void (TestBase::*TestCall)();
 
   int RunTests(int *aFailures);
-
-protected:
-  static void LogMessage(std::string aMessage);
 
   struct Test {
     Test(TestCall aCall, std::string aName, void *aImplPointer)
@@ -51,6 +49,9 @@ protected:
     std::string name;
     void *implPointer;
   };
+protected:
+  static void LogMessage(std::string aMessage);
+
   std::vector<Test> mTests;
 
   template<typename T>
