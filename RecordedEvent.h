@@ -173,7 +173,7 @@ public:
     FILTERNODESETATTRIBUTE,
     FILTERNODESETINPUT
   };
-  static const uint32_t kTotalEventTypes = RecordedEvent::SCALEDFONTDESTRUCTION + 1;
+  static const uint32_t kTotalEventTypes = RecordedEvent::FILTERNODESETINPUT + 1;
 
   static std::string GetEventName(EventType aType);
 
@@ -667,7 +667,7 @@ public:
 
   virtual void RecordToStream(std::ostream &aStream) const;
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
-  
+
   virtual std::string GetName() const { return "DrawFilter"; }
 private:
   friend class RecordedEvent;
@@ -790,7 +790,7 @@ public:
 
   virtual void RecordToStream(std::ostream &aStream) const;
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
-  
+
   virtual std::string GetName() const { return "FilterNode Creation"; }
   virtual ReferencePtr GetObject() const { return mRefPtr; }
 private:
@@ -813,7 +813,7 @@ public:
 
   virtual void RecordToStream(std::ostream &aStream) const;
   virtual void OutputSimpleEventInfo(std::stringstream &aStringStream) const;
-  
+
   virtual std::string GetName() const { return "FilterNode Destruction"; }
   virtual ReferencePtr GetObject() const { return mRefPtr; }
 private:

@@ -1460,7 +1460,7 @@ RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
   case TYPE_##argtype: \
   ReplaySetAttribute(aTranslator->LookupFilterNode(mNode), mIndex, *(type*)&mPayload.front()); \
   break
-  
+
   switch (mArgType) {
     REPLAY_SET_ATTRIBUTE(bool, BOOL);
     REPLAY_SET_ATTRIBUTE(uint32_t, UINT32);
