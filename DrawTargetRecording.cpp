@@ -127,7 +127,7 @@ public:
   FORWARD_SET_ATTRIBUTE(const Color&, COLOR);
 
 #undef FORWARD_SET_ATTRIBUTE
-  
+
   virtual void SetAttribute(uint32_t aIndex, const Float* aFloat, uint32_t aSize) {
     mRecorder->RecordEvent(RecordedFilterNodeSetAttribute(this, aIndex, aFloat, aSize));
     mFinalFilterNode->SetAttribute(aIndex, aFloat, aSize);
