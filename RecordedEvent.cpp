@@ -120,6 +120,8 @@ RecordedEvent::GetEventName(EventType aType)
     return "ScaledFontCreation";
   case SCALEDFONTDESTRUCTION:
     return "ScaledFontDestruction";
+  case MASKSURFACE:
+    return "MaskSurface";
   default:
     return "Unknown";
   }
