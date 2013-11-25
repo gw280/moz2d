@@ -124,6 +124,8 @@ private:
 
   void MarkChanged();
 
+  SkRect SkRectCoveringWholeSurface() const;
+
   uint32_t mTexture;
 
   IntSize mSize;
