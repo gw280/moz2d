@@ -34,6 +34,7 @@ endif
 MOZ2D_CPPSRCS_ALLPLATFORMS = \
   Blur.cpp \
   BlurSSE2.cpp \
+  DataSourceSurface.cpp \
   DrawEventRecorder.cpp \
   DrawTargetDual.cpp \
   DrawTargetRecording.cpp \
@@ -45,6 +46,7 @@ MOZ2D_CPPSRCS_ALLPLATFORMS = \
   ImageScaling.cpp \
   ImageScalingSSE2.cpp \
   Matrix.cpp \
+  Path.cpp \
   PathRecording.cpp \
   RecordedEvent.cpp \
   Scale.cpp \

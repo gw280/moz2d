@@ -252,6 +252,7 @@
   <ItemGroup>
     <ClCompile Include="Blur.cpp" />
     <ClCompile Include="BlurSSE2.cpp" />
+    <ClCompile Include="DataSourceSurface.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
