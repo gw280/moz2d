@@ -1457,7 +1457,7 @@ void
 RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
 {
 #define REPLAY_SET_ATTRIBUTE(type, argtype) \
-  case TYPE_##argtype: \
+  case ARGTYPE_##argtype: \
   ReplaySetAttribute(aTranslator->LookupFilterNode(mNode), mIndex, *(type*)&mPayload.front()); \
   break
 
@@ -1474,7 +1474,7 @@ RecordedFilterNodeSetAttribute::PlayEvent(Translator *aTranslator) const
     REPLAY_SET_ATTRIBUTE(Matrix5x4, MATRIX5X4);
     REPLAY_SET_ATTRIBUTE(Point3D, POINT3D);
     REPLAY_SET_ATTRIBUTE(Color, COLOR);
-  case TYPE_FLOAT_ARRAY:
+  case ARGTYPE_FLOAT_ARRAY:
     aTranslator->LookupFilterNode(mNode)->SetAttribute(
       mIndex,
       reinterpret_cast<const Float*>(&mPayload.front()),

@@ -109,7 +109,7 @@ public:
 
 #define FORWARD_SET_ATTRIBUTE(type, argtype) \
   virtual void SetAttribute(uint32_t aIndex, type aValue) { \
-    mRecorder->RecordEvent(RecordedFilterNodeSetAttribute(this, aIndex, aValue, RecordedFilterNodeSetAttribute::TYPE_##argtype)); \
+    mRecorder->RecordEvent(RecordedFilterNodeSetAttribute(this, aIndex, aValue, RecordedFilterNodeSetAttribute::ARGTYPE_##argtype)); \
     mFinalFilterNode->SetAttribute(aIndex, aValue); \
   }
 

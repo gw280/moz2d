@@ -989,19 +989,19 @@ class RecordedFilterNodeSetAttribute : public RecordedEvent
 {
 public:
   enum ArgType {
-    TYPE_UINT32,
-    TYPE_BOOL,
-    TYPE_FLOAT,
-    TYPE_SIZE,
-    TYPE_INTSIZE,
-    TYPE_INTPOINT,
-    TYPE_RECT,
-    TYPE_INTRECT,
-    TYPE_POINT,
-    TYPE_MATRIX5X4,
-    TYPE_POINT3D,
-    TYPE_COLOR,
-    TYPE_FLOAT_ARRAY
+    ARGTYPE_UINT32,
+    ARGTYPE_BOOL,
+    ARGTYPE_FLOAT,
+    ARGTYPE_SIZE,
+    ARGTYPE_INTSIZE,
+    ARGTYPE_INTPOINT,
+    ARGTYPE_RECT,
+    ARGTYPE_INTRECT,
+    ARGTYPE_POINT,
+    ARGTYPE_MATRIX5X4,
+    ARGTYPE_POINT3D,
+    ARGTYPE_COLOR,
+    ARGTYPE_FLOAT_ARRAY
   };
 
   template<typename T>
@@ -1013,7 +1013,7 @@ public:
   }
 
   RecordedFilterNodeSetAttribute(FilterNode *aNode, uint32_t aIndex, const Float *aFloat, uint32_t aSize)
-    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(TYPE_FLOAT_ARRAY)
+    : RecordedEvent(FILTERNODESETATTRIBUTE), mNode(aNode), mIndex(aIndex), mArgType(ARGTYPE_FLOAT_ARRAY)
   {
     mPayload.resize(sizeof(Float) * aSize);
     memcpy(&mPayload.front(), aFloat, sizeof(Float) * aSize);
