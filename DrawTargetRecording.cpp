@@ -78,6 +78,8 @@ GetGradientStops(GradientStops *aStops)
 class FilterNodeRecording : public FilterNode
 {
 public:
+  using FilterNode::SetAttribute;
+
   FilterNodeRecording(FilterNode *aFinalFilterNode, DrawEventRecorderPrivate *aRecorder)
     : mFinalFilterNode(aFinalFilterNode), mRecorder(aRecorder)
   {
