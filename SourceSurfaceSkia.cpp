@@ -75,15 +75,15 @@ SourceSurfaceSkia::InitFromData(unsigned char* aData,
   if (aFormat == SurfaceFormat::B8G8R8X8) {
     mBitmap.lockPixels();
     // We have to manually set the A channel to be 255 as Skia doesn't understand BGRX
-    ConvertBGRXToBGRA(reinterpret_cast<unsigned char*>(mBitmap.getPixels()), aSize, aStride);
+    ConvertBGRXToBGRA(reinterpret_cast<unsigned char*>(mBitmap.getPixels()), aSize, mBitmap.rowBytes());
     mBitmap.unlockPixels();
     mBitmap.notifyPixelsChanged();
-    mBitmap.setIsOpaque(true);
+    mBitmap.setAlphaType(kOpaque_SkAlphaType);
   }
 
   mSize = aSize;
   mFormat = aFormat;
-  mStride = aStride;
+  mStride = mBitmap.rowBytes();
   return true;
 }
 
