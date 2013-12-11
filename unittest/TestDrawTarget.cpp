@@ -26,6 +26,7 @@ TestDrawTargetBase::TestDrawTargetBase()
   REGISTER_TEST(FillMultiRectTransform2);
   REGISTER_TEST(FillMultiRectTransform3);
   REGISTER_TEST(ClipRect);
+  REGISTER_TEST(ClipRectClear);
   REGISTER_TEST(Clip);
   REGISTER_TEST(FillTriangle);
   REGISTER_TEST(StrokeTriangle);
@@ -274,6 +275,24 @@ TestDrawTargetBase::ClipRect()
   RefreshSnapshot();
 
   VerifyAllPixels(Color(0, 0.502f, 0, 1.0f));
+}
+
+void TestDrawTargetBase::ClipRectClear()
+{
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 0.502f)));
+  mDT->PushClipRect(Rect(0, 100, DT_WIDTH, DT_HEIGHT - 100));
+
+  Matrix temp;
+  temp.Translate(0, -100);
+  mDT->SetTransform(temp);
+  mDT->ClearRect(Rect(0, 0, DT_WIDTH, 100));
+  mDT->SetTransform(Matrix());
+  mDT->PopClip();
+
+  RefreshSnapshot();
+
+  VerifyAllPixels(Color(1.0f, 0, 0, 0.502f));
 }
 
 void

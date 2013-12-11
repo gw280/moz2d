@@ -30,6 +30,7 @@ public:
   void FillMultiRectTransform2();
   void FillMultiRectTransform3();
   void ClipRect();
+  void ClipRectClear();
   void Clip();
   void FillTriangle();
   void StrokeTriangle();
