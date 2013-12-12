@@ -9,6 +9,7 @@
 #include "2D.h"
 
 #ifdef USE_SKIA
+#include "core/SkPath.h"
 #include "core/SkTypeface.h"
 #endif
 #ifdef USE_CAIRO
@@ -49,6 +50,7 @@ protected:
   friend class DrawTargetSkia;
 #ifdef USE_SKIA
   SkTypeface* mTypeface;
+  SkPath GetSkiaPathForGlyphs(const GlyphBuffer &aBuffer);
 #endif
 #ifdef USE_CAIRO
   cairo_scaled_font_t* mScaledFont;
