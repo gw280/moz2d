@@ -59,6 +59,7 @@ public:
 
   virtual void CopyGlyphsToBuilder(const GlyphBuffer &aBuffer,
                                    PathBuilder *aBuilder,
+                                   BackendType aBackendType,
                                    const Matrix *aTransformHint)
   {}
 
