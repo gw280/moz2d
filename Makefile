@@ -24,7 +24,7 @@ endif
 # ================ OS FEATURES ================
 UNAME = $(shell uname)
 ifeq ($(UNAME),Darwin)
-LIBS += -framework CoreFoundation
+LIBS += -framework CoreFoundation -framework ApplicationServices
 endif
 
 # TODO: Files that depends on mozilla:

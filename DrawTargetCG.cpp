@@ -2,14 +2,18 @@
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+#include "BorrowedContext.h"
 #include "DrawTargetCG.h"
 #include "SourceSurfaceCG.h"
 #include "Rect.h"
 #include "ScaledFontMac.h"
 #include "Tools.h"
 #include <vector>
-#include "QuartzSupport.h"
+#include <algorithm>
+#include "MacIOSurface.h"
 #include "FilterNodeSoftware.h"
+
+using namespace std;
 
 //CG_EXTERN void CGContextSetCompositeOperation (CGContextRef, PrivateCGCompositeMode);
 
@@ -121,6 +125,19 @@ CGBlendMode ToBlendMode(CompositionOp op)
   return mode;
 }
 
+static CGInterpolationQuality
+InterpolationQualityFromFilter(Filter aFilter)
+{
+  switch (aFilter) {
+    default:
+    case FILTER_LINEAR:
+      return kCGInterpolationLow;
+    case FILTER_POINT:
+      return kCGInterpolationNone;
+    case FILTER_GOOD:
+      return kCGInterpolationDefault;
+  }
+}
 
 
 DrawTargetCG::DrawTargetCG() : mCg(nullptr), mSnapshot(nullptr)
@@ -136,7 +153,6 @@ DrawTargetCG::~DrawTargetCG()
     CGColorSpaceRelease(mColorSpace);
   if (mCg)
     CGContextRelease(mCg);
-  free(mData);
 }
 
 BackendType
@@ -193,16 +209,24 @@ DrawTargetCG::CreateSourceSurfaceFromData(unsigned char *aData,
   return newSurf;
 }
 
+// This function returns a retained CGImage that needs to be released after
+// use. The reason for this is that we want to either reuse an existing CGImage
+// or create a new one.
 static CGImageRef
-GetImageFromSourceSurface(SourceSurface *aSurface)
+GetRetainedImageFromSourceSurface(SourceSurface *aSurface)
 {
   if (aSurface->GetType() == SURFACE_COREGRAPHICS_IMAGE)
-    return static_cast<SourceSurfaceCG*>(aSurface)->GetImage();
+    return CGImageRetain(static_cast<SourceSurfaceCG*>(aSurface)->GetImage());
   else if (aSurface->GetType() == SURFACE_COREGRAPHICS_CGCONTEXT)
-    return static_cast<SourceSurfaceCGContext*>(aSurface)->GetImage();
-  else if (aSurface->GetType() == SURFACE_DATA)
-    return static_cast<DataSourceSurfaceCG*>(aSurface)->GetImage();
-  abort();
+    return CGImageRetain(static_cast<SourceSurfaceCGContext*>(aSurface)->GetImage());
+
+  if (aSurface->GetType() == SURFACE_DATA) {
+    DataSourceSurface* dataSource = static_cast<DataSourceSurface*>(aSurface);
+    return CreateCGImage(nullptr, dataSource->GetData(), dataSource->GetSize(),
+                         dataSource->Stride(), dataSource->GetFormat());
+  }
+
+  MOZ_CRASH("unsupported source surface");
 }
 
 TemporaryRef<SourceSurface>
@@ -264,73 +288,37 @@ DrawTargetCG::DrawSurface(SourceSurface *aSurface,
 {
   MarkChanged();
 
-  CGImageRef image;
-  CGImageRef subimage = nullptr;
   CGContextSaveGState(mCg);
 
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
-  image = GetImageFromSourceSurface(aSurface);
+  CGImageRef image = GetRetainedImageFromSourceSurface(aSurface);
+
   /* we have two options here:
    *  - create a subimage -- this is slower
    *  - fancy things with clip and different dest rects */
-  {
-    subimage = CGImageCreateWithImageInRect(image, RectToCGRect(aSource));
-    image = subimage;
-  }
+  CGImageRef subimage = CGImageCreateWithImageInRect(image, RectToCGRect(aSource));
+  CGImageRelease(image);
 
   CGContextScaleCTM(cg, 1, -1);
 
   CGRect flippedRect = CGRectMake(aDest.x, -(aDest.y + aDest.height),
                                   aDest.width, aDest.height);
 
-  //XXX: we should implement this for patterns too
-  if (aSurfOptions.mFilter == FILTER_POINT)
-    CGContextSetInterpolationQuality(cg, kCGInterpolationNone);
+  CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(aSurfOptions.mFilter));
 
-  CGContextDrawImage(cg, flippedRect, image);
+  CGContextDrawImage(cg, flippedRect, subimage);
 
   fixer.Fix(mCg);
 
   CGContextRestoreGState(mCg);
 
   CGImageRelease(subimage);
-}
-
-void
-DrawTargetCG::MaskSurface(const Pattern &aSource,
-                          SourceSurface *aMask,
-                          Point aOffset,
-                          const DrawOptions &aDrawOptions)
-{
-  MarkChanged();
-
-  CGImageRef image;
-  CGContextSaveGState(mCg);
-
-  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
-  UnboundnessFixer fixer;
-  CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
-  CGContextSetAlpha(cg, aDrawOptions.mAlpha);
-
-  CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
-  image = GetImageFromSourceSurface(aMask);
-
-  CGContextScaleCTM(cg, 1, -1);
-
-  IntSize size = aMask->GetSize();
-  CGContextClipToMask(cg, CGRectMake(aOffset.x, aOffset.y, size.width, size.height), image);
-  
-  FillRect(Rect(0, 0, size.width, size.height), aSource, aDrawOptions);
-  
-  fixer.Fix(mCg);
-
-  CGContextRestoreGState(mCg);
-
 }
 
 TemporaryRef<FilterNode>
@@ -361,37 +349,51 @@ class GradientStopsCG : public GradientStops
   //XXX: The skia backend uses a vector and passes in aNumStops. It should do better
   GradientStopsCG(GradientStop* aStops, uint32_t aNumStops, ExtendMode aExtendMode)
   {
-    //XXX: do the stops need to be in any particular order?
-    // what should we do about the color space here? we certainly shouldn't be
-    // recreating it all the time
-    std::vector<CGFloat> colors;
-    std::vector<CGFloat> offsets;
-    colors.reserve(aNumStops*4);
-    offsets.reserve(aNumStops);
+    mExtend = aExtendMode;
+    if (aExtendMode == EXTEND_CLAMP) {
+      //XXX: do the stops need to be in any particular order?
+      // what should we do about the color space here? we certainly shouldn't be
+      // recreating it all the time
+      std::vector<CGFloat> colors;
+      std::vector<CGFloat> offsets;
+      colors.reserve(aNumStops*4);
+      offsets.reserve(aNumStops);
 
-    for (uint32_t i = 0; i < aNumStops; i++) {
-      colors.push_back(aStops[i].color.r);
-      colors.push_back(aStops[i].color.g);
-      colors.push_back(aStops[i].color.b);
-      colors.push_back(aStops[i].color.a);
+      for (uint32_t i = 0; i < aNumStops; i++) {
+        colors.push_back(aStops[i].color.r);
+        colors.push_back(aStops[i].color.g);
+        colors.push_back(aStops[i].color.b);
+        colors.push_back(aStops[i].color.a);
 
-      offsets.push_back(aStops[i].offset);
+        offsets.push_back(aStops[i].offset);
+      }
+
+      CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+      mGradient = CGGradientCreateWithColorComponents(colorSpace,
+                                                      &colors.front(),
+                                                      &offsets.front(),
+                                                      aNumStops);
+      CGColorSpaceRelease(colorSpace);
+    } else {
+      mGradient = nullptr;
+      mStops.reserve(aNumStops);
+      for (uint32_t i = 0; i < aNumStops; i++) {
+        mStops.push_back(aStops[i]);
+      }
     }
 
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    mGradient = CGGradientCreateWithColorComponents(colorSpace,
-                                                    &colors.front(),
-                                                    &offsets.front(),
-                                                    aNumStops);
-    CGColorSpaceRelease(colorSpace);
   }
   virtual ~GradientStopsCG() {
-    CGGradientRelease(mGradient);
+    if (mGradient)
+        CGGradientRelease(mGradient);
   }
   // Will always report BACKEND_COREGRAPHICS, but it is compatible
   // with BACKEND_COREGRAPHICS_ACCELERATED
   BackendType GetBackendType() const { return BACKEND_COREGRAPHICS; }
+  // XXX this should be a union
   CGGradientRef mGradient;
+  std::vector<GradientStop> mStops;
+  ExtendMode mExtend;
 };
 
 TemporaryRef<GradientStops>
@@ -402,34 +404,241 @@ DrawTargetCG::CreateGradientStops(GradientStop *aStops, uint32_t aNumStops,
 }
 
 static void
-DrawGradient(CGContextRef cg, const Pattern &aPattern)
+UpdateLinearParametersToIncludePoint(double *min_t, double *max_t,
+                                     CGPoint *start,
+                                     double dx, double dy,
+                                     double x, double y)
+{
+  /**
+   * Compute a parameter t such that a line perpendicular to the (dx,dy)
+   * vector, passing through (start->x + dx*t, start->y + dy*t), also
+   * passes through (x,y).
+   *
+   * Let px = x - start->x, py = y - start->y.
+   * t is given by
+   *   (px - dx*t)*dx + (py - dy*t)*dy = 0
+   *
+   * Solving for t we get
+   *   numerator = dx*px + dy*py
+   *   denominator = dx^2 + dy^2
+   *   t = numerator/denominator
+   *
+   * In CalculateRepeatingGradientParams we know the length of (dx,dy)
+   * is not zero. (This is checked in DrawLinearRepeatingGradient.)
+   */
+  double px = x - start->x;
+  double py = y - start->y;
+  double numerator = dx * px + dy * py;
+  double denominator = dx * dx + dy * dy;
+  double t = numerator / denominator;
+
+  if (*min_t > t) {
+    *min_t = t;
+  }
+  if (*max_t < t) {
+    *max_t = t;
+  }
+}
+
+/**
+ * Repeat the gradient line such that lines extended perpendicular to the
+ * gradient line at both start and end would completely enclose the drawing
+ * extents.
+ */
+static void
+CalculateRepeatingGradientParams(CGPoint *aStart, CGPoint *aEnd,
+                                 CGRect aExtents, int *aRepeatCount)
+{
+  double t_min = 0.;
+  double t_max = 0.;
+  double dx = aEnd->x - aStart->x;
+  double dy = aEnd->y - aStart->y;
+
+  double bounds_x1 = aExtents.origin.x;
+  double bounds_y1 = aExtents.origin.y;
+  double bounds_x2 = aExtents.origin.x + aExtents.size.width;
+  double bounds_y2 = aExtents.origin.y + aExtents.size.height;
+
+  UpdateLinearParametersToIncludePoint(&t_min, &t_max, aStart, dx, dy,
+                                       bounds_x1, bounds_y1);
+  UpdateLinearParametersToIncludePoint(&t_min, &t_max, aStart, dx, dy,
+                                       bounds_x2, bounds_y1);
+  UpdateLinearParametersToIncludePoint(&t_min, &t_max, aStart, dx, dy,
+                                       bounds_x2, bounds_y2);
+  UpdateLinearParametersToIncludePoint(&t_min, &t_max, aStart, dx, dy,
+                                       bounds_x1, bounds_y2);
+
+  // Move t_min and t_max to the nearest usable integer to try to avoid
+  // subtle variations due to numerical instability, especially accidentally
+  // cutting off a pixel. Extending the gradient repetitions is always safe.
+  t_min = floor (t_min);
+  t_max = ceil (t_max);
+  aEnd->x = aStart->x + dx * t_max;
+  aEnd->y = aStart->y + dy * t_max;
+  aStart->x = aStart->x + dx * t_min;
+  aStart->y = aStart->y + dy * t_min;
+
+  *aRepeatCount = t_max - t_min;
+}
+
+static void
+DrawLinearRepeatingGradient(CGContextRef cg, const LinearGradientPattern &aPattern, const CGRect &aExtents)
+{
+  GradientStopsCG *stops = static_cast<GradientStopsCG*>(aPattern.mStops.get());
+  CGPoint startPoint = { aPattern.mBegin.x, aPattern.mBegin.y };
+  CGPoint endPoint = { aPattern.mEnd.x, aPattern.mEnd.y };
+
+  int repeatCount = 1;
+  // if we don't have a line then we can't extend it
+  if (aPattern.mEnd.x != aPattern.mBegin.x ||
+      aPattern.mEnd.y != aPattern.mBegin.y) {
+    CalculateRepeatingGradientParams(&startPoint, &endPoint, aExtents,
+                                     &repeatCount);
+  }
+
+  double scale = 1./repeatCount;
+
+  std::vector<CGFloat> colors;
+  std::vector<CGFloat> offsets;
+  colors.reserve(stops->mStops.size()*repeatCount*4);
+  offsets.reserve(stops->mStops.size()*repeatCount);
+
+  for (int j = 0; j < repeatCount; j++) {
+    for (uint32_t i = 0; i < stops->mStops.size(); i++) {
+      colors.push_back(stops->mStops[i].color.r);
+      colors.push_back(stops->mStops[i].color.g);
+      colors.push_back(stops->mStops[i].color.b);
+      colors.push_back(stops->mStops[i].color.a);
+
+      offsets.push_back((stops->mStops[i].offset + j)*scale);
+    }
+  }
+
+  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+  CGGradientRef gradient = CGGradientCreateWithColorComponents(colorSpace,
+                                                               &colors.front(),
+                                                               &offsets.front(),
+                                                               repeatCount*stops->mStops.size());
+  CGColorSpaceRelease(colorSpace);
+
+  CGContextDrawLinearGradient(cg, gradient, startPoint, endPoint,
+                              kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+  CGGradientRelease(gradient);
+}
+
+static CGPoint CGRectTopLeft(CGRect a)
+{ return a.origin; }
+static CGPoint CGRectBottomLeft(CGRect a)
+{ return CGPointMake(a.origin.x, a.origin.y + a.size.height); }
+static CGPoint CGRectTopRight(CGRect a)
+{ return CGPointMake(a.origin.x + a.size.width, a.origin.y); }
+static CGPoint CGRectBottomRight(CGRect a)
+{ return CGPointMake(a.origin.x + a.size.width, a.origin.y + a.size.height); }
+
+static CGFloat
+CGPointDistance(CGPoint a, CGPoint b)
+{
+  return hypot(a.x-b.x, a.y-b.y);
+}
+
+static void
+DrawRadialRepeatingGradient(CGContextRef cg, const RadialGradientPattern &aPattern, const CGRect &aExtents)
+{
+  GradientStopsCG *stops = static_cast<GradientStopsCG*>(aPattern.mStops.get());
+  CGPoint startCenter = { aPattern.mCenter1.x, aPattern.mCenter1.y };
+  CGFloat startRadius = aPattern.mRadius1;
+  CGPoint endCenter   = { aPattern.mCenter2.x, aPattern.mCenter2.y };
+  CGFloat endRadius   = aPattern.mRadius2;
+
+  // find the maximum distance from endCenter to a corner of aExtents
+  CGFloat minimumEndRadius = endRadius;
+  minimumEndRadius = max(minimumEndRadius, CGPointDistance(endCenter, CGRectTopLeft(aExtents)));
+  minimumEndRadius = max(minimumEndRadius, CGPointDistance(endCenter, CGRectBottomLeft(aExtents)));
+  minimumEndRadius = max(minimumEndRadius, CGPointDistance(endCenter, CGRectTopRight(aExtents)));
+  minimumEndRadius = max(minimumEndRadius, CGPointDistance(endCenter, CGRectBottomRight(aExtents)));
+
+  CGFloat length = endRadius - startRadius;
+  int repeatCount = 1;
+  while (endRadius < minimumEndRadius) {
+    endRadius += length;
+    repeatCount++;
+  }
+
+  while (startRadius-length >= 0) {
+    startRadius -= length;
+    repeatCount++;
+  }
+
+  double scale = 1./repeatCount;
+
+  std::vector<CGFloat> colors;
+  std::vector<CGFloat> offsets;
+  colors.reserve(stops->mStops.size()*repeatCount*4);
+  offsets.reserve(stops->mStops.size()*repeatCount);
+  for (int j = 0; j < repeatCount; j++) {
+    for (uint32_t i = 0; i < stops->mStops.size(); i++) {
+      colors.push_back(stops->mStops[i].color.r);
+      colors.push_back(stops->mStops[i].color.g);
+      colors.push_back(stops->mStops[i].color.b);
+      colors.push_back(stops->mStops[i].color.a);
+
+      offsets.push_back((stops->mStops[i].offset + j)*scale);
+    }
+  }
+
+  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+  CGGradientRef gradient = CGGradientCreateWithColorComponents(colorSpace,
+                                                               &colors.front(),
+                                                               &offsets.front(),
+                                                               repeatCount*stops->mStops.size());
+  CGColorSpaceRelease(colorSpace);
+
+  //XXX: are there degenerate radial gradients that we should avoid drawing?
+  CGContextDrawRadialGradient(cg, gradient, startCenter, startRadius, endCenter, endRadius,
+                              kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+  CGGradientRelease(gradient);
+}
+
+static void
+DrawGradient(CGContextRef cg, const Pattern &aPattern, const CGRect &aExtents)
 {
   if (aPattern.GetType() == PATTERN_LINEAR_GRADIENT) {
     const LinearGradientPattern& pat = static_cast<const LinearGradientPattern&>(aPattern);
     GradientStopsCG *stops = static_cast<GradientStopsCG*>(pat.mStops.get());
-    // XXX: we should take the m out of the properties of LinearGradientPatterns
-    CGPoint startPoint = { pat.mBegin.x, pat.mBegin.y };
-    CGPoint endPoint   = { pat.mEnd.x,   pat.mEnd.y };
+    CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(pat.mMatrix));
+    if (stops->mExtend == EXTEND_CLAMP) {
 
-    // Canvas spec states that we should avoid drawing degenerate gradients (XXX: should this be in common code?)
-    //if (startPoint.x == endPoint.x && startPoint.y == endPoint.y)
-    //  return;
+      // XXX: we should take the m out of the properties of LinearGradientPatterns
+      CGPoint startPoint = { pat.mBegin.x, pat.mBegin.y };
+      CGPoint endPoint   = { pat.mEnd.x,   pat.mEnd.y };
 
-    CGContextDrawLinearGradient(cg, stops->mGradient, startPoint, endPoint,
-                                kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+      // Canvas spec states that we should avoid drawing degenerate gradients (XXX: should this be in common code?)
+      //if (startPoint.x == endPoint.x && startPoint.y == endPoint.y)
+      //  return;
+
+      CGContextDrawLinearGradient(cg, stops->mGradient, startPoint, endPoint,
+                                  kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+    } else if (stops->mExtend == EXTEND_REPEAT) {
+      DrawLinearRepeatingGradient(cg, pat, aExtents);
+    }
   } else if (aPattern.GetType() == PATTERN_RADIAL_GRADIENT) {
     const RadialGradientPattern& pat = static_cast<const RadialGradientPattern&>(aPattern);
+    CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(pat.mMatrix));
     GradientStopsCG *stops = static_cast<GradientStopsCG*>(pat.mStops.get());
+    if (stops->mExtend == EXTEND_CLAMP) {
 
-    // XXX: we should take the m out of the properties of RadialGradientPatterns
-    CGPoint startCenter = { pat.mCenter1.x, pat.mCenter1.y };
-    CGFloat startRadius = pat.mRadius1;
-    CGPoint endCenter   = { pat.mCenter2.x, pat.mCenter2.y };
-    CGFloat endRadius   = pat.mRadius2;
+      // XXX: we should take the m out of the properties of RadialGradientPatterns
+      CGPoint startCenter = { pat.mCenter1.x, pat.mCenter1.y };
+      CGFloat startRadius = pat.mRadius1;
+      CGPoint endCenter   = { pat.mCenter2.x, pat.mCenter2.y };
+      CGFloat endRadius   = pat.mRadius2;
 
-    //XXX: are there degenerate radial gradients that we should avoid drawing?
-    CGContextDrawRadialGradient(cg, stops->mGradient, startCenter, startRadius, endCenter, endRadius,
-                                kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+      //XXX: are there degenerate radial gradients that we should avoid drawing?
+      CGContextDrawRadialGradient(cg, stops->mGradient, startCenter, startRadius, endCenter, endRadius,
+                                  kCGGradientDrawsBeforeStartLocation | kCGGradientDrawsAfterEndLocation);
+    } else if (stops->mExtend == EXTEND_REPEAT) {
+      DrawRadialRepeatingGradient(cg, pat, aExtents);
+    }
   } else {
     assert(0);
   }
@@ -472,7 +681,7 @@ CreateCGPattern(const Pattern &aPattern, CGAffineTransform aUserSpace)
 {
   const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
   // XXX: is .get correct here?
-  CGImageRef image = GetImageFromSourceSurface(pat.mSurface.get());
+  CGImageRef image = GetRetainedImageFromSourceSurface(pat.mSurface.get());
   CGFloat xStep, yStep;
   switch (pat.mExtendMode) {
     case EXTEND_CLAMP:
@@ -509,7 +718,7 @@ CreateCGPattern(const Pattern &aPattern, CGAffineTransform aUserSpace)
                                                       GfxMatrixToCGAffineTransform(pat.mMatrix)),
                               aUserSpace);
   transform = CGAffineTransformTranslate(transform, 0, -static_cast<float>(CGImageGetHeight(image)));
-  return CGPatternCreate(CGImageRetain(image), bounds, transform, xStep, yStep, kCGPatternTilingConstantSpacing,
+  return CGPatternCreate(image, bounds, transform, xStep, yStep, kCGPatternTilingConstantSpacing,
                          true, &patternCallbacks);
 }
 
@@ -532,6 +741,8 @@ SetFillFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern &
     CGColorSpaceRelease(patternSpace);
 
     CGPatternRef pattern = CreateCGPattern(aPattern, CGContextGetCTM(cg));
+    const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
+    CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
     CGFloat alpha = 1.;
     CGContextSetFillPattern(cg, pattern, &alpha);
     CGPatternRelease(pattern);
@@ -555,12 +766,58 @@ SetStrokeFromPattern(CGContextRef cg, CGColorSpaceRef aColorSpace, const Pattern
     CGColorSpaceRelease(patternSpace);
 
     CGPatternRef pattern = CreateCGPattern(aPattern, CGContextGetCTM(cg));
+    const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
+    CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
     CGFloat alpha = 1.;
     CGContextSetStrokePattern(cg, pattern, &alpha);
     CGPatternRelease(pattern);
   }
 
 }
+
+void
+DrawTargetCG::MaskSurface(const Pattern &aSource,
+                          SourceSurface *aMask,
+                          Point aOffset,
+                          const DrawOptions &aDrawOptions)
+{
+  MarkChanged();
+
+  CGContextSaveGState(mCg);
+
+  CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
+  UnboundnessFixer fixer;
+  CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
+  CGContextSetAlpha(cg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
+
+  CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
+  CGImageRef image = GetRetainedImageFromSourceSurface(aMask);
+
+  // use a negative-y so that the mask image draws right ways up
+  CGContextScaleCTM(cg, 1, -1);
+
+  IntSize size = aMask->GetSize();
+
+  CGContextClipToMask(cg, CGRectMake(aOffset.x, -(aOffset.y + size.height), size.width, size.height), image);
+
+  CGContextScaleCTM(cg, 1, -1);
+  if (isGradient(aSource)) {
+    // we shouldn't need to clip to an additional rectangle
+    // as the cliping to the mask should be sufficient.
+    DrawGradient(cg, aSource, CGRectMake(aOffset.x, aOffset.y, size.width, size.height));
+  } else {
+    SetFillFromPattern(cg, mColorSpace, aSource);
+    CGContextFillRect(cg, CGRectMake(aOffset.x, aOffset.y, size.width, size.height));
+  }
+
+  CGImageRelease(image);
+
+  fixer.Fix(mCg);
+
+  CGContextRestoreGState(mCg);
+}
+
 
 
 void
@@ -575,16 +832,36 @@ DrawTargetCG::FillRect(const Rect &aRect,
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
 
   if (isGradient(aPattern)) {
     CGContextClipToRect(cg, RectToCGRect(aRect));
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, RectToCGRect(aRect));
   } else {
-    SetFillFromPattern(cg, mColorSpace, aPattern);
-    CGContextFillRect(cg, RectToCGRect(aRect));
+    if (aPattern.GetType() == PATTERN_SURFACE && static_cast<const SurfacePattern&>(aPattern).mExtendMode != EXTEND_REPEAT) {
+      // SetFillFromPattern can handle this case but using CGContextDrawImage
+      // should give us better performance, better output, smaller PDF and
+      // matches what cairo does.
+      const SurfacePattern& pat = static_cast<const SurfacePattern&>(aPattern);
+      CGImageRef image = GetRetainedImageFromSourceSurface(pat.mSurface.get());
+      CGContextClipToRect(cg, RectToCGRect(aRect));
+      CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(pat.mMatrix));
+      CGContextTranslateCTM(cg, 0, CGImageGetHeight(image));
+      CGContextScaleCTM(cg, 1, -1);
+
+      CGRect imageRect = CGRectMake(0, 0, CGImageGetWidth(image), CGImageGetHeight(image));
+
+      CGContextSetInterpolationQuality(cg, InterpolationQualityFromFilter(pat.mFilter));
+
+      CGContextDrawImage(cg, imageRect, image);
+      CGImageRelease(image);
+    } else {
+      SetFillFromPattern(cg, mColorSpace, aPattern);
+      CGContextFillRect(cg, RectToCGRect(aRect));
+    }
   }
 
   fixer.Fix(mCg);
@@ -594,6 +871,13 @@ DrawTargetCG::FillRect(const Rect &aRect,
 void
 DrawTargetCG::StrokeLine(const Point &p1, const Point &p2, const Pattern &aPattern, const StrokeOptions &aStrokeOptions, const DrawOptions &aDrawOptions)
 {
+  if (!std::isfinite(p1.x) ||
+      !std::isfinite(p1.y) ||
+      !std::isfinite(p2.x) ||
+      !std::isfinite(p2.y)) {
+    return;
+  }
+
   MarkChanged();
 
   CGContextSaveGState(mCg);
@@ -601,6 +885,7 @@ DrawTargetCG::StrokeLine(const Point &p1, const Point &p2, const Pattern &aPatte
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
@@ -613,9 +898,10 @@ DrawTargetCG::StrokeLine(const Point &p1, const Point &p2, const Pattern &aPatte
 
   if (isGradient(aPattern)) {
     CGContextReplacePathWithStrokedPath(cg);
+    CGRect extents = CGContextGetPathBoundingBox(cg);
     //XXX: should we use EO clip here?
     CGContextClip(cg);
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, extents);
   } else {
     SetStrokeFromPattern(cg, mColorSpace, aPattern);
     CGContextStrokePath(cg);
@@ -631,6 +917,10 @@ DrawTargetCG::StrokeRect(const Rect &aRect,
                          const StrokeOptions &aStrokeOptions,
                          const DrawOptions &aDrawOptions)
 {
+  if (!aRect.IsFinite()) {
+    return;
+  }
+
   MarkChanged();
 
   CGContextSaveGState(mCg);
@@ -638,35 +928,22 @@ DrawTargetCG::StrokeRect(const Rect &aRect,
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
 
-  // we don't need to set all of the stroke state because
-  // it doesn't apply when stroking rects
-  switch (aStrokeOptions.mLineJoin)
-  {
-    case JOIN_BEVEL:
-      CGContextSetLineJoin(cg, kCGLineJoinBevel);
-      break;
-    case JOIN_ROUND:
-      CGContextSetLineJoin(cg, kCGLineJoinRound);
-      break;
-    case JOIN_MITER:
-    case JOIN_MITER_OR_BEVEL:
-      CGContextSetLineJoin(cg, kCGLineJoinMiter);
-      break;
-  }
-  CGContextSetLineWidth(cg, aStrokeOptions.mLineWidth);
+  SetStrokeOptions(cg, aStrokeOptions);
 
   if (isGradient(aPattern)) {
     // There's no CGContextClipStrokeRect so we do it by hand
     CGContextBeginPath(cg);
     CGContextAddRect(cg, RectToCGRect(aRect));
     CGContextReplacePathWithStrokedPath(cg);
+    CGRect extents = CGContextGetPathBoundingBox(cg);
     //XXX: should we use EO clip here?
     CGContextClip(cg);
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, extents);
   } else {
     SetStrokeFromPattern(cg, mColorSpace, aPattern);
     CGContextStrokeRect(cg, RectToCGRect(aRect));
@@ -693,6 +970,10 @@ DrawTargetCG::ClearRect(const Rect &aRect)
 void
 DrawTargetCG::Stroke(const Path *aPath, const Pattern &aPattern, const StrokeOptions &aStrokeOptions, const DrawOptions &aDrawOptions)
 {
+  if (!aPath->GetBounds().IsFinite()) {
+    return;
+  }
+
   MarkChanged();
 
   CGContextSaveGState(mCg);
@@ -700,6 +981,7 @@ DrawTargetCG::Stroke(const Path *aPath, const Pattern &aPattern, const StrokeOpt
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(mCg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
   CGContextSetBlendMode(mCg, ToBlendMode(aDrawOptions.mCompositionOp));
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
@@ -715,14 +997,12 @@ DrawTargetCG::Stroke(const Path *aPath, const Pattern &aPattern, const StrokeOpt
 
   if (isGradient(aPattern)) {
     CGContextReplacePathWithStrokedPath(cg);
+    CGRect extents = CGContextGetPathBoundingBox(cg);
     //XXX: should we use EO clip here?
     CGContextClip(cg);
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, extents);
   } else {
-    CGContextBeginPath(cg);
     // XXX: we could put fill mode into the path fill rule if we wanted
-    const PathCG *cgPath = static_cast<const PathCG*>(aPath);
-    CGContextAddPath(cg, cgPath->GetPath());
 
     SetStrokeFromPattern(cg, mColorSpace, aPattern);
     CGContextStrokePath(cg);
@@ -745,6 +1025,7 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
 
@@ -754,19 +1035,22 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
 
   if (isGradient(aPattern)) {
     // setup a clip to draw the gradient through
+    CGRect extents;
     if (CGPathIsEmpty(cgPath->GetPath())) {
       // Adding an empty path will cause us not to clip
       // so clip everything explicitly
       CGContextClipToRect(mCg, CGRectZero);
+      extents = CGRectZero;
     } else {
       CGContextAddPath(cg, cgPath->GetPath());
+      extents = CGContextGetPathBoundingBox(cg);
       if (cgPath->GetFillRule() == FILL_EVEN_ODD)
         CGContextEOClip(mCg);
       else
         CGContextClip(mCg);
     }
 
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, extents);
   } else {
     CGContextAddPath(cg, cgPath->GetPath());
 
@@ -780,6 +1064,29 @@ DrawTargetCG::Fill(const Path *aPath, const Pattern &aPattern, const DrawOptions
 
   fixer.Fix(mCg);
   CGContextRestoreGState(mCg);
+}
+
+CGRect ComputeGlyphsExtents(CGRect *bboxes, CGPoint *positions, CFIndex count, float scale)
+{
+  CGFloat x1, x2, y1, y2;
+  if (count < 1)
+    return CGRectZero;
+
+  x1 = bboxes[0].origin.x + positions[0].x;
+  x2 = bboxes[0].origin.x + positions[0].x + scale*bboxes[0].size.width;
+  y1 = bboxes[0].origin.y + positions[0].y;
+  y2 = bboxes[0].origin.y + positions[0].y + scale*bboxes[0].size.height;
+
+  // accumulate max and minimum coordinates
+  for (int i = 1; i < count; i++) {
+    x1 = min(x1, bboxes[i].origin.x + positions[i].x);
+    y1 = min(y1, bboxes[i].origin.y + positions[i].y);
+    x2 = max(x2, bboxes[i].origin.x + positions[i].x + scale*bboxes[i].size.width);
+    y2 = max(y2, bboxes[i].origin.y + positions[i].y + scale*bboxes[i].size.height);
+  }
+
+  CGRect extents = {{x1, y1}, {x2-x1, y2-y1}};
+  return extents;
 }
 
 
@@ -796,6 +1103,10 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
   UnboundnessFixer fixer;
   CGContextRef cg = fixer.Check(mCg, aDrawOptions.mCompositionOp);
   CGContextSetAlpha(cg, aDrawOptions.mAlpha);
+  CGContextSetShouldAntialias(cg, aDrawOptions.mAntialiasMode != AA_NONE);
+  if (aDrawOptions.mAntialiasMode != AA_DEFAULT) {
+    CGContextSetShouldSmoothFonts(cg, aDrawOptions.mAntialiasMode == AA_SUBPIXEL);
+  }
 
   CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(mTransform));
 
@@ -825,17 +1136,27 @@ DrawTargetCG::FillGlyphs(ScaledFont *aFont, const GlyphBuffer &aBuffer, const Pa
   //XXX: CGContextShowGlyphsAtPositions is 10.5+ for older versions use CGContextShowGlyphsWithAdvances
   if (isGradient(aPattern)) {
     CGContextSetTextDrawingMode(cg, kCGTextClip);
+    CGRect extents;
     if (ScaledFontMac::CTFontDrawGlyphsPtr != nullptr) {
+      CGRect *bboxes = new CGRect[aBuffer.mNumGlyphs];
+      CTFontGetBoundingRectsForGlyphs(macFont->mCTFont, kCTFontDefaultOrientation,
+                                      &glyphs.front(), bboxes, aBuffer.mNumGlyphs);
+      extents = ComputeGlyphsExtents(bboxes, &positions.front(), aBuffer.mNumGlyphs, 1.0f);
       ScaledFontMac::CTFontDrawGlyphsPtr(macFont->mCTFont, &glyphs.front(),
-                                         &positions.front(),
-                                         aBuffer.mNumGlyphs, cg);
+                                         &positions.front(), aBuffer.mNumGlyphs, cg);
+      delete bboxes;
     } else {
+      CGRect *bboxes = new CGRect[aBuffer.mNumGlyphs];
+      CGFontGetGlyphBBoxes(macFont->mFont, &glyphs.front(), aBuffer.mNumGlyphs, bboxes);
+      extents = ComputeGlyphsExtents(bboxes, &positions.front(), aBuffer.mNumGlyphs, macFont->mSize);
+
       CGContextSetFont(cg, macFont->mFont);
       CGContextSetFontSize(cg, macFont->mSize);
       CGContextShowGlyphsAtPositions(cg, &glyphs.front(), &positions.front(),
                                      aBuffer.mNumGlyphs);
+      delete bboxes;
     }
-    DrawGradient(cg, aPattern);
+    DrawGradient(cg, aPattern, extents);
   } else {
     //XXX: with CoreGraphics we can stroke text directly instead of going
     // through GetPath. It would be nice to add support for using that
@@ -869,17 +1190,15 @@ DrawTargetCG::CopySurface(SourceSurface *aSurface,
 {
   MarkChanged();
 
-  CGImageRef image;
-  CGImageRef subimage = nullptr;
-  if (aSurface->GetType() == SURFACE_COREGRAPHICS_IMAGE) {
-    image = GetImageFromSourceSurface(aSurface);
+  if (aSurface->GetType() == SURFACE_COREGRAPHICS_IMAGE ||
+      aSurface->GetType() == SURFACE_COREGRAPHICS_CGCONTEXT) {
+    CGImageRef image = GetRetainedImageFromSourceSurface(aSurface);
+
     /* we have two options here:
      *  - create a subimage -- this is slower
      *  - fancy things with clip and different dest rects */
-    {
-      subimage = CGImageCreateWithImageInRect(image, IntRectToCGRect(aSourceRect));
-      image = subimage;
-    }
+    CGImageRef subimage = CGImageCreateWithImageInRect(image, IntRectToCGRect(aSourceRect));
+    CGImageRelease(image);
     // XXX: it might be more efficient for us to do the copy directly if we have access to the bits
 
     CGContextSaveGState(mCg);
@@ -893,7 +1212,12 @@ DrawTargetCG::CopySurface(SourceSurface *aSurface,
     CGRect flippedRect = CGRectMake(aDestination.x, -(aDestination.y + aSourceRect.height),
                                     aSourceRect.width, aSourceRect.height);
 
-    CGContextDrawImage(mCg, flippedRect, image);
+    // Quartz seems to copy A8 surfaces incorrectly if we don't initialize them
+    // to transparent first.
+    if (mFormat == FORMAT_A8) {
+      CGContextClearRect(mCg, flippedRect);
+    }
+    CGContextDrawImage(mCg, flippedRect, subimage);
 
     CGContextRestoreGState(mCg);
 
@@ -906,8 +1230,7 @@ DrawTargetCG::DrawSurfaceWithShadow(SourceSurface *aSurface, const Point &aDest,
 {
   MarkChanged();
 
-  CGImageRef image;
-  image = GetImageFromSourceSurface(aSurface);
+  CGImageRef image = GetRetainedImageFromSourceSurface(aSurface);
 
   IntSize size = aSurface->GetSize();
   CGContextSaveGState(mCg);
@@ -927,6 +1250,7 @@ DrawTargetCG::DrawSurfaceWithShadow(SourceSurface *aSurface, const Point &aDest,
 
   CGContextDrawImage(mCg, flippedRect, image);
 
+  CGImageRelease(image);
   CGContextRestoreGState(mCg);
 
 }
@@ -946,7 +1270,6 @@ DrawTargetCG::Init(BackendType aType,
       aSize.width > 32767 || aSize.height > 32767) {
     mColorSpace = nullptr;
     mCg = nullptr;
-    mData = nullptr;
     return false;
   }
 
@@ -957,12 +1280,9 @@ DrawTargetCG::Init(BackendType aType,
 
   if (aData == nullptr && aType != BACKEND_COREGRAPHICS_ACCELERATED) {
     // XXX: Currently, Init implicitly clears, that can often be a waste of time
-    mData = calloc(aSize.height * aStride, 1);
-    aData = static_cast<unsigned char*>(mData);  
-  } else {
-    // mData == nullptr means DrawTargetCG doesn't own the image data and will not
-    // delete it in the destructor
-    mData = nullptr;
+    mData.Realloc(aStride * aSize.height);
+    aData = static_cast<unsigned char*>(mData);
+    memset(aData, 0, aStride * aSize.height);
   }
 
   mSize = aSize;
@@ -972,15 +1292,29 @@ DrawTargetCG::Init(BackendType aType,
     mCg = ioSurface->CreateIOSurfaceContext();
     // If we don't have the symbol for 'CreateIOSurfaceContext' mCg will be null
     // and we will fallback to software below
-    mData = nullptr;
   }
+
+  mFormat = FORMAT_B8G8R8A8;
 
   if (!mCg || aType == BACKEND_COREGRAPHICS) {
     int bitsPerComponent = 8;
 
     CGBitmapInfo bitinfo;
-    bitinfo = kCGBitmapByteOrder32Host | kCGImageAlphaPremultipliedFirst;
-
+    if (aFormat == FORMAT_A8) {
+      if (mColorSpace)
+        CGColorSpaceRelease(mColorSpace);
+      mColorSpace = nullptr;
+      bitinfo = kCGImageAlphaOnly;
+      mFormat = FORMAT_A8;
+    } else {
+      bitinfo = kCGBitmapByteOrder32Host;
+      if (aFormat == FORMAT_B8G8R8X8) {
+        bitinfo |= kCGImageAlphaNoneSkipFirst;
+        mFormat = aFormat;
+      } else {
+        bitinfo |= kCGImageAlphaPremultipliedFirst;
+      }
+    }
     // XXX: what should we do if this fails?
     mCg = CGBitmapContextCreate (aData,
                                  mSize.width,
@@ -1005,8 +1339,6 @@ DrawTargetCG::Init(BackendType aType,
   //      use the default for content.
   CGContextSetInterpolationQuality(mCg, kCGInterpolationLow);
 
-  // XXX: set correct format
-  mFormat = FORMAT_B8G8R8A8;
 
   if (aType == BACKEND_COREGRAPHICS_ACCELERATED) {
     // The bitmap backend uses callac to clear, we can't do that without
@@ -1021,7 +1353,9 @@ DrawTargetCG::Init(BackendType aType,
 void
 DrawTargetCG::Flush()
 {
-  CGContextFlush(mCg);
+  if (GetContextType(mCg) == CG_CONTEXT_TYPE_IOSURFACE) {
+    CGContextFlush(mCg);
+  }
 }
 
 bool
@@ -1032,7 +1366,6 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
   if (aSize.width == 0 || aSize.height == 0) {
     mColorSpace = nullptr;
     mCg = nullptr;
-    mData = nullptr;
     return false;
   }
 
@@ -1044,17 +1377,29 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
   mSize = aSize;
 
   mCg = cgContext;
-
-  mData = nullptr;
+  CGContextRetain(mCg);
 
   assert(mCg);
-  // CGContext's default to have the origin at the bottom left
-  // so flip it to the top left
-  CGContextTranslateCTM(mCg, 0, mSize.height);
-  CGContextScaleCTM(mCg, 1, -1);
 
-  //XXX: set correct format
+  // CGContext's default to have the origin at the bottom left.
+  // However, currently the only use of this function is to construct a
+  // DrawTargetCG around a CGContextRef from a cairo quartz surface which
+  // already has it's origin adjusted.
+  //
+  // CGContextTranslateCTM(mCg, 0, mSize.height);
+  // CGContextScaleCTM(mCg, 1, -1);
+
   mFormat = FORMAT_B8G8R8A8;
+  if (GetContextType(mCg) == CG_CONTEXT_TYPE_BITMAP) {
+    CGColorSpaceRef colorspace;
+    CGBitmapInfo bitinfo = CGBitmapContextGetBitmapInfo(mCg);
+    colorspace = CGBitmapContextGetColorSpace (mCg);
+    if (CGColorSpaceGetNumberOfComponents(colorspace) == 1) {
+      mFormat = FORMAT_A8;
+    } else if ((bitinfo & kCGBitmapAlphaInfoMask) == kCGImageAlphaNoneSkipFirst) {
+      mFormat = FORMAT_B8G8R8X8;
+    }
+  }
 
   return true;
 }
@@ -1062,7 +1407,7 @@ DrawTargetCG::Init(CGContextRef cgContext, const IntSize &aSize)
 bool
 DrawTargetCG::Init(BackendType aType, const IntSize &aSize, SurfaceFormat &aFormat)
 {
-  int stride = aSize.width*4;
+  int32_t stride = GetAlignedStride<16>(aSize.width * BytesPerPixel(aFormat));
   
   // Calling Init with aData == nullptr will allocate.
   return Init(aType, nullptr, aSize, stride, aFormat);
@@ -1108,11 +1453,12 @@ DrawTargetCG::Mask(const Pattern &aSource,
       //FillRect(rect, aSource, drawOptions);
     } else if (aMask.GetType() == PATTERN_SURFACE) {
       const SurfacePattern& pat = static_cast<const SurfacePattern&>(aMask);
-      CGImageRef mask = GetImageFromSourceSurface(pat.mSurface.get());
+      CGImageRef mask = GetRetainedImageFromSourceSurface(pat.mSurface.get());
       Rect rect(0,0, CGImageGetWidth(mask), CGImageGetHeight(mask));
       // XXX: probably we need to do some flipping of the image or something
       CGContextClipToMask(mCg, RectToCGRect(rect), mask);
       FillRect(rect, aSource, aDrawOptions);
+      CGImageRelease(mask);
     }
   }
 
@@ -1184,6 +1530,35 @@ DrawTargetCG::MarkChanged()
   }
 }
 
+CGContextRef
+BorrowedCGContext::BorrowCGContextFromDrawTarget(DrawTarget *aDT)
+{
+  if (aDT->GetType() == BACKEND_COREGRAPHICS || aDT->GetType() == BACKEND_COREGRAPHICS_ACCELERATED) {
+    DrawTargetCG* cgDT = static_cast<DrawTargetCG*>(aDT);
+    cgDT->MarkChanged();
+
+    // swap out the context
+    CGContextRef cg = cgDT->mCg;
+    cgDT->mCg = nullptr;
+
+    // save the state to make it easier for callers to avoid mucking with things
+    CGContextSaveGState(cg);
+
+    CGContextConcatCTM(cg, GfxMatrixToCGAffineTransform(cgDT->mTransform));
+
+    return cg;
+  }
+  return nullptr;
+}
+
+void
+BorrowedCGContext::ReturnCGContextToDrawTarget(DrawTarget *aDT, CGContextRef cg)
+{
+  DrawTargetCG* cgDT = static_cast<DrawTargetCG*>(aDT);
+
+  CGContextRestoreGState(cg);
+  cgDT->mCg = cg;
+}
 
 
 }

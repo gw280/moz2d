@@ -6,5 +6,6 @@ MOZ2D_CPPSRCS += \
   SourceSurfaceCG.cpp \
   ScaledFontMac.cpp \
   PathCG.cpp \
+  MacIOSurface.cpp \
   $(NULL)
 
