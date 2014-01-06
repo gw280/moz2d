@@ -23,27 +23,27 @@ TestRect::ClampRect()
   Rect dest;
 
   b.SetRect(0, 0, 8, 12);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(2, 5, 8, 12)));
 
   b.SetRect(19, 0, 8, 12);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(4, 5, 8, 12)));
 
   b.SetRect(-2, 40, 8, 12);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(2, 13, 8, 12)));
 
   b.SetRect(22, 80, 8, 12);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(4, 13, 8, 12)));
 
   b.SetRect(22, 80, 20, 40);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(2, 5, 10, 20)));
 
   b.SetRect(5, 10, 3, 6);
-  dest = a.ClampRect(b);
+  dest = a.ForceInside(b);
   VERIFY(dest.IsEqualEdges(Rect(5, 10, 3, 6)));
 }
 
