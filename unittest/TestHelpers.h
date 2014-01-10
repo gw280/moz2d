@@ -10,5 +10,5 @@
     TestDrawTarget##backendName() \
     {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BACKEND_##backendValue, \
                                                      mozilla::gfx::IntSize(DT_WIDTH, DT_HEIGHT), \
-                                                     mozilla::gfx::FORMAT_B8G8R8A8); } \
+                                                     mozilla::gfx::SurfaceFormat::B8G8R8A8); } \
   }

@@ -85,26 +85,26 @@ DrawTargetNVpr::DrawTargetNVpr(const IntSize& aSize, SurfaceFormat aFormat,
 
   GLenum colorBufferFormat;
   switch (mFormat) {
-    case FORMAT_YUV:
-    case FORMAT_UNKNOWN:
+    case SurfaceFormat::YUV:
+    case SurfaceFormat::UNKNOWN:
     default:
       mHasAlpha = false;
       return;
-    case FORMAT_B8G8R8A8:
-    case FORMAT_R8G8B8A8:
+    case SurfaceFormat::B8G8R8A8:
+    case SurfaceFormat::R8G8B8A8:
       colorBufferFormat = GL_RGBA8;
       mHasAlpha = true;
       break;
-    case FORMAT_B8G8R8X8:
-    case FORMAT_R8G8B8X8:
+    case SurfaceFormat::B8G8R8X8:
+    case SurfaceFormat::R8G8B8X8:
       colorBufferFormat = GL_RGB8;
       mHasAlpha = false;
       break;
-    case FORMAT_R5G6B5:
+    case SurfaceFormat::R5G6B5:
       colorBufferFormat = GL_RGB565;
       mHasAlpha = false;
       break;
-    case FORMAT_A8:
+    case SurfaceFormat::A8:
       colorBufferFormat = GL_ALPHA;
       mHasAlpha = true;
       break;

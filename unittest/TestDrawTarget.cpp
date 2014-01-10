@@ -361,7 +361,7 @@ TestDrawTargetBase::DrawSurface()
   uint32_t pixel = 0xff008000;
 
   RefPtr<SourceSurface> src =
-    mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, FORMAT_B8G8R8A8);
+    mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, SurfaceFormat::B8G8R8A8);
 
   mDT->DrawSurface(src, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Rect(0, 0, 1, 1));
 
@@ -385,7 +385,7 @@ TestDrawTargetBase::FillWithPartialLargeSurface()
 
   {
     RefPtr<DataSourceSurface> src =
-      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), FORMAT_B8G8R8A8);
+      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
     mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
   }
@@ -412,7 +412,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
 
   {
     RefPtr<DataSourceSurface> src =
-      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, 18000), FORMAT_B8G8R8A8);
+      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, 18000), SurfaceFormat::B8G8R8A8);
 
     Matrix mat;
     mat.Scale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));
@@ -434,7 +434,7 @@ TestDrawTargetBase::FillWithSurface()
   uint32_t pixel = 0xff008000;
 
   RefPtr<SourceSurface> src =
-    mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, FORMAT_B8G8R8A8);
+    mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, SurfaceFormat::B8G8R8A8);
 
   mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
 
@@ -488,7 +488,7 @@ TestDrawTargetBase::FillWithSnapshot()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(20, 20), FORMAT_B8G8R8X8);
+  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(20, 20), SurfaceFormat::B8G8R8X8);
   tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
@@ -504,7 +504,7 @@ TestDrawTargetBase::Mask()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(20, 20), FORMAT_A8);
+  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(20, 20), SurfaceFormat::A8);
   tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(1.0f, 1.0f, 1.0f, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
@@ -520,7 +520,7 @@ TestDrawTargetBase::CopySurface()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
@@ -536,7 +536,7 @@ TestDrawTargetBase::Shadow()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> tempDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
@@ -595,10 +595,10 @@ void TestDrawTargetBase::RoundtripThroughA8MakesColorsBlack()
   Rect r(0, 0, DT_WIDTH, DT_HEIGHT);
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> rgbaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> rgbaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   rgbaDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.1f, 0.2f, 0.3f, 0.4f)));
   RefPtr<SourceSurface> rgbaSrc = rgbaDT->Snapshot();
-  RefPtr<DrawTarget> alphaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_A8);
+  RefPtr<DrawTarget> alphaDT = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::A8);
   alphaDT->DrawSurface(rgbaSrc, r, r);
   RefPtr<SourceSurface> alphaSrc = alphaDT->Snapshot();
   mDT->DrawSurface(alphaSrc, r, r);
@@ -624,7 +624,7 @@ TestDrawTargetBase::ColorMatrix()
   filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, mat);
   filter->SetAttribute(ATT_COLOR_MATRIX_ALPHA_MODE, (uint32_t)ALPHA_MODE_STRAIGHT);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.099f, 0.2f, 0.3f, 1.0f)));
 
   RefPtr<SourceSurface> src = dt->Snapshot();
@@ -672,9 +672,9 @@ TestDrawTargetBase::Blend()
 
   {
     RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
     RefPtr<SourceSurface> src2 =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
 
     filter->SetInput(0, src);
     filter->SetInput(1, src2);
@@ -719,7 +719,7 @@ TestDrawTargetBase::Morphology()
   filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(10, 10));
   filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), SurfaceFormat::B8G8R8A8);
   dt->FillRect(Rect(10, 10, 480, 480), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
   RefPtr<SourceSurface> src = dt->Snapshot();
@@ -755,7 +755,7 @@ TestDrawTargetBase::Tile()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TILE);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), SurfaceFormat::B8G8R8A8);
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
   dt->FillRect(Rect(100, 100, 300, 300), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
 
@@ -797,7 +797,7 @@ TestDrawTargetBase::TableTransfer()
 
   {
     RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
 
     filter->SetInput(0, src);
 
@@ -837,7 +837,7 @@ TestDrawTargetBase::DiscreteTransfer()
 
   {
     RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
 
     filter->SetInput(0, src);
 
@@ -877,7 +877,7 @@ TestDrawTargetBase::LinearTransfer()
 
   {
     RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
 
     filter->SetInput(0, src);
 
@@ -920,7 +920,7 @@ TestDrawTargetBase::GammaTransfer()
 
   {
     RefPtr<SourceSurface> src =
-      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, FORMAT_B8G8R8A8);
+      mDT->CreateSourceSurfaceFromData((uint8_t*)data, IntSize(DT_WIDTH, DT_HEIGHT), DT_WIDTH * 4, SurfaceFormat::B8G8R8A8);
 
     filter->SetInput(0, src);
 
@@ -941,7 +941,7 @@ TestDrawTargetBase::ConvolveMatrixNone()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0, 0, 1.0f)));
   for (int x = 0; x < DT_WIDTH + 3; x += 3) {
@@ -980,7 +980,7 @@ TestDrawTargetBase::ConvolveMatrixWrap()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(0, 0, DT_WIDTH + 3, DT_HEIGHT + 3), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
 
@@ -1014,7 +1014,7 @@ TestDrawTargetBase::ConvolveMatrixOffset()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(100, 100), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(100, 100), SurfaceFormat::B8G8R8A8);
   dt->FillRect(Rect(50, 50, 1, 1), ColorPattern(Color(0, 1, 0, 1)));
   RefPtr<SourceSurface> src = dt->Snapshot();
 
@@ -1070,7 +1070,7 @@ TestDrawTargetBase::OffsetFilter()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TRANSFORM);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(100, 100, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
 
@@ -1094,8 +1094,8 @@ TestDrawTargetBase::DisplacementMap()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISPLACEMENT_MAP);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dtDisplacement = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dtDisplacement = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   dtDisplacement->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0.502f, 0.502f, 0.502f, 1.0f)));
@@ -1203,8 +1203,8 @@ TestDrawTargetBase::ArithmeticCombine()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
   RefPtr<SourceSurface> src = dt->Snapshot();
@@ -1232,9 +1232,9 @@ TestDrawTargetBase::Composite()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt3 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt3 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
   dt2->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 1.0f, 0, 0.5f)));
@@ -1263,7 +1263,7 @@ TestDrawTargetBase::GaussianBlur()
 
   RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   dt->FillRect(Rect(100, 100, DT_WIDTH - 200, DT_HEIGHT - 200), ColorPattern(Color(0, 0.5f, 0, 1.0f)));
 

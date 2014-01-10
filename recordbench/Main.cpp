@@ -234,7 +234,7 @@ main(int argc, char *argv[], char *envp[])
 #endif
 
   for (int i = 0; i < sizeof(sTestedBackends) / sizeof(BackendType); i++) {
-    RefPtr<DrawTarget> dt = Factory::CreateDrawTarget(sTestedBackends[i], IntSize(1, 1), FORMAT_B8G8R8A8);
+    RefPtr<DrawTarget> dt = Factory::CreateDrawTarget(sTestedBackends[i], IntSize(1, 1), SurfaceFormat::B8G8R8A8);
 
     RawTranslator* translator =
       RawTranslator::Create(dt, sRetainDrawTargets, sRetainPaths,

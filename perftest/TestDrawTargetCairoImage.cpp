@@ -11,7 +11,7 @@ using namespace mozilla::gfx;
 using namespace mozilla::gfx;
 TestDrawTargetCairoImage::TestDrawTargetCairoImage()
 {
-  mDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(DT_WIDTH, DT_HEIGHT), FORMAT_B8G8R8A8);
+  mDT = Factory::CreateDrawTarget(BACKEND_CAIRO, IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 }

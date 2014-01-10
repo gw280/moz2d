@@ -35,41 +35,41 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
 
   GLenum internalFormat;
   switch (mFormat) {
-    case FORMAT_YUV:
-    case FORMAT_UNKNOWN:
+    case SurfaceFormat::YUV:
+    case SurfaceFormat::UNKNOWN:
     default:
       return;
-    case FORMAT_B8G8R8A8:
+    case SurfaceFormat::B8G8R8A8:
       internalFormat = GL_RGBA8;
       mGLFormat = GL_BGRA;
       mGLType = GL_UNSIGNED_BYTE;
       mBytesPerPixel = 4;
       break;
-    case FORMAT_B8G8R8X8:
+    case SurfaceFormat::B8G8R8X8:
       internalFormat = GL_RGB8;
       mGLFormat = GL_BGRA;
       mGLType = GL_UNSIGNED_BYTE;
       mBytesPerPixel = 4;
       break;
-    case FORMAT_R8G8B8A8:
+    case SurfaceFormat::R8G8B8A8:
       internalFormat = GL_RGBA8;
       mGLFormat = GL_RGBA;
       mGLType = GL_UNSIGNED_BYTE;
       mBytesPerPixel = 4;
       break;
-    case FORMAT_R8G8B8X8:
+    case SurfaceFormat::R8G8B8X8:
       internalFormat = GL_RGB8;
       mGLFormat = GL_RGBA;
       mGLType = GL_UNSIGNED_BYTE;
       mBytesPerPixel = 4;
       break;
-    case FORMAT_R5G6B5:
+    case SurfaceFormat::R5G6B5:
       internalFormat = GL_RGB565;
       mGLFormat = GL_RGB;
       mGLType = GL_UNSIGNED_SHORT_5_6_5;
       mBytesPerPixel = 2;
       break;
-    case FORMAT_A8:
+    case SurfaceFormat::A8:
       internalFormat = GL_ALPHA;
       mGLFormat = GL_ALPHA;
       mGLType = GL_UNSIGNED_BYTE;

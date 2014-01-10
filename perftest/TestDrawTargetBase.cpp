@@ -148,7 +148,7 @@ TestDrawTargetBase::CreateSourceSurfaceForData100x100()
   unsigned char *surfData = new unsigned char[100 * 100 * 4];
 
   for (int i = 0; i < 200; i++) {
-    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(100, 100), 400, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(100, 100), 400, SurfaceFormat::B8G8R8A8);
   }
 
   delete [] surfData;
@@ -160,7 +160,7 @@ TestDrawTargetBase::CreateSourceSurfaceForData200x200()
   unsigned char *surfData = new unsigned char[200 * 200 * 4];
 
   for (int i = 0; i < 200; i++) {
-    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(200, 200), 800, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(200, 200), 800, SurfaceFormat::B8G8R8A8);
   }
 
   delete [] surfData;
@@ -172,7 +172,7 @@ TestDrawTargetBase::CreateSourceSurfaceForData500x500()
   unsigned char *surfData = new unsigned char[500 * 500 * 4];
 
   for (int i = 0; i < 200; i++) {
-    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(500, 500), 2000, FORMAT_B8G8R8A8);
+    RefPtr<SourceSurface> surf = mDT->CreateSourceSurfaceFromData(surfData, IntSize(500, 500), 2000, SurfaceFormat::B8G8R8A8);
   }
 
   delete [] surfData;
@@ -221,7 +221,7 @@ TestDrawTargetBase::FillRadialComplexUncached()
 void
 TestDrawTargetBase::DrawTransparentSurfaceUnscaledAligned()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8A8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(i, i, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -231,7 +231,7 @@ TestDrawTargetBase::DrawTransparentSurfaceUnscaledAligned()
 void
 TestDrawTargetBase::DrawTransparentSurfaceUnscaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8A8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -241,7 +241,7 @@ TestDrawTargetBase::DrawTransparentSurfaceUnscaled()
 void
 TestDrawTargetBase::DrawTransparentSurfaceScaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8A8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8A8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 500, 500), Rect(0, 0, 400, 400));
   }
@@ -251,7 +251,7 @@ TestDrawTargetBase::DrawTransparentSurfaceScaled()
 void
 TestDrawTargetBase::DrawOpaqueSurfaceUnscaledAligned()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8X8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(i, i, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -261,7 +261,7 @@ TestDrawTargetBase::DrawOpaqueSurfaceUnscaledAligned()
 void
 TestDrawTargetBase::DrawOpaqueSurfaceUnscaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8X8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 400, 400), Rect(0, 0, 400, 400));
   }
@@ -271,7 +271,7 @@ TestDrawTargetBase::DrawOpaqueSurfaceUnscaled()
 void
 TestDrawTargetBase::DrawOpaqueSurfaceScaled()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, FORMAT_B8G8R8X8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(400, SurfaceFormat::B8G8R8X8);
   for (int i = 0; i < 200; i++) {
     mDT->DrawSurface(surf, Rect(float(i) / 6, float(i) / 4, 500, 500), Rect(0, 0, 400, 400));
   }
@@ -338,8 +338,8 @@ TestDrawTargetBase::StrokeCurveThick()
 void
 TestDrawTargetBase::MaskSurface100x100()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(100, FORMAT_B8G8R8A8);
-  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(100, FORMAT_A8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(100, SurfaceFormat::B8G8R8A8);
+  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(100, SurfaceFormat::A8);
   for (int i = 0; i < 200; i++) {
     mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
   }
@@ -349,8 +349,8 @@ TestDrawTargetBase::MaskSurface100x100()
 void
 TestDrawTargetBase::MaskSurface500x500()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(500, FORMAT_B8G8R8A8);
-  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(500, FORMAT_A8);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(500, SurfaceFormat::B8G8R8A8);
+  RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(500, SurfaceFormat::A8);
   for (int i = 0; i < 200; i++) {
     mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
   }
@@ -360,8 +360,8 @@ TestDrawTargetBase::MaskSurface500x500()
 void
 TestDrawTargetBase::DrawShadow10x10SmallRadius()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), FORMAT_B8G8R8A8, 3.0f);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), SurfaceFormat::B8G8R8A8, 3.0f);
   dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
@@ -373,8 +373,8 @@ TestDrawTargetBase::DrawShadow10x10SmallRadius()
 void
 TestDrawTargetBase::DrawShadow200x200SmallRadius()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8, 3.0f);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8, 3.0f);
   dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
@@ -386,8 +386,8 @@ TestDrawTargetBase::DrawShadow200x200SmallRadius()
 void
 TestDrawTargetBase::DrawShadow10x10LargeRadius()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), FORMAT_B8G8R8A8, 20.0f);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(10, SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(10, 10), SurfaceFormat::B8G8R8A8, 20.0f);
   dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
@@ -399,8 +399,8 @@ TestDrawTargetBase::DrawShadow10x10LargeRadius()
 void
 TestDrawTargetBase::DrawShadow200x200LargeRadius()
 {
-  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8);
-  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8, 20.0f);
+  RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(200, SurfaceFormat::B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateShadowDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8, 20.0f);
   dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
@@ -412,7 +412,7 @@ TestDrawTargetBase::DrawShadow200x200LargeRadius()
 void
 TestDrawTargetBase::CreateRandom200()
 {
-  mRandom200 = CreateSquareRandomSourceSurface(200, FORMAT_B8G8R8A8, false);
+  mRandom200 = CreateSquareRandomSourceSurface(200, SurfaceFormat::B8G8R8A8, false);
 }
 
 void
@@ -474,7 +474,7 @@ TestDrawTargetBase::Unpremultiply200x200x1000()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<SourceSurface> surf = mRandom200;
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
@@ -548,7 +548,7 @@ TestDrawTargetBase::Composite200x200x1000()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<SourceSurface> surf = mRandom200;
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
@@ -572,7 +572,7 @@ TestDrawTargetBase::CompositeA8Single200x200x1000()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<SourceSurface> surf = mRandom200;
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::A8);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
@@ -594,7 +594,7 @@ TestDrawTargetBase::Blend200x200x1000()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<SourceSurface> surf = mRandom200;
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
@@ -616,7 +616,7 @@ TestDrawTargetBase::Blur500x500x50()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), SurfaceFormat::B8G8R8A8);
   RefPtr<FilterNode> tile = mDT->CreateFilter(FILTER_TILE);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, mRandom200);
@@ -641,7 +641,7 @@ TestDrawTargetBase::ArithmeticCombine200x200x100()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<SourceSurface> surf = mRandom200;
-  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
   RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
