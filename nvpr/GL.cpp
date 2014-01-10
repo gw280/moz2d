@@ -78,7 +78,7 @@ GL::GL()
   , mStencilOp(LEAVE_UNCHANGED)
   , mStencilWriteMask(~0)
   , mPathStencilFuncBits(0)
-  , mBlendMode(OP_SOURCE)
+  , mBlendMode(CompositionOp::OP_SOURCE)
   , mMultisampleEnabled(true)
   , mShaderProgram(0)
 {
@@ -601,32 +601,32 @@ GL::SetBlendMode(CompositionOp aBlendMode)
 
   switch (aBlendMode) {
     default: MOZ_ASSERT(!"Invalid blend mode");
-    case OP_OVER: BlendEquation(GL_SRC_OVER_NV); break;
-    case OP_ADD: BlendEquation(GL_PLUS_NV); break;
-    case OP_ATOP: BlendEquation(GL_SRC_ATOP_NV); break;
-    case OP_OUT: BlendEquation(GL_SRC_OUT_NV); break;
-    case OP_IN: BlendEquation(GL_SRC_IN_NV); break;
-    case OP_SOURCE: BlendEquation(GL_SRC_NV); break;
-    case OP_DEST_IN: BlendEquation(GL_DST_IN_NV); break;
-    case OP_DEST_OUT: BlendEquation(GL_DST_OUT_NV); break;
-    case OP_DEST_OVER: BlendEquation(GL_DST_OVER_NV); break;
-    case OP_DEST_ATOP: BlendEquation(GL_DST_ATOP_NV); break;
-    case OP_XOR: BlendEquation(GL_XOR); break;
-    case OP_MULTIPLY: BlendEquation(GL_MULTIPLY_NV); break;
-    case OP_SCREEN: BlendEquation(GL_SCREEN_NV); break;
-    case OP_OVERLAY: BlendEquation(GL_OVERLAY_NV); break;
-    case OP_DARKEN: BlendEquation(GL_DARKEN_NV); break;
-    case OP_LIGHTEN: BlendEquation(GL_LIGHTEN_NV); break;
-    case OP_COLOR_DODGE: BlendEquation(GL_COLORDODGE_NV); break;
-    case OP_COLOR_BURN: BlendEquation(GL_COLORBURN_NV); break;
-    case OP_HARD_LIGHT: BlendEquation(GL_HARDLIGHT_NV); break;
-    case OP_SOFT_LIGHT: BlendEquation(GL_SOFTLIGHT_NV); break;
-    case OP_DIFFERENCE: BlendEquation(GL_DIFFERENCE_NV); break;
-    case OP_EXCLUSION: BlendEquation(GL_EXCLUSION_NV); break;
-    case OP_HUE: BlendEquation(GL_HSL_HUE_NV); break;
-    case OP_SATURATION: BlendEquation(GL_HSL_SATURATION_NV); break;
-    case OP_COLOR: BlendEquation(GL_HSL_COLOR_NV); break;
-    case OP_LUMINOSITY: BlendEquation(GL_HSL_LUMINOSITY_NV); break;
+    case CompositionOp::OP_OVER: BlendEquation(GL_SRC_OVER_NV); break;
+    case CompositionOp::OP_ADD: BlendEquation(GL_PLUS_NV); break;
+    case CompositionOp::OP_ATOP: BlendEquation(GL_SRC_ATOP_NV); break;
+    case CompositionOp::OP_OUT: BlendEquation(GL_SRC_OUT_NV); break;
+    case CompositionOp::OP_IN: BlendEquation(GL_SRC_IN_NV); break;
+    case CompositionOp::OP_SOURCE: BlendEquation(GL_SRC_NV); break;
+    case CompositionOp::OP_DEST_IN: BlendEquation(GL_DST_IN_NV); break;
+    case CompositionOp::OP_DEST_OUT: BlendEquation(GL_DST_OUT_NV); break;
+    case CompositionOp::OP_DEST_OVER: BlendEquation(GL_DST_OVER_NV); break;
+    case CompositionOp::OP_DEST_ATOP: BlendEquation(GL_DST_ATOP_NV); break;
+    case CompositionOp::OP_XOR: BlendEquation(GL_XOR); break;
+    case CompositionOp::OP_MULTIPLY: BlendEquation(GL_MULTIPLY_NV); break;
+    case CompositionOp::OP_SCREEN: BlendEquation(GL_SCREEN_NV); break;
+    case CompositionOp::OP_OVERLAY: BlendEquation(GL_OVERLAY_NV); break;
+    case CompositionOp::OP_DARKEN: BlendEquation(GL_DARKEN_NV); break;
+    case CompositionOp::OP_LIGHTEN: BlendEquation(GL_LIGHTEN_NV); break;
+    case CompositionOp::OP_COLOR_DODGE: BlendEquation(GL_COLORDODGE_NV); break;
+    case CompositionOp::OP_COLOR_BURN: BlendEquation(GL_COLORBURN_NV); break;
+    case CompositionOp::OP_HARD_LIGHT: BlendEquation(GL_HARDLIGHT_NV); break;
+    case CompositionOp::OP_SOFT_LIGHT: BlendEquation(GL_SOFTLIGHT_NV); break;
+    case CompositionOp::OP_DIFFERENCE: BlendEquation(GL_DIFFERENCE_NV); break;
+    case CompositionOp::OP_EXCLUSION: BlendEquation(GL_EXCLUSION_NV); break;
+    case CompositionOp::OP_HUE: BlendEquation(GL_HSL_HUE_NV); break;
+    case CompositionOp::OP_SATURATION: BlendEquation(GL_HSL_SATURATION_NV); break;
+    case CompositionOp::OP_COLOR: BlendEquation(GL_HSL_COLOR_NV); break;
+    case CompositionOp::OP_LUMINOSITY: BlendEquation(GL_HSL_LUMINOSITY_NV); break;
   }
 
   mBlendMode = aBlendMode;

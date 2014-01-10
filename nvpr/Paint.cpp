@@ -30,11 +30,11 @@ PaintConfig::SetToPattern(const Pattern& aPattern)
 {
   switch (aPattern.GetType()) {
     default: MOZ_ASSERT(!"Invalid pattern type");
-    case PATTERN_COLOR:
+    case PatternType::COLOR:
       SetToColor(static_cast<const ColorPattern&>(aPattern).mColor);
       return;
 
-    case PATTERN_SURFACE: {
+    case PatternType::SURFACE: {
       const SurfacePattern& pat(static_cast<const SurfacePattern&>(aPattern));
       MOZ_ASSERT(pat.mSurface->GetType() == SURFACE_NVPR_TEXTURE);
 
@@ -43,7 +43,7 @@ PaintConfig::SetToPattern(const Pattern& aPattern)
       return;
     }
 
-    case PATTERN_LINEAR_GRADIENT: {
+    case PatternType::LINEAR_GRADIENT: {
       const LinearGradientPattern& pat(
         static_cast<const LinearGradientPattern&>(aPattern));
       MOZ_ASSERT(pat.mStops->GetBackendType() == BACKEND_NVPR);
@@ -53,7 +53,7 @@ PaintConfig::SetToPattern(const Pattern& aPattern)
       return;
     }
 
-    case PATTERN_RADIAL_GRADIENT: {
+    case PatternType::RADIAL_GRADIENT: {
       const RadialGradientPattern& pat(
         static_cast<const RadialGradientPattern&>(aPattern));
       MOZ_ASSERT(pat.mStops->GetBackendType() == BACKEND_NVPR);
@@ -88,7 +88,7 @@ PaintConfig::SetToSurface(SourceSurfaceNVpr* aSurface, Filter aFilter)
   mPaintMode = MODE_TEXTURE_2D;
   mTextureId = *aSurface;
 
-  aSurface->SetWrapMode(EXTEND_CLAMP);
+  aSurface->SetWrapMode(ExtendMode::CLAMP);
   aSurface->SetFilter(aFilter);
 }
 
@@ -107,7 +107,7 @@ PaintConfig::SetToClampedSurface(SourceSurfaceNVpr* aSurface, Filter aFilter,
   uClampRect[2] = clampRect.XMost();
   uClampRect[3] = clampRect.YMost();
 
-  aSurface->SetWrapMode(EXTEND_CLAMP);
+  aSurface->SetWrapMode(ExtendMode::CLAMP);
   aSurface->SetFilter(aFilter);
 }
 

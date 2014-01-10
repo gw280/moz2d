@@ -24,8 +24,8 @@ PathObjectNVpr::PathObjectNVpr(const PathDescriptionNVpr& aDescription,
   , mStrokeWidth(1)
   , mMiterLimit(4)
   , mDashOffset(0)
-  , mJoinStyle(JOIN_MITER_OR_BEVEL)
-  , mCapStyle(CAP_BUTT)
+  , mJoinStyle(JoinStyle::MITER_OR_BEVEL)
+  , mCapStyle(CapStyle::BUTT)
 {
   mPolygon.Swap(aPassPolygon);
 
@@ -91,16 +91,16 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
     switch (aStrokeOptions.mLineJoin) {
       default:
         MOZ_ASSERT(!"Invalid line join style in StrokeOptions");
-      case JOIN_MITER_OR_BEVEL:
+      case JoinStyle::MITER_OR_BEVEL:
         newJoinStyle = GL_MITER_REVERT_NV;
         break;
-      case JOIN_MITER:
+      case JoinStyle::MITER:
         newJoinStyle = GL_MITER_TRUNCATE_NV;
         break;
-      case JOIN_ROUND:
+      case JoinStyle::ROUND:
         newJoinStyle = GL_ROUND_NV;
         break;
-      case JOIN_BEVEL:
+      case JoinStyle::BEVEL:
         newJoinStyle = GL_BEVEL_NV;
         break;
     }
@@ -115,13 +115,13 @@ void PathObjectNVpr::ApplyStrokeOptions(const StrokeOptions& aStrokeOptions)
     switch (aStrokeOptions.mLineCap) {
       default:
         MOZ_ASSERT(!"Invalid line cap style in StrokeOptions");
-      case CAP_BUTT:
+      case CapStyle::BUTT:
         newCapStyle = GL_FLAT;
         break;
-      case CAP_ROUND:
+      case CapStyle::ROUND:
         newCapStyle = GL_ROUND_NV;
         break;
-      case CAP_SQUARE:
+      case CapStyle::SQUARE:
         newCapStyle = GL_SQUARE_NV;
         break;
     }
@@ -174,7 +174,7 @@ PathNVpr::ContainsPoint(const Point& aPoint, const Matrix& aTransform) const
   Point transformed = inverse * aPoint;
 
   gl->MakeCurrent();
-  return gl->IsPointInFillPathNV(*mPathObject, mFillRule == FILL_WINDING ? ~0 : 0x1,
+  return gl->IsPointInFillPathNV(*mPathObject, mFillRule == FillRule::FILL_WINDING ? ~0 : 0x1,
                                  transformed.x, transformed.y);
 }
 

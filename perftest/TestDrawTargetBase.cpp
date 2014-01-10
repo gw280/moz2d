@@ -107,25 +107,25 @@ TestDrawTargetBase::FillRect800x800x2000()
 void
 TestDrawTargetBase::FillRect50x50x500Add()
 {
-  FillSquare(50, 500, OP_ADD);
+  FillSquare(50, 500, CompositionOp::OP_ADD);
 }
 
 void
 TestDrawTargetBase::FillRect200x200x500Add()
 {
-  FillSquare(200, 500, OP_ADD);
+  FillSquare(200, 500, CompositionOp::OP_ADD);
 }
 
 void
 TestDrawTargetBase::FillRect50x50x2000Add()
 {
-  FillSquare(50, 2000, OP_ADD);
+  FillSquare(50, 2000, CompositionOp::OP_ADD);
 }
 
 void
 TestDrawTargetBase::FillRect200x200x2000Add()
 {
-  FillSquare(200, 2000, OP_ADD);
+  FillSquare(200, 2000, CompositionOp::OP_ADD);
 }
 
 void
@@ -341,7 +341,7 @@ TestDrawTargetBase::MaskSurface100x100()
   RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(100, SurfaceFormat::B8G8R8A8);
   RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(100, SurfaceFormat::A8);
   for (int i = 0; i < 200; i++) {
-    mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
+    mDT->MaskSurface(SurfacePattern(surf, ExtendMode::CLAMP), mask, Point());
   }
   Flush();
 }
@@ -352,7 +352,7 @@ TestDrawTargetBase::MaskSurface500x500()
   RefPtr<SourceSurface> surf = CreateSquareRandomSourceSurface(500, SurfaceFormat::B8G8R8A8);
   RefPtr<SourceSurface> mask = CreateSquareRandomSourceSurface(500, SurfaceFormat::A8);
   for (int i = 0; i < 200; i++) {
-    mDT->MaskSurface(SurfacePattern(surf, EXTEND_CLAMP), mask, Point());
+    mDT->MaskSurface(SurfacePattern(surf, ExtendMode::CLAMP), mask, Point());
   }
   Flush();
 }
@@ -365,7 +365,7 @@ TestDrawTargetBase::DrawShadow10x10SmallRadius()
   dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
-    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, OP_OVER);
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, CompositionOp::OP_OVER);
   }
   Flush();
 }
@@ -378,7 +378,7 @@ TestDrawTargetBase::DrawShadow200x200SmallRadius()
   dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
-    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, OP_OVER);
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 3.0f, CompositionOp::OP_OVER);
   }
   Flush();
 }
@@ -391,7 +391,7 @@ TestDrawTargetBase::DrawShadow10x10LargeRadius()
   dt->DrawSurface(surf, Rect(0, 0, 10, 10), Rect(0, 0, 10, 10));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
-    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, OP_OVER);
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, CompositionOp::OP_OVER);
   }
   Flush();
 }
@@ -404,7 +404,7 @@ TestDrawTargetBase::DrawShadow200x200LargeRadius()
   dt->DrawSurface(surf, Rect(0, 0, 200, 200), Rect(0, 0, 200, 200));
   surf = dt->Snapshot();
   for (int i = 0; i < 200; i++) {
-    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, OP_OVER);
+    mDT->DrawSurfaceWithShadow(surf, Point(100, 100), Color(0, 0, 0, 1.0f), Point(), 20.0f, CompositionOp::OP_OVER);
   }
   Flush();
 }

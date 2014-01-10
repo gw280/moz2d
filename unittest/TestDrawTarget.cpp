@@ -387,7 +387,7 @@ TestDrawTargetBase::FillWithPartialLargeSurface()
     RefPtr<DataSourceSurface> src =
       Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
-    mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+    mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, ExtendMode::REPEAT));
   }
 
   delete [] data;
@@ -416,7 +416,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
 
     Matrix mat;
     mat.Scale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));
-    mDT->FillRect(Rect(0, 0, 18000, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+    mDT->FillRect(Rect(0, 0, 18000, DT_HEIGHT), SurfacePattern(src, ExtendMode::REPEAT));
   }
 
   delete [] data;
@@ -436,7 +436,7 @@ TestDrawTargetBase::FillWithSurface()
   RefPtr<SourceSurface> src =
     mDT->CreateSourceSurfaceFromData((uint8_t*)&pixel, IntSize(1, 1), 4, SurfaceFormat::B8G8R8A8);
 
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, ExtendMode::REPEAT));
 
   RefreshSnapshot();
 
@@ -492,7 +492,7 @@ TestDrawTargetBase::FillWithSnapshot()
   tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
-  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, EXTEND_REPEAT));
+  mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), SurfacePattern(src, ExtendMode::REPEAT));
 
   RefreshSnapshot();
 
@@ -508,7 +508,7 @@ TestDrawTargetBase::Mask()
   tempDT->FillRect(Rect(0, 0, 20, 20), ColorPattern(Color(1.0f, 1.0f, 1.0f, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
-  mDT->Mask(ColorPattern(Color(0, 0.502f, 0, 1.0f)), SurfacePattern(src, EXTEND_REPEAT));
+  mDT->Mask(ColorPattern(Color(0, 0.502f, 0, 1.0f)), SurfacePattern(src, ExtendMode::REPEAT));
 
   RefreshSnapshot();
 
@@ -540,7 +540,7 @@ TestDrawTargetBase::Shadow()
   tempDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
   RefPtr<SourceSurface> src = tempDT->Snapshot();
 
-  mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.502f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, OP_OVER);
+  mDT->DrawSurfaceWithShadow(src, Point(-DT_WIDTH, -DT_HEIGHT), Color(0, 0.502f, 0, 1.0f), Point(DT_WIDTH, DT_HEIGHT), 0, CompositionOp::OP_OVER);
 
   RefreshSnapshot();
 

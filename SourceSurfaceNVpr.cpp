@@ -18,7 +18,7 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
   , mSize(aSize)
   , mTextureId(0)
   , mWrapMode(GL_REPEAT)
-  , mFilter(FILTER_LINEAR)
+  , mFilter(Filter::LINEAR)
   , mHasMipmaps(false)
 {
   MOZ_ASSERT(mSize.width >= 0 && mSize.height >= 0);
@@ -81,7 +81,7 @@ TextureObjectNVpr::TextureObjectNVpr(SurfaceFormat aFormat, const IntSize& aSize
                         mSize.height, 0, mGLFormat, mGLType, nullptr);
 
   // The initial value for MIN_FILTER is NEAREST_MIPMAP_LINEAR. We initialize it
-  // to what 'FILTER_LINEAR' expects.
+  // to what 'Filter::LINEAR' expects.
   gl->TextureParameteriEXT(mTextureId, GL_TEXTURE_2D,
                            GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
@@ -130,13 +130,13 @@ TextureObjectNVpr::SetWrapMode(ExtendMode aExtendMode)
   switch (aExtendMode) {
     default:
       MOZ_ASSERT(!"Invalid extend mode");
-    case EXTEND_CLAMP:
+    case ExtendMode::CLAMP:
       SetWrapMode(GL_CLAMP_TO_EDGE);
       return;
-    case EXTEND_REPEAT:
+    case ExtendMode::REPEAT:
       SetWrapMode(GL_REPEAT);
       return;
-    case EXTEND_REFLECT:
+    case ExtendMode::REFLECT:
       SetWrapMode(GL_MIRRORED_REPEAT);
       return;
   }
@@ -167,17 +167,17 @@ TextureObjectNVpr::SetFilter(Filter aFilter)
     switch (aFilter) {
       default:
         MOZ_ASSERT(!"Invalid filter");
-      case FILTER_GOOD:
+      case Filter::GOOD:
         minFilter = GL_LINEAR_MIPMAP_LINEAR;
         magFilter = GL_LINEAR;
         anisotropy = gl->MaxAnisotropy();
         break;
-      case FILTER_LINEAR:
+      case Filter::LINEAR:
         minFilter = GL_LINEAR;
         magFilter = GL_LINEAR;
         anisotropy = 1;
         break;
-      case FILTER_POINT:
+      case Filter::POINT:
         minFilter = magFilter = GL_NEAREST;
         anisotropy = 1;
         break;
@@ -196,7 +196,7 @@ TextureObjectNVpr::SetFilter(Filter aFilter)
     mFilter = aFilter;
   }
 
-  if (mFilter == FILTER_GOOD && !mHasMipmaps) {
+  if (mFilter == Filter::GOOD && !mHasMipmaps) {
     gl->GenerateTextureMipmapEXT(mTextureId, GL_TEXTURE_2D);
     mHasMipmaps = true;
   }

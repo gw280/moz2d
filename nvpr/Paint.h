@@ -39,7 +39,7 @@ struct PaintConfig {
   PaintConfig();
   void SetToPattern(const Pattern& aPattern);
   void SetToColor(const Color& aColor);
-  void SetToSurface(SourceSurfaceNVpr* aSurface, Filter aFilter = FILTER_LINEAR);
+  void SetToSurface(SourceSurfaceNVpr* aSurface, Filter aFilter = Filter::LINEAR);
   void SetToClampedSurface(SourceSurfaceNVpr* aSurface, Filter aFilter,
                            const Rect& aSamplingBounds);
   void SetToTexgenSurface(SourceSurfaceNVpr* aSurface, ExtendMode aExtendMode,

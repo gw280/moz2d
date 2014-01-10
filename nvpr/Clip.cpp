@@ -76,7 +76,7 @@ void StencilClip::ApplyToStencilBuffer()
 
     gl->ConfigurePathStencilTest(existingClipBits);
     gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
-                          (mPath->GetFillRule() == FILL_WINDING)
+                          (mPath->GetFillRule() == FillRule::FILL_WINDING)
                            ? mOwnClipBit - 1 : 0x1);
 
     gl->EnableStencilTest(GL::PASS_IF_NOT_EQUAL, mOwnClipBit, mOwnClipBit - 1,
@@ -97,7 +97,7 @@ void StencilClip::ApplyToStencilBuffer()
 
   gl->ConfigurePathStencilTest(existingClipBits);
   gl->StencilFillPathNV(*mPath, GL_COUNT_UP_NV,
-                        (mPath->GetFillRule() == FILL_WINDING)
+                        (mPath->GetFillRule() == FillRule::FILL_WINDING)
                          ? sharedClipBit - 1 : 0x1);
 
   gl->SetTransform(lastClipBitOwner->mTransform, lastClipBitOwner->mTransformId);

@@ -155,7 +155,7 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D,
                            GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  if (aExtendMode == EXTEND_CLAMP) {
+  if (aExtendMode == ExtendMode::CLAMP) {
     gl->TextureParameteriEXT(mRampTextureId, GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL,
                              rampData.mNumLevels - 2);
   } else {
@@ -171,13 +171,13 @@ GradientStopsNVpr::GradientStopsNVpr(GradientStop* aRawStops, uint32_t aNumStops
   switch (aExtendMode) {
     default:
       MOZ_ASSERT(!"Invalid gradient extend mode");
-    case EXTEND_CLAMP:
+    case ExtendMode::CLAMP:
       wrapMode = GL_CLAMP_TO_EDGE;
       break;
-    case EXTEND_REPEAT:
+    case ExtendMode::REPEAT:
       wrapMode = GL_REPEAT;
       break;
-    case EXTEND_REFLECT:
+    case ExtendMode::REFLECT:
       wrapMode = GL_MIRRORED_REPEAT;
       break;
   }

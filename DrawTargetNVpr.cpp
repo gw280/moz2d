@@ -147,7 +147,7 @@ DrawTargetNVpr::GetScratchSurface()
 
   if (!mScratchTexturePool.empty()) {
     texture = mScratchTexturePool.front();
-    mScratchTexturePool.pop_front();
+    mScratchTexturePool.front();
   } else {
     mScratchTextureCount++;
     texture = TextureObjectNVpr::Create(mFormat, mSize);
@@ -251,7 +251,7 @@ DrawTargetNVpr::DrawSurface(SourceSurface* aSurface,
   Validate();
 
   Paint paint;
-  if (aSurfOptions.mSamplingBounds == SAMPLING_UNBOUNDED) {
+  if (aSurfOptions.mSamplingBounds == SamplingBounds::UNBOUNDED) {
     paint.SetToSurface(surface, aSurfOptions.mFilter);
   } else {
     paint.SetToClampedSurface(surface, aSurfOptions.mFilter, aSourceRect);
@@ -317,7 +317,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   gl->DisableScissorTest();
   gl->DisableClipPlanes();
   gl->DisableStencilTest();
-  gl->SetBlendMode(OP_SOURCE);
+  gl->SetBlendMode(CompositionOp::OP_SOURCE);
   gl->SetColorWriteMask(mHasAlpha ? GL::WRITE_ALPHA : GL::WRITE_RED);
   gl->DisableTexCoordArray(GL::UNIT_1);
 
@@ -325,7 +325,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   surface->SetWrapMode(GL_CLAMP_TO_BORDER);
   surface->SetFilter(horizontalConvolutionRect.width == shadowRect.width
-                     ? FILTER_LINEAR : FILTER_GOOD);
+                     ? Filter::LINEAR : Filter::GOOD);
   gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *surface);
 
   gl->EnableTexCoordArrayToUnitRect(GL::UNIT_0);
@@ -337,7 +337,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   // Step 2: Use the horizontal convolution to draw the shadow.
   Validate(FRAMEBUFFER | CLIPPING | COLOR_WRITE_MASK);
-  ApplyDrawOptions(aOperator, AA_DEFAULT);
+  ApplyDrawOptions(aOperator, AntialiasMode::DEFAULT);
 
   gl->SetShaderProgram(shadowShader);
 
@@ -347,7 +347,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
   }
 
   horizontalConvolution->SetWrapMode(GL_CLAMP_TO_EDGE);
-  horizontalConvolution->SetFilter(FILTER_LINEAR);
+  horizontalConvolution->SetFilter(Filter::LINEAR);
   gl->SetTexture(GL::UNIT_0, GL_TEXTURE_2D, *horizontalConvolution);
 
   horizontalConvolutionRect.ScaleInverse(mSize.width, mSize.height);
@@ -359,7 +359,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 
   // Step 3: Draw the surface on top of its shadow.
   Paint paint;
-  paint.SetToSurface(surface, FILTER_LINEAR);
+  paint.SetToSurface(surface, Filter::LINEAR);
   ApplyPaint(paint);
 
   gl->EnableTexCoordArrayToUnitRect(GL::UNIT_0);
@@ -374,7 +374,7 @@ DrawTargetNVpr::DrawSurfaceWithShadow(SourceSurface* aSurface,
 void
 DrawTargetNVpr::ClearRect(const Rect& aRect)
 {
-  FillRect(aRect, ColorPattern(Color()), DrawOptions(1, OP_SOURCE));
+  FillRect(aRect, ColorPattern(Color()), DrawOptions(1, CompositionOp::OP_SOURCE));
 }
 
 void
@@ -408,10 +408,10 @@ DrawTargetNVpr::FillRect(const Rect& aRect,
 {
   gl->MakeCurrent();
 
-  if (aPattern.GetType() == PATTERN_COLOR) {
+  if (aPattern.GetType() == PatternType::COLOR) {
     const Color& color = static_cast<const ColorPattern&>(aPattern).mColor;
-    const bool needsBlending = aOptions.mCompositionOp != OP_SOURCE
-                               && (aOptions.mCompositionOp != OP_OVER
+    const bool needsBlending = aOptions.mCompositionOp != CompositionOp::OP_SOURCE
+                               && (aOptions.mCompositionOp != CompositionOp::OP_OVER
                                    || aOptions.mAlpha != 1 || color.a != 1);
     const bool hasComplexClips = mTopPlanesClip || (mTopStencilClip
                                    && (!mPoppedStencilClips
@@ -463,7 +463,7 @@ DrawTargetNVpr::StrokeRect(const Rect& aRect,
                            const StrokeOptions& aStrokeOptions,
                            const DrawOptions& aOptions)
 {
-  PathBuilderNVpr pathBuilder(FILL_WINDING);
+  PathBuilderNVpr pathBuilder(FillRule::FILL_WINDING);
   pathBuilder.MoveTo(aRect.BottomRight());
   pathBuilder.LineTo(aRect.TopRight());
   pathBuilder.LineTo(aRect.TopLeft());
@@ -481,7 +481,7 @@ DrawTargetNVpr::StrokeLine(const Point& aStart,
                            const StrokeOptions& aStrokeOptions,
                            const DrawOptions& aOptions)
 {
-  PathBuilderNVpr pathBuilder(FILL_WINDING);
+  PathBuilderNVpr pathBuilder(FillRule::FILL_WINDING);
   pathBuilder.MoveTo(aStart);
   pathBuilder.LineTo(aEnd);
   RefPtr<Path> path = pathBuilder.Finish();
@@ -529,7 +529,7 @@ DrawTargetNVpr::Fill(const Path* aPath,
 
   const PathNVpr* const path = static_cast<const PathNVpr*>(aPath);
   const GLubyte countingMask =
-      path->GetFillRule() == FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
+      path->GetFillRule() == FillRule::FILL_WINDING ? (~mStencilClipBits & 0xff) : 0x1;
 
   gl->MakeCurrent();
 
@@ -730,7 +730,7 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
   }
 
   if (!mUnitSquarePath) {
-    PathBuilderNVpr pathBuilder(FILL_WINDING);
+    PathBuilderNVpr pathBuilder(FillRule::FILL_WINDING);
     pathBuilder.MoveTo(Point(0, 0));
     pathBuilder.LineTo(Point(1, 0));
     pathBuilder.LineTo(Point(1, 1));
@@ -923,7 +923,7 @@ DrawTargetNVpr::ApplyDrawOptions(CompositionOp aCompositionOp,
 
   gl->SetBlendMode(aCompositionOp);
 
-  if (aAntialiasMode == AA_NONE) {
+  if (aAntialiasMode == AntialiasMode::NONE) {
     gl->DisableMultisample();
   } else {
     gl->EnableMultisample();

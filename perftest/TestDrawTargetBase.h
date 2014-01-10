@@ -76,7 +76,7 @@ protected:
     if (mFlush) mFlush(this);
   }
 
-  void FillSquare(int aSize, int aRepeat, mozilla::gfx::CompositionOp aOp = mozilla::gfx::OP_OVER);
+  void FillSquare(int aSize, int aRepeat, mozilla::gfx::CompositionOp aOp = mozilla::gfx::CompositionOp::OP_OVER);
   mozilla::TemporaryRef<mozilla::gfx::SourceSurface> CreateSquareRandomSourceSurface(int aSize, mozilla::gfx::SurfaceFormat aFormat, bool aLeaveUninitialized = true);
   mozilla::TemporaryRef<mozilla::gfx::GradientStops> CreateSimpleGradientStops();
 
