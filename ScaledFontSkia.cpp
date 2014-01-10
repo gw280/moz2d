@@ -21,13 +21,13 @@ static SkTypeface::Style
 fontStyleToSkia(FontStyle aStyle)
 {
   switch (aStyle) {
-  case FONT_STYLE_NORMAL:
+  case FontStyle::NORMAL:
     return SkTypeface::kNormal;
-  case FONT_STYLE_ITALIC:
+  case FontStyle::ITALIC:
     return SkTypeface::kItalic;
-  case FONT_STYLE_BOLD:
+  case FontStyle::BOLD:
     return SkTypeface::kBold;
-  case FONT_STYLE_BOLD_ITALIC:
+  case FontStyle::BOLD_ITALIC:
     return SkTypeface::kBoldItalic;
    }
 

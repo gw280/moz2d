@@ -67,7 +67,7 @@ ScaledFontNVpr::Create(const uint8_t* aData, uint32_t aFileSize,
 
   FontOptions fontOptions;
   fontOptions.mName = tempFontFile.str();
-  fontOptions.mStyle = FONT_STYLE_NORMAL;
+  fontOptions.mStyle = FontStyle::NORMAL;
 
   return Create(&fontOptions, aSize);
 }
@@ -78,16 +78,16 @@ FontNVpr::FontNVpr(const FontOptions* aFont)
   switch (aFont->mStyle) {
     default:
       MOZ_ASSERT(!"Invalid font style");
-    case FONT_STYLE_NORMAL:
+    case FontStyle::NORMAL:
       fontStyle = 0;
       break;
-    case FONT_STYLE_ITALIC:
+    case FontStyle::ITALIC:
       fontStyle = GL_ITALIC_BIT_NV;
       break;
-    case FONT_STYLE_BOLD:
+    case FontStyle::BOLD:
       fontStyle = GL_BOLD_BIT_NV;
       break;
-    case FONT_STYLE_BOLD_ITALIC:
+    case FontStyle::BOLD_ITALIC:
       fontStyle = GL_BOLD_BIT_NV | GL_ITALIC_BIT_NV;
       break;
   }

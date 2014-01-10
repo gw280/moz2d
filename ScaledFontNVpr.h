@@ -49,7 +49,7 @@ public:
   const Rect& GlyphsBoundingBox() const { return mGlyphsBoundingBox; }
   operator GLuint() const { return *mFont; }
 
-  virtual FontType GetType() const { return FONT_NVPR; }
+  virtual FontType GetType() const { return FontType::NVPR; }
 
   virtual TemporaryRef<Path> GetPathForGlyphs(const GlyphBuffer &aBuffer,
                                               const DrawTarget *aTarget)
