@@ -791,7 +791,7 @@ DrawTargetNVpr::CreateSourceSurfaceFromData(unsigned char* aData,
 TemporaryRef<SourceSurface>
 DrawTargetNVpr::OptimizeSourceSurface(SourceSurface* aSurface) const
 {
-  if (aSurface->GetType() == SURFACE_NVPR_TEXTURE) {
+  if (aSurface->GetType() == SurfaceType::NVPR_TEXTURE) {
     return aSurface;
   }
 

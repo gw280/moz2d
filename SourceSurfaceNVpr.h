@@ -83,7 +83,7 @@ public:
   void SetWrapMode(GLenum aWrapMode) { mTexture->SetWrapMode(aWrapMode); }
   void SetFilter(Filter aFilter) { mTexture->SetFilter(aFilter); }
 
-  virtual SurfaceType GetType() const { return SURFACE_NVPR_TEXTURE; }
+  virtual SurfaceType GetType() const { return SurfaceType::NVPR_TEXTURE; }
   virtual SurfaceFormat GetFormat() const { return mTexture->Format(); }
   virtual IntSize GetSize() const { return mTexture->Size(); }
 
