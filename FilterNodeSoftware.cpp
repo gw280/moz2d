@@ -969,7 +969,7 @@ FilterNodeTransformSoftware::Render(const IntRect& aRect)
   }
 
   RefPtr<DrawTarget> dt =
-    Factory::CreateDrawTarget(BACKEND_CAIRO, aRect.Size(), input->GetFormat());
+    Factory::CreateDrawTarget(BackendType::CAIRO, aRect.Size(), input->GetFormat());
   if (!dt) {
     return nullptr;
   }

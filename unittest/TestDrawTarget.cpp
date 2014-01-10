@@ -613,7 +613,7 @@ TestDrawTargetBase::ColorMatrix()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::COLOR_MATRIX);
 
   Matrix5x4 mat(-255,  1.0,  0.0, -8.0,
                  0.0,  1.0, -6.0, -2.0,
@@ -629,7 +629,7 @@ TestDrawTargetBase::ColorMatrix()
 
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(0, filter);
   mDT->DrawFilter(premultiply, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 
@@ -643,7 +643,7 @@ TestDrawTargetBase::Blend()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::BLEND);
 
   filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
 
@@ -714,7 +714,7 @@ TestDrawTargetBase::Morphology()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::MORPHOLOGY);
 
   filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(10, 10));
   filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
@@ -737,7 +737,7 @@ TestDrawTargetBase::Flood()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_FLOOD);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::FLOOD);
 
   filter->SetAttribute(ATT_FLOOD_COLOR, Color(0, 0.502f, 0, 1.0f));
 
@@ -753,7 +753,7 @@ TestDrawTargetBase::Tile()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TILE);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::TILE);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), SurfaceFormat::B8G8R8A8);
   dt->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(1.0f, 0, 0, 1.0f)));
@@ -776,7 +776,7 @@ TestDrawTargetBase::TableTransfer()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TABLE_TRANSFER);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::TABLE_TRANSFER);
 
   filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_R, false);
   filter->SetAttribute(ATT_TABLE_TRANSFER_DISABLE_G, false);
@@ -816,7 +816,7 @@ TestDrawTargetBase::DiscreteTransfer()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISCRETE_TRANSFER);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::DISCRETE_TRANSFER);
 
   filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_R, false);
   filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_G, false);
@@ -856,7 +856,7 @@ TestDrawTargetBase::LinearTransfer()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_LINEAR_TRANSFER);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::LINEAR_TRANSFER);
 
   filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_R, false);
   filter->SetAttribute(ATT_LINEAR_TRANSFER_DISABLE_G, false);
@@ -896,7 +896,7 @@ TestDrawTargetBase::GammaTransfer()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAMMA_TRANSFER);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::GAMMA_TRANSFER);
 
   filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_R, false);
   filter->SetAttribute(ATT_GAMMA_TRANSFER_DISABLE_G, false);
@@ -939,7 +939,7 @@ TestDrawTargetBase::ConvolveMatrixNone()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::CONVOLVE_MATRIX);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), SurfaceFormat::B8G8R8A8);
 
@@ -978,7 +978,7 @@ TestDrawTargetBase::ConvolveMatrixWrap()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::CONVOLVE_MATRIX);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 3, DT_HEIGHT + 3), SurfaceFormat::B8G8R8A8);
 
@@ -1018,7 +1018,7 @@ TestDrawTargetBase::ConvolveMatrixOffset()
   dt->FillRect(Rect(50, 50, 1, 1), ColorPattern(Color(0, 1, 0, 1)));
   RefPtr<SourceSurface> src = dt->Snapshot();
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_CONVOLVE_MATRIX);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::CONVOLVE_MATRIX);
   filter->SetInput(0, src);
   filter->SetAttribute(ATT_CONVOLVE_MATRIX_EDGE_MODE, (uint32_t)EDGE_MODE_DUPLICATE);
 
@@ -1068,7 +1068,7 @@ TestDrawTargetBase::OffsetFilter()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TRANSFORM);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::TRANSFORM);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH + 100, DT_HEIGHT + 100), SurfaceFormat::B8G8R8A8);
 
@@ -1092,7 +1092,7 @@ TestDrawTargetBase::DisplacementMap()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISPLACEMENT_MAP);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::DISPLACEMENT_MAP);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   RefPtr<DrawTarget> dtDisplacement = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
@@ -1129,7 +1129,7 @@ TestDrawTargetBase::Turbulence()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::TURBULENCE);
 
   filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(10.0f, 10.0f));
   filter->SetAttribute(ATT_TURBULENCE_NUM_OCTAVES, uint32_t(1));
@@ -1201,7 +1201,7 @@ TestDrawTargetBase::ArithmeticCombine()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::ARITHMETIC_COMBINE);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
@@ -1230,7 +1230,7 @@ TestDrawTargetBase::Composite()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::COMPOSITE);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
   RefPtr<DrawTarget> dt2 = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
@@ -1261,7 +1261,7 @@ TestDrawTargetBase::GaussianBlur()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::GAUSSIAN_BLUR);
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 

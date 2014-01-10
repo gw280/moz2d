@@ -914,7 +914,7 @@ DrawTargetD2D::Stroke(const Path *aPath,
                       const StrokeOptions &aStrokeOptions,
                       const DrawOptions &aOptions)
 {
-  if (aPath->GetBackendType() != BACKEND_DIRECT2D) {
+  if (aPath->GetBackendType() != BackendType::DIRECT2D) {
     gfxDebug() << *this << ": Ignoring drawing call for incompatible path.";
     return;
   }
@@ -943,7 +943,7 @@ DrawTargetD2D::Fill(const Path *aPath,
                     const Pattern &aPattern,
                     const DrawOptions &aOptions)
 {
-  if (aPath->GetBackendType() != BACKEND_DIRECT2D) {
+  if (aPath->GetBackendType() != BackendType::DIRECT2D) {
     gfxDebug() << *this << ": Ignoring drawing call for incompatible path.";
     return;
   }
@@ -1093,7 +1093,7 @@ DrawTargetD2D::Mask(const Pattern &aSource,
 void
 DrawTargetD2D::PushClip(const Path *aPath)
 {
-  if (aPath->GetBackendType() != BACKEND_DIRECT2D) {
+  if (aPath->GetBackendType() != BackendType::DIRECT2D) {
     gfxDebug() << *this << ": Ignoring clipping call for incompatible path.";
     return;
   }
@@ -1201,7 +1201,7 @@ DrawTargetD2D::OptimizeSourceSurface(SourceSurface *aSurface) const
 TemporaryRef<SourceSurface>
 DrawTargetD2D::CreateSourceSurfaceFromNativeSurface(const NativeSurface &aSurface) const
 {
-  if (aSurface.mType != NATIVE_SURFACE_D3D10_TEXTURE) {
+  if (aSurface.mType != NativeSurfaceType::D3D10_TEXTURE) {
     gfxDebug() << *this << ": Failure to create source surface from non-D3D10 texture native surface.";
     return nullptr;
   }
@@ -1300,7 +1300,7 @@ DrawTargetD2D::CreateFilter(FilterType aType)
 void*
 DrawTargetD2D::GetNativeSurface(NativeSurfaceType aType)
 {
-  if (aType != NATIVE_SURFACE_D3D10_TEXTURE) {
+  if (aType != NativeSurfaceType::D3D10_TEXTURE) {
     return nullptr;
   }
 

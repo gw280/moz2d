@@ -11,7 +11,7 @@ using namespace mozilla::gfx;
 using namespace mozilla::gfx;
 TestDrawTargetSkiaSoftware::TestDrawTargetSkiaSoftware()
 {
-  mDT = Factory::CreateDrawTarget(BACKEND_SKIA, IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
+  mDT = Factory::CreateDrawTarget(BackendType::SKIA, IntSize(DT_WIDTH, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 }

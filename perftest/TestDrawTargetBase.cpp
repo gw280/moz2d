@@ -420,7 +420,7 @@ TestDrawTargetBase::DrawTurbulence500x500x10()
 {
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
-  RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_TURBULENCE);
+  RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::TURBULENCE);
 
   for (int32_t i = 0; i < 10; i++) {
     filter->SetAttribute(ATT_TURBULENCE_BASE_FREQUENCY, Size(0.025, 0.025));
@@ -443,7 +443,7 @@ TestDrawTargetBase::DrawMorphologyFilter200x200x100Radius40()
   RefPtr<SourceSurface> src = mRandom200;
 
   for (int32_t i = 0; i < 100; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_MORPHOLOGY);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::MORPHOLOGY);
     filter->SetAttribute(ATT_MORPHOLOGY_RADII, IntSize(40, 40));
     filter->SetAttribute(ATT_MORPHOLOGY_OPERATOR, (uint32_t)MORPHOLOGY_OPERATOR_DILATE);
     filter->SetInput(0, src);
@@ -460,7 +460,7 @@ TestDrawTargetBase::Premultiply200x200x1000()
 
   RefPtr<SourceSurface> surf = mRandom200;
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_PREMULTIPLY);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::PREMULTIPLY);
     filter->SetInput(IN_PREMULTIPLY_IN, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
   }
@@ -475,13 +475,13 @@ TestDrawTargetBase::Unpremultiply200x200x1000()
 
   RefPtr<SourceSurface> surf = mRandom200;
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
   surf = dt->Snapshot();
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_UNPREMULTIPLY);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::UNPREMULTIPLY);
     filter->SetInput(IN_UNPREMULTIPLY_IN, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
   }
@@ -504,7 +504,7 @@ TestDrawTargetBase::ComponentTransfer200x200x1000()
   }
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_DISCRETE_TRANSFER);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::DISCRETE_TRANSFER);
     filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_R, false);
     filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_G, false);
     filter->SetAttribute(ATT_DISCRETE_TRANSFER_DISABLE_B, false);
@@ -532,7 +532,7 @@ TestDrawTargetBase::ColorMatrix200x200x1000()
               0.0, 0.0, 0.0, 0.0);
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COLOR_MATRIX);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::COLOR_MATRIX);
     filter->SetAttribute(ATT_COLOR_MATRIX_MATRIX, m);
     filter->SetAttribute(ATT_COLOR_MATRIX_ALPHA_MODE, (uint32_t)ALPHA_MODE_STRAIGHT);
     filter->SetInput(IN_COLOR_MATRIX_IN, surf);
@@ -549,13 +549,13 @@ TestDrawTargetBase::Composite200x200x1000()
 
   RefPtr<SourceSurface> surf = mRandom200;
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
   surf = dt->Snapshot();
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::COMPOSITE);
     filter->SetAttribute(ATT_COMPOSITE_OPERATOR, (uint32_t)COMPOSITE_OPERATOR_XOR);
     filter->SetInput(IN_COMPOSITE_IN_START, surf);
     filter->SetInput(IN_COMPOSITE_IN_START + 1, surf);
@@ -573,13 +573,13 @@ TestDrawTargetBase::CompositeA8Single200x200x1000()
 
   RefPtr<SourceSurface> surf = mRandom200;
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::A8);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
   surf = dt->Snapshot();
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_COMPOSITE);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::COMPOSITE);
     filter->SetAttribute(ATT_COMPOSITE_OPERATOR, (uint32_t)COMPOSITE_OPERATOR_OVER);
     filter->SetInput(IN_COMPOSITE_IN_START, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 200, 200), Point());
@@ -595,13 +595,13 @@ TestDrawTargetBase::Blend200x200x1000()
 
   RefPtr<SourceSurface> surf = mRandom200;
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
   surf = dt->Snapshot();
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_BLEND);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::BLEND);
     filter->SetAttribute(ATT_BLEND_BLENDMODE, (uint32_t)BLEND_MODE_MULTIPLY);
     filter->SetInput(IN_BLEND_IN, surf);
     filter->SetInput(IN_BLEND_IN2, surf);
@@ -617,8 +617,8 @@ TestDrawTargetBase::Blur500x500x50()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(500, 500), SurfaceFormat::B8G8R8A8);
-  RefPtr<FilterNode> tile = mDT->CreateFilter(FILTER_TILE);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> tile = mDT->CreateFilter(FilterType::TILE);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, mRandom200);
   tile->SetAttribute(ATT_TILE_SOURCE_RECT, IntRect(0, 0, 200, 200));
   tile->SetInput(IN_TILE_IN, premultiply);
@@ -626,7 +626,7 @@ TestDrawTargetBase::Blur500x500x50()
   RefPtr<SourceSurface> surf = dt->Snapshot();
 
   for (int i = 0; i < 50; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_GAUSSIAN_BLUR);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::GAUSSIAN_BLUR);
     filter->SetAttribute(ATT_GAUSSIAN_BLUR_STD_DEVIATION, 40.0f);
     filter->SetInput(IN_GAUSSIAN_BLUR_IN, surf);
     mDT->DrawFilter(filter, Rect(0, 0, 500, 500), Point());
@@ -642,14 +642,14 @@ TestDrawTargetBase::ArithmeticCombine200x200x100()
 
   RefPtr<SourceSurface> surf = mRandom200;
   RefPtr<DrawTarget> dt = mDT->CreateSimilarDrawTarget(IntSize(200, 200), SurfaceFormat::B8G8R8A8);
-  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FILTER_PREMULTIPLY);
+  RefPtr<FilterNode> premultiply = mDT->CreateFilter(FilterType::PREMULTIPLY);
   premultiply->SetInput(IN_PREMULTIPLY_IN, surf);
   dt->DrawFilter(premultiply, Rect(0, 0, 200, 200), Point());
   surf = dt->Snapshot();
   Float coeffs[4] = { 0.2f, -0.5f, 0.3f, 0.1f };
 
   for (int i = 0; i < 1000; i++) {
-    RefPtr<FilterNode> filter = mDT->CreateFilter(FILTER_ARITHMETIC_COMBINE);
+    RefPtr<FilterNode> filter = mDT->CreateFilter(FilterType::ARITHMETIC_COMBINE);
     filter->SetAttribute(ATT_ARITHMETIC_COMBINE_COEFFICIENTS, coeffs, 4);
     filter->SetInput(IN_ARITHMETIC_COMBINE_IN, surf);
     filter->SetInput(IN_ARITHMETIC_COMBINE_IN2, surf);

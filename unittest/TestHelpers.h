@@ -8,7 +8,7 @@
   { \
   public: \
     TestDrawTarget##backendName() \
-    {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BACKEND_##backendValue, \
+    {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BackendType::##backendValue, \
                                                      mozilla::gfx::IntSize(DT_WIDTH, DT_HEIGHT), \
                                                      mozilla::gfx::SurfaceFormat::B8G8R8A8); } \
   }

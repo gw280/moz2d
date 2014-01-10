@@ -128,7 +128,7 @@ D2D1_CHANNEL_SELECTOR D2DChannelSelector(uint32_t aMode)
 
 TemporaryRef<ID2D1Image> GetImageForSourceSurface(DrawTarget *aDT, SourceSurface *aSurface)
 {
-  if (aDT->GetType() == BACKEND_DIRECT2D1_1) {
+  if (aDT->GetType() == BackendType::DIRECT2D1_1) {
     return static_cast<DrawTargetD2D1*>(aDT)->GetImageForSurface(aSurface, EXTEND_CLAMP);
   }
   RefPtr<ID2D1Image> image;
@@ -153,7 +153,7 @@ TemporaryRef<ID2D1Image> GetImageForSourceSurface(DrawTarget *aDT, SourceSurface
   return image;
 }
 
-uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
+uint32_t ConvertValue(FilterType aType, uint32_t aAttribute, uint32_t aValue)
 {
   switch (aType) {
   case FilterType::COLOR_MATRIX:
@@ -197,7 +197,7 @@ uint32_t ConvertValue(uint32_t aType, uint32_t aAttribute, uint32_t aValue)
   return aValue;
 }
 
-void ConvertValue(uint32_t aType, uint32_t aAttribute, IntSize &aValue)
+void ConvertValue(FilterType aType, uint32_t aAttribute, IntSize &aValue)
 {
   switch (aType) {
   case FilterType::MORPHOLOGY:
@@ -212,7 +212,7 @@ void ConvertValue(uint32_t aType, uint32_t aAttribute, IntSize &aValue)
 }
 
 UINT32
-GetD2D1InputForInput(uint32_t aType, uint32_t aIndex)
+GetD2D1InputForInput(FilterType aType, uint32_t aIndex)
 {
   return aIndex;
 }
@@ -222,7 +222,7 @@ GetD2D1InputForInput(uint32_t aType, uint32_t aIndex)
   return D2D1_##d2dname
 
 UINT32
-GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
+GetD2D1PropForAttribute(FilterType aType, uint32_t aIndex)
 {
   switch (aType) {
   case FilterType::COLOR_MATRIX:
@@ -437,7 +437,7 @@ GetD2D1PropForAttribute(uint32_t aType, uint32_t aIndex)
 }
 
 bool
-GetD2D1PropsForIntSize(uint32_t aType, uint32_t aIndex, UINT32 *aPropWidth, UINT32 *aPropHeight)
+GetD2D1PropsForIntSize(FilterType aType, uint32_t aIndex, UINT32 *aPropWidth, UINT32 *aPropHeight)
 {
   switch (aType) {
   case FilterType::MORPHOLOGY:

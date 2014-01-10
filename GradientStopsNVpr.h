@@ -24,7 +24,7 @@ public:
 
   ~GradientStopsNVpr();
 
-  virtual BackendType GetBackendType() const { return BACKEND_NVPR; }
+  virtual BackendType GetBackendType() const { return BackendType::NVPR; }
 
   const Color& FinalColor() const { return mFinalColor; }
   operator GLuint() const { return mRampTextureId; }

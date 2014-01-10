@@ -64,7 +64,7 @@ class PathNVpr : public Path
 public:
   PathNVpr(FillRule aFillRule, TemporaryRef<PathObjectNVpr> aPathObject);
 
-  virtual BackendType GetBackendType() const { return BACKEND_NVPR; }
+  virtual BackendType GetBackendType() const { return BackendType::NVPR; }
 
   virtual TemporaryRef<PathBuilder> CopyToBuilder(FillRule aFillRule = FILL_WINDING) const;
   virtual TemporaryRef<PathBuilder> TransformedCopyToBuilder(const Matrix& aTransform,

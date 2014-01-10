@@ -23,16 +23,16 @@ using namespace std;
 BackendType sTestedBackends[] =
 {
 #ifdef WIN32
-  BACKEND_DIRECT2D,
+  BackendType::DIRECT2D,
 #endif
 #ifdef USE_NVPR
-  BACKEND_NVPR,
+  BackendType::NVPR,
 #endif
 #ifdef USE_SKIA
-  BACKEND_SKIA,
+  BackendType::SKIA,
 #endif
 #ifdef USE_CAIRO
-  BACKEND_CAIRO,
+  BackendType::CAIRO,
 #endif
 };
 
@@ -40,13 +40,13 @@ string
 GetBackendName(BackendType aType)
 {
   switch(aType) {
-  case BACKEND_DIRECT2D:
+  case BackendType::DIRECT2D:
     return "Direct2D";
-  case BACKEND_SKIA:
+  case BackendType::SKIA:
     return "Skia";
-  case BACKEND_CAIRO:
+  case BackendType::CAIRO:
     return "Cairo";
-  case BACKEND_NVPR:
+  case BackendType::NVPR:
     return "NVpr";
   default:
     return "Unknown";
@@ -57,7 +57,7 @@ void
 FinishDrawing(DrawTarget* aDT)
 {
 #ifdef WIN32
-  if (aDT->GetType() == BACKEND_DIRECT2D) {
+  if (aDT->GetType() == BackendType::DIRECT2D) {
     aDT->Flush();
 
     RefPtr<ID3D10Query> query;
@@ -71,7 +71,7 @@ FinishDrawing(DrawTarget* aDT)
   }
 #endif
 #if USE_NVPR
-  if (aDT->GetType() == BACKEND_NVPR) {
+  if (aDT->GetType() == BackendType::NVPR) {
     using nvpr::gl;
     gl->MakeCurrent();
     gl->Finish();

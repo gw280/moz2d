@@ -189,13 +189,13 @@ FontType
 RawTranslator::GetDesiredFontType()
 {
   switch (mBaseDT->GetType()) {
-    case BACKEND_DIRECT2D:
+    case BackendType::DIRECT2D:
       return FONT_DWRITE;
-    case BACKEND_CAIRO:
+    case BackendType::CAIRO:
       return FONT_CAIRO;
-    case BACKEND_SKIA:
+    case BackendType::SKIA:
       return FONT_SKIA;
-    case BACKEND_NVPR:
+    case BackendType::NVPR:
       return FONT_NVPR;
     default:
       MOZ_ASSERT(false);
