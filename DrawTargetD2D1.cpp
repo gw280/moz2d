@@ -5,6 +5,7 @@
 
 #include "DrawTargetD2D1.h"
 #include "DrawTargetD2D.h"
+#include "FilterNodeSoftware.h"
 #include "GradientStopsD2D.h"
 #include "SourceSurfaceD2D1.h"
 #include "SourceSurfaceD2D.h"
@@ -26,13 +27,6 @@ ID2D1Factory1* DrawTargetD2D1::mFactory = nullptr;
 ID2D1Factory1 *D2DFactory1()
 {
   return DrawTargetD2D1::factory();
-}
-
-inline static ostream&
-operator <<(ostream& aStream, const DrawTargetD2D1& aDrawTarget)
-{
-  aStream << "DrawTargetD2D 1.1 (" << &aDrawTarget << ")";
-  return aStream;
 }
 
 DrawTargetD2D1::DrawTargetD2D1()
@@ -192,8 +186,9 @@ DrawTargetD2D1::MaskSurface(const Pattern &aSource,
                             const DrawOptions &aOptions)
 {
   RefPtr<ID2D1Bitmap> bitmap;
+  Matrix mat;
 
-  RefPtr<ID2D1Image> image = GetImageForSurface(aMask, Matrix(), EXTEND_CLAMP);
+  RefPtr<ID2D1Image> image = GetImageForSurface(aMask, mat, EXTEND_CLAMP);
 
   PrepareForDrawing(aOptions.mCompositionOp, aSource);
 

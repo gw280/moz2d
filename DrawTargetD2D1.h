@@ -132,6 +132,12 @@ public:
   static void CleanupD2D();
   static IDWriteFactory *GetDWriteFactory();
 
+  operator std::string() const {
+    std::stringstream stream;
+    stream << "DrawTargetD2D 1.1 (" << this << ")";
+    return stream.str();
+  }
+
   static uint64_t mVRAMUsageDT;
   static uint64_t mVRAMUsageSS;
 
@@ -185,7 +191,7 @@ private:
   {
     D2D1_RECT_F mBounds;
     union {
-      // If mPath is non-NULL, the mTransform member will be used, otherwise
+      // If mPath is non-null, the mTransform member will be used, otherwise
       // the mIsPixelAligned member is valid.
       D2D1_MATRIX_3X2_F mTransform;
       bool mIsPixelAligned;
