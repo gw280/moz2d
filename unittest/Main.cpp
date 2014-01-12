@@ -9,6 +9,9 @@
 #include "TestScaling.h"
 #ifdef WIN32
 #include <d3d10_1.h>
+#ifdef USE_D2D1_1
+#include <d3d11.h>
+#endif
 #endif
 #include "TestDrawTarget.h"
 
@@ -40,6 +43,25 @@ main()
                        byRef(mDevice));
 
   Factory::SetDirect3D10Device(mDevice);
+
+#ifdef USE_D2D1_1
+  RefPtr<ID3D11Device> d3d11device;
+  D3D_FEATURE_LEVEL featureLevels[] = {
+    D3D_FEATURE_LEVEL_11_1,
+    D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_10_1,
+    D3D_FEATURE_LEVEL_10_0,
+    D3D_FEATURE_LEVEL_9_3
+  };
+
+
+  HRESULT hr = ::D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, NULL,
+                                   D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                                   featureLevels, sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
+                                   D3D11_SDK_VERSION, byRef(d3d11device), nullptr, nullptr);
+
+  Factory::SetDirect3D11Device(d3d11device);
+#endif
 #endif
 
   TestObject tests[] = 
@@ -47,7 +69,6 @@ main()
     { new SanityChecks(), "Sanity Checks" },
   #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
-    { new TestDrawTargetD2DRecording(), "DrawTarget (D2D Recording)" },
   #ifdef USE_D2D1_1
     { new  TestDrawTargetD2D1(), "DrawTarget (D2D 1.1)" },
   #endif

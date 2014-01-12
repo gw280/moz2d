@@ -84,6 +84,9 @@ protected:
 
 #ifdef WIN32
 IMPLEMENT_DT_TESTS(D2D, DIRECT2D, TestDrawTargetBase);
+#ifdef USE_D2D1_1
+IMPLEMENT_DT_TESTS(D2D1, DIRECT2D1_1, TestDrawTargetBase);
+#endif
 #endif
 #ifdef USE_SKIA
 IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTargetBase);
@@ -91,3 +94,4 @@ IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTargetBase);
 #ifdef USE_CAIRO
 IMPLEMENT_DT_TESTS(CairoImage, CAIRO, TestDrawTargetBase);
 #endif
+
