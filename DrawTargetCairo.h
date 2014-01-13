@@ -148,7 +148,7 @@ public:
   virtual TemporaryRef<GradientStops>
     CreateGradientStops(GradientStop *aStops,
                         uint32_t aNumStops,
-                        ExtendMode aExtendMode = EXTEND_CLAMP) const;
+                        ExtendMode aExtendMode = ExtendMode::CLAMP) const;
   virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType);
 
   virtual void *GetNativeSurface(NativeSurfaceType aType);
