@@ -10,6 +10,9 @@
 #include <sstream>
 #include <stdio.h>
 
+#if defined(MOZILLA_INTERNAL_API)
+#include "nsDebug.h"
+#endif
 #include "Point.h"
 #include "Matrix.h"
 
@@ -24,7 +27,7 @@
 extern "C" __declspec(dllimport) void __stdcall OutputDebugStringA(const char* lpOutputString);
 #endif
 
-#if defined(DEBUG) || defined(PR_LOGGING)
+#if (defined(DEBUG) || defined(PR_LOGGING)) && defined(MOZILLA_INTERNAL_API)
 #include <prlog.h>
 
 extern GFX2D_API PRLogModuleInfo *GetGFX2DLog();
@@ -57,13 +60,13 @@ static inline void OutputMessage(const std::string &aString, int aLevel) {
   if (aLevel >= sGfxLogLevel) {
     ::OutputDebugStringA(aString.c_str());
   }
-#elif defined(PR_LOGGING)
+#elif defined(PR_LOGGING) && !(defined(MOZ_WIDGET_GONK) || defined(MOZ_WIDGET_ANDROID))
   if (PR_LOG_TEST(GetGFX2DLog(), PRLogLevelForLevel(aLevel))) {
     PR_LogPrint(aString.c_str());
   }
 #else
   if (aLevel >= sGfxLogLevel) {
-    printf("%s", aString.c_str());
+    printf_stderr("%s", aString.c_str());
   }
 #endif
 }
