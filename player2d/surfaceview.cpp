@@ -53,7 +53,7 @@ SurfaceView::UpdateView()
   mat.Translate(-xtranslate, -ytranslate);
   dt->SetTransform(mat);
 
-  RefPtr<DrawTarget> tmpdt = dt->CreateSimilarDrawTarget(IntSize(20, 20), FORMAT_B8G8R8X8);
+  RefPtr<DrawTarget> tmpdt = dt->CreateSimilarDrawTarget(IntSize(20, 20), SurfaceFormat::B8G8R8X8);
   tmpdt->FillRect(Rect(0, 0, 10, 10), ColorPattern(Color(1.0f, 1.0f, 1.0f)));
   tmpdt->FillRect(Rect(10, 10, 10, 10), ColorPattern(Color(1.0f, 1.0f, 1.0f)));
   tmpdt->FillRect(Rect(10, 0, 10, 10), ColorPattern(Color(0.7f, 0.7f, 0.7f)));
@@ -63,13 +63,13 @@ SurfaceView::UpdateView()
 
   Rect surfRect(0, 0, dstSurfSize.width, dstSurfSize.height);
   Rect dstRect(0, 0, dstSize.width, dstSize.height);
-  dt->FillRect(dstRect, SurfacePattern(src, EXTEND_REPEAT));
+  dt->FillRect(dstRect, SurfacePattern(src, ExtendMode::REPEAT));
 
-  if (srcSurf->GetFormat() != FORMAT_A8) {
-    dt->DrawSurface(srcSurf, dstRect, surfRect, DrawSurfaceOptions(mZoomFactor > 1.5f ? FILTER_POINT : FILTER_LINEAR));
+  if (srcSurf->GetFormat() != SurfaceFormat::A8) {
+    dt->DrawSurface(srcSurf, dstRect, surfRect, DrawSurfaceOptions(mZoomFactor > 1.5f ? Filter::POINT : Filter::LINEAR));
   } else {
     dt->PushClipRect(dstRect);
-    dt->Mask(ColorPattern(Color(0, 0, 0, 1)), SurfacePattern(srcSurf, EXTEND_CLAMP));
+    dt->Mask(ColorPattern(Color(0, 0, 0, 1)), SurfacePattern(srcSurf, ExtendMode::CLAMP));
     dt->PopClip();
   }
 

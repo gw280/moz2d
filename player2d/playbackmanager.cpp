@@ -95,17 +95,17 @@ FontType
 PlaybackManager::GetDesiredFontType()
 {
   switch (mBaseDT->GetType()) {
-    case BACKEND_DIRECT2D:
-      return FONT_DWRITE;
-    case BACKEND_CAIRO:
-      return FONT_CAIRO;
-    case BACKEND_SKIA:
-      return FONT_SKIA;
-    case BACKEND_NVPR:
-      return FONT_NVPR;
+    case BackendType::DIRECT2D:
+      return FontType::DWRITE;
+    case BackendType::CAIRO:
+      return FontType::CAIRO;
+    case BackendType::SKIA:
+      return FontType::SKIA;
+    case BackendType::NVPR:
+      return FontType::NVPR;
     default:
       MOZ_ASSERT(false);
-      return FONT_DWRITE;
+      return FontType::DWRITE;
   }
 }
 
@@ -388,7 +388,7 @@ void
 PlaybackManager::ForceCompletion()
 {
 #ifdef WIN32
-  if (mBaseDT->GetType() == BACKEND_DIRECT2D) {
+  if (mBaseDT->GetType() == BackendType::DIRECT2D) {
     ID3D10Device1 *device = Factory::GetDirect3D10Device();
     RefPtr<ID3D10Query> query;
     D3D10_QUERY_DESC desc;

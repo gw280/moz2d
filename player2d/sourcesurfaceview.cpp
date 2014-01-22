@@ -15,7 +15,7 @@ SourceSurfaceView::SourceSurfaceView(ReferencePtr aRefPtr, mozilla::gfx::Transla
     mTranslator(aTranslator)
 {
     ui->setupUi(this);
-    ui->dtWidget->SwitchToBackend(MainWindow::mMainBackend);
+    ui->dtWidget->SwitchToBackend(int(MainWindow::mMainBackend));
 
     connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
     connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));

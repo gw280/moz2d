@@ -23,27 +23,27 @@ using namespace mozilla;
 using namespace mozilla::gfx;
 
 ID3D10Device1 *MainWindow::sDevice = NULL;
-BackendType MainWindow::mMainBackend = BACKEND_NONE;
+BackendType MainWindow::mMainBackend = BackendType::NONE;
 
 QString
 NameForBackend(uint32_t aType)
 {
   switch (aType) {
-  case BACKEND_NONE:
+  case BackendType::NONE:
     return "None";
-  case BACKEND_CAIRO:
+  case BackendType::CAIRO:
     return "Cairo";
-  case BACKEND_DIRECT2D:
+  case BackendType::DIRECT2D:
     return "Direct2D";
-  case BACKEND_DIRECT2D1_1:
+  case BackendType::DIRECT2D1_1:
     return "Direct2D 1.1";
-  case BACKEND_COREGRAPHICS:
+  case BackendType::COREGRAPHICS:
     return "Quartz";
-  case BACKEND_COREGRAPHICS_ACCELERATED:
+  case BackendType::COREGRAPHICS_ACCELERATED:
     return "Accelerated Quartz";
-  case BACKEND_SKIA:
+  case BackendType::SKIA:
     return "Skia";
-  case BACKEND_NVPR:
+  case BackendType::NVPR:
     return "NVidia Path Rendering";
   default:
     return "Unknown";
@@ -102,27 +102,27 @@ MainWindow::MainWindow(QWidget *parent) :
 
     Factory::SetDirect3D11Device(device);
   }
-  ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D]);
-  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D]);
-  ui->menuBackend->addAction(mBackends[BACKEND_DIRECT2D1_1]);
-  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_DIRECT2D1_1]);
+  ui->menuBackend->addAction(mBackends[int(BackendType::DIRECT2D)]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[int(BackendType::DIRECT2D)]);
+  ui->menuBackend->addAction(mBackends[int(BackendType::DIRECT2D1_1)]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[int(BackendType::DIRECT2D1_1)]);
 #elif __APPLE__
-  //ui->menuBackend->addAction(mBackends[BACKEND_COREGRAPHICS]);
-  //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BACKEND_COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
+  //ui->menuBackend->addAction(mBackends[BackendType::COREGRAPHICS]);
+  //RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(BackendType::COREGRAPHICS, IntSize(1, 1), FORMAT_B8G8R8A8);
   //mPBManager.SetBaseDT(refDT);
   // TODO Add a way to select backends
 #endif
 #ifdef USE_CAIRO
-  ui->menuBackend->addAction(mBackends[BACKEND_CAIRO]);
-  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_CAIRO]);
+  ui->menuBackend->addAction(mBackends[int(BackendType::CAIRO)]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[int(BackendType::CAIRO)]);
 #endif
 #ifdef USE_SKIA
-  ui->menuBackend->addAction(mBackends[BACKEND_SKIA]);
-  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_SKIA]);
+  ui->menuBackend->addAction(mBackends[int(BackendType::SKIA)]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[int(BackendType::SKIA)]);
 #endif
 #ifdef USE_NVPR
-  ui->menuBackend->addAction(mBackends[BACKEND_NVPR]);
-  ui->menuSimulationBackend->addAction(mSimulationBackends[BACKEND_NVPR]);
+  ui->menuBackend->addAction(mBackends[int(BackendType::NVPR)]);
+  ui->menuSimulationBackend->addAction(mSimulationBackends[int(BackendType::NVPR)]);
 #endif
 
   ui->menuBackend->actions()[0]->toggle();
@@ -253,7 +253,7 @@ MainWindow::SwitchToBackend(BackendType aType)
 {
   for (int i = 0; i < sBackendCount; i++) {
     if (mBackends[i]) {
-      if (i != aType) {
+      if (i != int(aType)) {
         mBackends[i]->setChecked(false);
       }
     }
@@ -263,7 +263,7 @@ MainWindow::SwitchToBackend(BackendType aType)
 
   mMainBackend = aType;
   
-  SwitchingBackend(aType);
+  SwitchingBackend(int(aType));
   
   QApplication::processEvents();
 
@@ -280,14 +280,14 @@ MainWindow::SwitchSimulationBackend(BackendType aType)
 {
   for (int i = 0; i < sBackendCount; i++) {
     if (mSimulationBackends[i]) {
-      if (i != aType) {
+      if (i != int(aType)) {
         mSimulationBackends[i]->setChecked(false);
       }
     }
   }
 
   mPBManager.PlaybackToEvent(0);
-  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(aType, IntSize(1, 1), FORMAT_B8G8R8A8);
+  RefPtr<DrawTarget> refDT = Factory::CreateDrawTarget(aType, IntSize(1, 1), SurfaceFormat::B8G8R8A8);
   mPBManager.SetBaseDT(refDT);
   
   QTreeWidgetItem *item = ui->treeWidget->currentItem();

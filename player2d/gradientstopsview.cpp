@@ -14,7 +14,7 @@ GradientStopsView::GradientStopsView(ReferencePtr aRefPtr, mozilla::gfx::Transla
 {
   ui->setupUi(this);
   ui->dtWidget->InitDT();
-  ui->dtWidget->SwitchToBackend(MainWindow::mMainBackend);
+  ui->dtWidget->SwitchToBackend(int(MainWindow::mMainBackend));
 
   connect(this, SIGNAL(SwitchingBackend(uint32_t)), ui->dtWidget, SLOT(SwitchToBackend(uint32_t)));
   connect(ui->dtWidget, SIGNAL(RefillDT()), SLOT(UpdateView()));
@@ -49,7 +49,7 @@ GradientStopsView::UpdateView()
 
   IntSize dstSize = dt->GetSize();
 
-  RefPtr<DrawTarget> tmpdt = dt->CreateSimilarDrawTarget(IntSize(20, 20), FORMAT_B8G8R8X8);
+  RefPtr<DrawTarget> tmpdt = dt->CreateSimilarDrawTarget(IntSize(20, 20), SurfaceFormat::B8G8R8X8);
   tmpdt->FillRect(Rect(0, 0, 10, 10), ColorPattern(Color(1.0f, 1.0f, 1.0f)));
   tmpdt->FillRect(Rect(10, 10, 10, 10), ColorPattern(Color(1.0f, 1.0f, 1.0f)));
   tmpdt->FillRect(Rect(10, 0, 10, 10), ColorPattern(Color(0.7f, 0.7f, 0.7f)));
@@ -58,7 +58,7 @@ GradientStopsView::UpdateView()
   tmpdt = NULL;
 
   Rect dstRect(0, 0, dstSize.width, dstSize.height);
-  dt->FillRect(dstRect, SurfacePattern(src, EXTEND_REPEAT));
+  dt->FillRect(dstRect, SurfacePattern(src, ExtendMode::REPEAT));
 
   dt->FillRect(dstRect, LinearGradientPattern(Point(0, dstSize.height / 2), Point(dstSize.width, dstSize.height / 2), stops));
 

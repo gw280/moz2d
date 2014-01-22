@@ -16,7 +16,7 @@ DrawTargetWidget::DrawTargetWidget(QWidget *parent) :
     QWidget(parent, Qt::SubWindow),
     mDT(NULL),
     mMainWindow(NULL),
-    mType(BACKEND_NONE)
+    mType(BackendType::NONE)
 {
 }
 
@@ -29,7 +29,7 @@ DrawTargetWidget::InitDT()
 #ifdef WIN32
   mSwapChain = nullptr;
 
-  if (mType == BACKEND_DIRECT2D) {
+  if (mType == BackendType::DIRECT2D) {
     setAttribute(Qt::WA_NoSystemBackground);
     setAttribute(Qt::WA_OpaquePaintEvent);
     setAttribute(Qt::WA_PaintOnScreen); 
@@ -61,14 +61,14 @@ DrawTargetWidget::InitDT()
 
     ID3D10Texture2D *texture;
     mSwapChain->GetBuffer(0, IID_ID3D10Texture2D, (void**)&texture);
-    mDT = Factory::CreateDrawTargetForD3D10Texture(texture, FORMAT_B8G8R8X8);
+    mDT = Factory::CreateDrawTargetForD3D10Texture(texture, SurfaceFormat::B8G8R8X8);
     texture->Release();
 
     mSwapChain->Present(0, 0);
   } else
 #endif
   {
-    mDT = Factory::CreateDrawTarget(mType, IntSize(width(),height()), FORMAT_B8G8R8X8);
+    mDT = Factory::CreateDrawTarget(mType, IntSize(width(),height()), SurfaceFormat::B8G8R8X8);
   }
 }
 
@@ -84,7 +84,7 @@ DrawTargetWidget::nativeEvent(const QByteArray & eventType, void * message, long
 bool
 DrawTargetWidget::winEvent(MSG* message, long* result)
 {
-  if (mDT && mDT->GetType() == BACKEND_DIRECT2D) {
+  if (mDT && mDT->GetType() == BackendType::DIRECT2D) {
     if (message->hwnd == (HWND)this->effectiveWinId() && message->message == WM_SIZE) {
       InitDT();
       RefillDT();
@@ -106,7 +106,7 @@ DrawTargetWidget::winEvent(MSG* message, long* result)
 void
 DrawTargetWidget::refresh()
 {
-  if (mDT && mDT->GetType() == BACKEND_DIRECT2D) {
+  if (mDT && mDT->GetType() == BackendType::DIRECT2D) {
     redraw();
   } else {
     repaint();
@@ -122,7 +122,7 @@ DrawTargetWidget::redraw()
   }
 #endif
 
-  if (mDT && mDT->GetType() != BACKEND_DIRECT2D) {
+  if (mDT && mDT->GetType() != BackendType::DIRECT2D) {
     QPainter painter(this);
 
     RefPtr<SourceSurface> srcSurf = mDT->Snapshot();
@@ -137,7 +137,7 @@ DrawTargetWidget::resizeEvent(QResizeEvent * aEvent)
 {
 // On windows this is handled by winEvent
 
-  if (mDT && mDT->GetType() != BACKEND_DIRECT2D) {
+  if (mDT && mDT->GetType() != BackendType::DIRECT2D) {
     InitDT();
     RefillDT();
   }

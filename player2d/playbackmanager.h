@@ -3,6 +3,7 @@
 
 #include <qobject.h>
 #include "RecordedEvent.h"
+#include "Filters.h"
 
 #include <vector>
 #ifdef __GNUC__
