@@ -28,7 +28,7 @@ DumpAsPNG(SourceSurface* aSurface)
   nsRefPtr<gfxImageSurface> imageSurface =
     new gfxImageSurface(dataSource->GetData(), gfxIntSize(size.width, size.height),
                         dataSource->Stride(),
-                        aSurface->GetFormat() == FORMAT_A8 ? gfxImageFormatA8 : gfxImageFormatARGB32);
+                        aSurface->GetFormat() == SurfaceFormat::A8 ? gfxImageFormat::A8 : gfxImageFormatARGB32);
   imageSurface->PrintAsDataURL();
 }
 } // namespace gfx
