@@ -29,8 +29,9 @@ using namespace std;
 namespace mozilla {
 namespace gfx {
 
-inline static ostream&
-operator <<(ostream& aStream, const DrawTargetNVpr& aDrawTarget)
+template<int L>
+inline static Log<L>&
+operator <<(Log<L>& aStream, const DrawTargetNVpr& aDrawTarget)
 {
   aStream << "DrawTargetNVpr(" << &aDrawTarget << ")";
   return aStream;

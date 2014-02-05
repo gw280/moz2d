@@ -170,8 +170,9 @@ ID2D1Factory *D2DFactory()
   return DrawTargetD2D::factory();
 }
 
-inline static ostream&
-operator <<(ostream& aStream, const DrawTargetD2D& aDrawTarget)
+template<int L>
+inline static Log<L>&
+operator <<(Log<L>& aStream, const DrawTargetD2D& aDrawTarget)
 {
   aStream << "DrawTargetD2D(" << &aDrawTarget << ")";
   return aStream;
