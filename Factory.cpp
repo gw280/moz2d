@@ -51,7 +51,7 @@
 
 #include "Logging.h"
 
-#ifdef PR_LOGGING
+#if defined(DEBUG) || defined(PR_LOGGING)
 PRLogModuleInfo *
 GetGFX2DLog()
 {
@@ -151,7 +151,7 @@ namespace mozilla {
 namespace gfx {
 
 // XXX - Need to define an API to set this.
-int sGfxLogLevel = LOG_DEBUG;
+GFX2D_API int sGfxLogLevel = LOG_DEBUG;
 
 #ifdef WIN32
 ID3D10Device1 *Factory::mD3D10Device;
