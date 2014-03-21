@@ -15,6 +15,7 @@
 #endif
 #endif
 #include "TestDrawTarget.h"
+#include "TestPath.h"
 
 #include <string>
 #include <sstream>
@@ -70,15 +71,18 @@ main()
     { new SanityChecks(), "Sanity Checks" },
   #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
+    { new TestPathD2D(), "Path (D2D)" },
   #ifdef USE_D2D1_1
     { new  TestDrawTargetD2D1(), "DrawTarget (D2D 1.1)" },
   #endif
   #endif
   #ifdef USE_CAIRO
     { new TestDrawTargetCairoImage(), "DrawTarget (Cairo Image)" },
+    { new TestPathCairo(), "Path (Cairo)" },
   #endif
   #ifdef USE_SKIA
     { new TestDrawTargetSkiaSoftware(), "DrawTarget (Skia Software)" },
+    { new TestPathSkia(), "Path (Skia)" },
   #endif
     { new TestPoint(), "Point Tests" },
     { new TestRect(), "Rect Tests" },

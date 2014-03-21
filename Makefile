@@ -74,6 +74,7 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
   unittest/TestDrawTarget.cpp \
+  unittest/TestPath.cpp \
   $(NULL)
   
 ifeq ($(UNAME),Darwin)

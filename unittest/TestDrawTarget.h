@@ -8,10 +8,7 @@
 #include "2D.h"
 #include "TestBase.h"
 #include "TestHelpers.h"
-  
-#define DT_WIDTH 500
-#define DT_HEIGHT 500
-  
+
 /* This general DrawTarget test class can be reimplemented by a child class
   * with optional additional drawtarget-specific tests. And is intended to run
   * on a 500x500 32 BPP drawtarget.
@@ -83,15 +80,15 @@ protected:
 }; 
 
 #ifdef WIN32
-IMPLEMENT_DT_TESTS(D2D, DIRECT2D, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(D2D, DIRECT2D, TestDrawTarget);
 #ifdef USE_D2D1_1
-IMPLEMENT_DT_TESTS(D2D1, DIRECT2D1_1, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(D2D1, DIRECT2D1_1, TestDrawTarget);
 #endif
 #endif
 #ifdef USE_SKIA
-IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTarget);
 #endif
 #ifdef USE_CAIRO
-IMPLEMENT_DT_TESTS(CairoImage, CAIRO, TestDrawTargetBase);
+IMPLEMENT_DT_TESTS(CairoImage, CAIRO, TestDrawTarget);
 #endif
 

@@ -141,6 +141,7 @@
     <ClCompile Include="TestBase.cpp" />
     <ClCompile Include="TestBugs.cpp" />
     <ClCompile Include="TestDrawTarget.cpp" />
+    <ClCompile Include="TestPath.cpp" />
     <ClCompile Include="TestPoint.cpp" />
     <ClCompile Include="TestRect.cpp" />
     <ClCompile Include="TestScaling.cpp" />
@@ -150,6 +151,7 @@
     <ClInclude Include="TestBase.h" />
     <ClInclude Include="TestDrawTarget.h" />
     <ClInclude Include="TestHelpers.h" />
+    <ClInclude Include="TestPath.h" />
     <ClInclude Include="TestPoint.h" />
     <ClInclude Include="TestRect.h" />
     <ClInclude Include="TestScaling.h" />
