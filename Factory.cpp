@@ -546,9 +546,10 @@ Factory::CreateDrawTargetSkiaWithGrContext(GrContext* aGrContext,
                                            const IntSize &aSize,
                                            SurfaceFormat aFormat)
 {
-  DrawTargetSkia* newDrawTargetSkia = new DrawTargetSkia();
-  newDrawTargetSkia->InitWithGrContext(aGrContext, aSize, aFormat);
-  RefPtr<DrawTarget> newTarget = newDrawTargetSkia;
+  RefPtr<DrawTarget> newTarget = new DrawTargetSkia();
+  if (!newTarget->InitWithGrContext(aGrContext, aSize, aFormat)) {
+    return nullptr;
+  }
   return newTarget;
 }
 

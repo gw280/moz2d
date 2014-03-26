@@ -100,12 +100,13 @@ public:
   virtual TemporaryRef<GradientStops> CreateGradientStops(GradientStop *aStops, uint32_t aNumStops, ExtendMode aExtendMode = ExtendMode::CLAMP) const;
   virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType);
   virtual void SetTransform(const Matrix &aTransform);
+  virtual void *GetNativeSurface(NativeSurfaceType aType);
 
   bool Init(const IntSize &aSize, SurfaceFormat aFormat);
   void Init(unsigned char* aData, const IntSize &aSize, int32_t aStride, SurfaceFormat aFormat);
 
 #ifdef USE_SKIA_GPU
-  void InitWithGrContext(GrContext* aGrContext,
+  bool InitWithGrContext(GrContext* aGrContext,
                          const IntSize &aSize,
                          SurfaceFormat aFormat) MOZ_OVERRIDE;
 #endif
