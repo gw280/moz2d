@@ -6,6 +6,8 @@
 #ifndef MOZILLA_GFX_BASEPOINT_H_
 #define MOZILLA_GFX_BASEPOINT_H_
 
+#include <cmath>
+
 namespace mozilla {
 namespace gfx {
 
@@ -62,6 +64,16 @@ struct BasePoint {
   Sub operator-() const {
     return Sub(-x, -y);
   }
+
+  // Round() is *not* rounding to nearest integer if the values are negative.
+  // They are always rounding as floor(n + 0.5).
+  // See https://bugzilla.mozilla.org/show_bug.cgi?id=410748#c14
+  Sub& Round() {
+    x = static_cast<T>(floor(x + 0.5));
+    y = static_cast<T>(floor(y + 0.5));
+    return *static_cast<Sub*>(this);
+  }
+
 };
 
 }
