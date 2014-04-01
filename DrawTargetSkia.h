@@ -123,9 +123,7 @@ private:
 
   void MarkChanged();
 
-#ifdef USE_SKIA_GPU
   uint32_t mTexture;
-#endif
 
   IntSize mSize;
   SkRefPtr<SkCanvas> mCanvas;
