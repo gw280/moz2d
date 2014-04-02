@@ -168,6 +168,7 @@
     <ClInclude Include="Blur.h" />
     <ClInclude Include="BorrowedContext.h" />
     <ClInclude Include="ClipNVpr.h" />
+    <ClInclude Include="DataSurfaceHelpers.h" />
     <ClInclude Include="DrawEventRecorder.h" />
     <ClInclude Include="DrawTargetCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -253,6 +254,7 @@
     <ClCompile Include="Blur.cpp" />
     <ClCompile Include="BlurSSE2.cpp" />
     <ClCompile Include="DataSourceSurface.cpp" />
+    <ClCompile Include="DataSurfaceHelpers.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
