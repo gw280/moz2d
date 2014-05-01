@@ -10,6 +10,9 @@
 #include "mozilla/TypedEnum.h"
 
 #include <stddef.h>
+
+// Required so that INT32_MAX can be defined on certain gcc versions
+#define __STDC_LIMIT_MACROS
 #include <stdint.h>
 
 namespace mozilla {
