@@ -68,7 +68,11 @@ static inline void OutputMessage(const std::string &aString, int aLevel) {
   }
 #else
   if (aLevel >= sGfxLogLevel) {
+#if defined(MOZILLA_INTERNAL_API)
     printf_stderr("%s", aString.c_str());
+#else
+    printf("%s", aString.c_str());
+#endif
   }
 #endif
 }
