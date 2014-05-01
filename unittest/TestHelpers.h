@@ -10,7 +10,7 @@
   class className##backendName : public className##Base \
   { \
   public: \
-    className##backendName##() \
+    className##backendName() \
     {  mDT = mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BackendType::backendValue, \
                                                      mozilla::gfx::IntSize(DT_WIDTH, DT_HEIGHT), \
                                                      mozilla::gfx::SurfaceFormat::B8G8R8A8); } \
