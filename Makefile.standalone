@@ -73,6 +73,7 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/TestRect.cpp \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
+  unittest/TestBugs.cpp \
   unittest/TestDrawTarget.cpp \
   unittest/TestPath.cpp \
   $(NULL)
