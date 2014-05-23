@@ -126,6 +126,8 @@ private:
 
   SkRect SkRectCoveringWholeSurface() const;
 
+  bool UsingSkiaGPU() const;
+
   uint32_t mTexture;
 
   IntSize mSize;
