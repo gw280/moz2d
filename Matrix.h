@@ -89,7 +89,6 @@ public:
   {
     _31 += aX;
     _32 += aY;
-
     return *this;
   }
 
