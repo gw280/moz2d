@@ -75,8 +75,9 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/Main.cpp \
   unittest/TestDrawTarget.cpp \
   unittest/TestPath.cpp \
+  unittest/TestBugs.cpp \
   $(NULL)
-  
+
 ifeq ($(UNAME),Darwin)
 LIBS += -framework CoreFoundation
 endif
@@ -94,8 +95,9 @@ MOZ2D_PLAYER2D_LIBS += -lfreetype
 endif
 ifeq ($(UNAME),Darwin)
 DEFINES += MOZ_ENABLE_FREETYPE
-LIBS += -L/opt/local/lib -lfreetype
-MOZ2D_PLAYER2D_LIBS += -L/opt/local/lib -lfreetype
+CXXFLAGS += $(shell freetype-config --cflags)
+LIBS += $(shell freetype-config --libs)
+MOZ2D_PLAYER2D_LIBS += $(LIBS)
 endif
 
 # ================ INCLUDE FEATURE SPECIFIC MAKEFILES =================
@@ -126,7 +128,7 @@ endif
 QMAKE_PARAMS += "MOZ2D_PATH=$(PWD)"
 
 CXXFLAGS += $(addprefix -I,$(INCLUDES))
-  
+
 CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS) $(PERFTEST_CPPSRCS) $(RECORDBENCH_CPPSRCS)
 PRE_PERFTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(PERFTEST_CPPSRCS)
 PRE_UNITTEST_CPPSRCS = $(MOZ2D_CPPSRCS) $(UNITTEST_CPPSRCS)
