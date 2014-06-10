@@ -12,17 +12,29 @@
 #include "BasePoint3D.h"
 #include "BasePoint4D.h"
 #include "BaseSize.h"
+#include "mozilla/TypeTraits.h"
 
 namespace mozilla {
+
+template <typename> struct IsPixel;
 namespace gfx {
 
 // This should only be used by the typedefs below.
 struct UnknownUnits {};
 
+}  // close namespace 'gfx' because IsPixel specialization must be in 'mozilla'
+
+template<> struct IsPixel<gfx::UnknownUnits> : TrueType {};
+
+namespace gfx {
+
 template<class units>
 struct IntPointTyped :
   public BasePoint< int32_t, IntPointTyped<units> >,
   public units {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BasePoint< int32_t, IntPointTyped<units> > Super;
 
   MOZ_CONSTEXPR IntPointTyped() : Super() {}
@@ -45,6 +57,9 @@ template<class units>
 struct PointTyped :
   public BasePoint< Float, PointTyped<units> >,
   public units {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BasePoint< Float, PointTyped<units> > Super;
 
   MOZ_CONSTEXPR PointTyped() : Super() {}
@@ -73,6 +88,9 @@ IntPointTyped<units> RoundedToInt(const PointTyped<units>& aPoint) {
 template<class units>
 struct Point3DTyped :
   public BasePoint3D< Float, Point3DTyped<units> > {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BasePoint3D< Float, Point3DTyped<units> > Super;
 
   Point3DTyped() : Super() {}
@@ -94,6 +112,9 @@ typedef Point3DTyped<UnknownUnits> Point3D;
 template<class units>
 struct Point4DTyped :
   public BasePoint4D< Float, Point4DTyped<units> > {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BasePoint4D< Float, Point4DTyped<units> > Super;
 
   Point4DTyped() : Super() {}
@@ -116,6 +137,9 @@ template<class units>
 struct IntSizeTyped :
   public BaseSize< int32_t, IntSizeTyped<units> >,
   public units {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BaseSize< int32_t, IntSizeTyped<units> > Super;
 
   MOZ_CONSTEXPR IntSizeTyped() : Super() {}
@@ -138,6 +162,9 @@ template<class units>
 struct SizeTyped :
   public BaseSize< Float, SizeTyped<units> >,
   public units {
+  static_assert(IsPixel<units>::value,
+                "'units' must be a coordinate system tag");
+
   typedef BaseSize< Float, SizeTyped<units> > Super;
 
   MOZ_CONSTEXPR SizeTyped() : Super() {}
