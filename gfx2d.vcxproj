@@ -183,6 +183,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="DrawTargetTiled.h" />
     <ClInclude Include="FilterNodeD2D1.h" />
     <ClInclude Include="FilterNodeSoftware.h" />
     <ClInclude Include="Filters.h" />
@@ -269,6 +270,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="DrawTargetTiled.cpp" />
     <ClCompile Include="DXTextureInteropNVpr.cpp" />
     <ClCompile Include="Factory.cpp" />
     <ClCompile Include="FilterNodeD2D1.cpp" />

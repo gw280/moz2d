@@ -32,7 +32,8 @@ MOZ_BEGIN_ENUM_CLASS(SurfaceType, int8_t)
   DUAL_DT, /* Snapshot of a dual drawtarget */
   D2D1_1_IMAGE, /* A D2D 1.1 ID2D1Image SourceSurface */
   RECORDING, /* Surface used for recording */
-  NVPR_TEXTURE /* Surface wrapping an OpenGL texture, used by NV_path_rendering */
+  NVPR_TEXTURE, /* Surface wrapping an OpenGL texture, used by NV_path_rendering */
+  TILED /* Surface from a tiled DrawTarget */
 MOZ_END_ENUM_CLASS(SurfaceType)
 
 MOZ_BEGIN_ENUM_CLASS(SurfaceFormat, int8_t)
