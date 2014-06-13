@@ -116,7 +116,7 @@ ScaledFontBase::GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *a
       cairo_destroy(ctx);
     }
 
-    return newPath;
+    return newPath.forget();
   }
 #endif
   return nullptr;

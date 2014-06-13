@@ -1206,7 +1206,7 @@ DrawTargetD2D::CreateSourceSurfaceFromData(unsigned char *aData,
     return nullptr;
   }
 
-  return newSurf;
+  return newSurf.forget();
 }
 
 TemporaryRef<SourceSurface> 
@@ -1230,9 +1230,9 @@ DrawTargetD2D::OptimizeSourceSurface(SourceSurface *aSurface) const
   data->Unmap();
 
   if (!success) {
-    return data;
+    return data.forget();
   }
-  return newSurf;
+  return newSurf.forget();
 }
 
 TemporaryRef<SourceSurface>
@@ -1252,7 +1252,7 @@ DrawTargetD2D::CreateSourceSurfaceFromNativeSurface(const NativeSurface &aSurfac
     return nullptr;
   }
 
-  return newSurf;
+  return newSurf.forget();
 }
 
 TemporaryRef<DrawTarget>
@@ -1266,7 +1266,7 @@ DrawTargetD2D::CreateSimilarDrawTarget(const IntSize &aSize, SurfaceFormat aForm
     return nullptr;
   }
 
-  return newTarget;
+  return newTarget.forget();
 }
 
 TemporaryRef<PathBuilder>
@@ -1506,7 +1506,7 @@ DrawTargetD2D::GetCachedLayer()
   }
 
   mCurrentCachedLayer++;
-  return layer;
+  return layer.forget();
 }
 
 void
@@ -1990,7 +1990,7 @@ DrawTargetD2D::CreateRTForTexture(ID3D10Texture2D *aTexture, SurfaceFormat aForm
     return nullptr;
   }
 
-  return rt;
+  return rt.forget();
 }
 
 void
@@ -2290,7 +2290,7 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
   if (!IsPatternSupportedByD2D(aPattern)) {
     RefPtr<ID2D1SolidColorBrush> colBrush;
     mRT->CreateSolidColorBrush(D2D1::ColorF(1.0f, 1.0f, 1.0f, 1.0f), byRef(colBrush));
-    return colBrush;
+    return colBrush.forget();
   }
 
   if (aPattern.GetType() == PatternType::COLOR) {
@@ -2300,8 +2300,9 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
                                             color.b, color.a),
                                D2D1::BrushProperties(aAlpha),
                                byRef(colBrush));
-    return colBrush;
-  } else if (aPattern.GetType() == PatternType::LINEAR_GRADIENT) {
+    return colBrush.forget();
+  }
+  if (aPattern.GetType() == PatternType::LINEAR_GRADIENT) {
     RefPtr<ID2D1LinearGradientBrush> gradBrush;
     const LinearGradientPattern *pat =
       static_cast<const LinearGradientPattern*>(&aPattern);
@@ -2321,7 +2322,7 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
       mRT->CreateSolidColorBrush(d2dStops.back().color,
                                  D2D1::BrushProperties(aAlpha),
                                  byRef(colBrush));
-      return colBrush;
+      return colBrush.forget();
     }
 
     mRT->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2DPoint(pat->mBegin),
@@ -2329,8 +2330,9 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
                                    D2D1::BrushProperties(aAlpha, D2DMatrix(pat->mMatrix)),
                                    stops->mStopCollection,
                                    byRef(gradBrush));
-    return gradBrush;
-  } else if (aPattern.GetType() == PatternType::RADIAL_GRADIENT) {
+    return gradBrush.forget();
+  }
+  if (aPattern.GetType() == PatternType::RADIAL_GRADIENT) {
     RefPtr<ID2D1RadialGradientBrush> gradBrush;
     const RadialGradientPattern *pat =
       static_cast<const RadialGradientPattern*>(&aPattern);
@@ -2351,8 +2353,9 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
       stops->mStopCollection,
       byRef(gradBrush));
 
-    return gradBrush;
-  } else if (aPattern.GetType() == PatternType::SURFACE) {
+    return gradBrush.forget();
+  }
+  if (aPattern.GetType() == PatternType::SURFACE) {
     RefPtr<ID2D1BitmapBrush> bmBrush;
     const SurfacePattern *pat =
       static_cast<const SurfacePattern*>(&aPattern);
@@ -2409,7 +2412,7 @@ DrawTargetD2D::CreateBrushForPattern(const Pattern &aPattern, Float aAlpha)
                            D2D1::BrushProperties(aAlpha, D2DMatrix(mat)),
                            byRef(bmBrush));
 
-    return bmBrush;
+    return bmBrush.forget();
   }
 
   gfxWarning() << "Invalid pattern type detected.";
@@ -2485,7 +2488,7 @@ DrawTargetD2D::CreateGradientTexture(const GradientStopsD2D *aStops)
   RefPtr<ID3D10Texture2D> tex;
   mDevice->CreateTexture2D(&desc, &data, byRef(tex));
 
-  return tex;
+  return tex.forget();
 }
 
 TemporaryRef<ID3D10Texture2D>
@@ -2550,7 +2553,7 @@ DrawTargetD2D::CreateTextureForAnalysis(IDWriteGlyphRunAnalysis *aAnalysis, cons
     return nullptr;
   }
 
-  return tex;
+  return tex.forget();
 }
 
 void
