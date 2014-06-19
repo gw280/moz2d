@@ -51,7 +51,7 @@ public:
   }
   virtual ~DrawTargetNVpr();
 
-  virtual BackendType GetType() const { return BackendType::NVPR; }
+  virtual BackendType GetBackendType() const { return BackendType::NVPR; }
 
   virtual IntSize GetSize() { return mSize; }
 
