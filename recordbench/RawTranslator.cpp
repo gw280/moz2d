@@ -188,7 +188,7 @@ RawTranslator
 FontType
 RawTranslator::GetDesiredFontType()
 {
-  switch (mBaseDT->GetType()) {
+  switch (mBaseDT->GetBackendType()) {
     case BackendType::DIRECT2D:
       return FontType::DWRITE;
     case BackendType::CAIRO:

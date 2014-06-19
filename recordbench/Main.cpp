@@ -57,7 +57,7 @@ void
 FinishDrawing(DrawTarget* aDT)
 {
 #ifdef WIN32
-  if (aDT->GetType() == BackendType::DIRECT2D) {
+  if (aDT->GetBackendType() == BackendType::DIRECT2D) {
     aDT->Flush();
 
     RefPtr<ID3D10Query> query;
@@ -71,7 +71,7 @@ FinishDrawing(DrawTarget* aDT)
   }
 #endif
 #if USE_NVPR
-  if (aDT->GetType() == BackendType::NVPR) {
+  if (aDT->GetBackendType() == BackendType::NVPR) {
     using nvpr::gl;
     gl->MakeCurrent();
     gl->Finish();
