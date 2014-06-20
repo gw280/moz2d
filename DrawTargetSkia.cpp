@@ -536,9 +536,10 @@ DrawTargetSkia::Mask(const Pattern &aSource,
   TempBitmap tmpBitmap;
   SetPaintPattern(maskPaint, aMask, tmpBitmap);
   
-  SkLayerRasterizer *raster = new SkLayerRasterizer();
-  raster->addLayer(maskPaint);
-  SkSafeUnref(paint.mPaint.setRasterizer(raster));
+  SkLayerRasterizer::Builder builder;
+  builder.addLayer(maskPaint);
+  SkAutoTUnref<SkRasterizer> raster(builder.detachRasterizer());
+  paint.mPaint.setRasterizer(raster.get());
 
   mCanvas->drawRect(SkRectCoveringWholeSurface(), paint.mPaint);
 }
@@ -565,9 +566,10 @@ DrawTargetSkia::MaskSurface(const Pattern &aSource,
     SkShader* transformedShader = SkShader::CreateLocalMatrixShader(maskPaint.getShader(), transform);
     maskPaint.setShader(transformedShader);
 
-    SkLayerRasterizer *raster = new SkLayerRasterizer();
-    raster->addLayer(maskPaint);
-    SkSafeUnref(paint.mPaint.setRasterizer(raster));
+    SkLayerRasterizer::Builder builder;
+    builder.addLayer(maskPaint);
+    SkAutoTUnref<SkRasterizer> raster(builder.detachRasterizer());
+    paint.mPaint.setRasterizer(raster.get());
 
     IntSize size = aMask->GetSize();
     Rect rect = Rect(aOffset.x, aOffset.y, size.width, size.height);
