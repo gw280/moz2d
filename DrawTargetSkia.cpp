@@ -722,13 +722,18 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
 bool
 DrawTargetSkia::Init(const IntSize &aSize, SurfaceFormat aFormat)
 {
-  SkImageInfo imageInfo = SkImageInfo::Make(aSize.width, aSize.height,
-                                            GfxFormatToSkiaColorType(aFormat),
-                                            aFormat == SurfaceFormat::B8G8R8X8 ? 
-                                                       SkAlphaType::kOpaque_SkAlphaType :
-                                                       SkAlphaType::kPremul_SkAlphaType);
+  SkAlphaType alphaType = (aFormat == SurfaceFormat::B8G8R8X8) ?
+    kOpaque_SkAlphaType : kPremul_SkAlphaType;
 
-  SkAutoTUnref<SkBaseDevice> device(SkBitmapDevice::Create(imageInfo));
+  SkImageInfo skiInfo = SkImageInfo::Make(
+        aSize.width, aSize.height,
+        GfxFormatToSkiaColorType(aFormat),
+        alphaType);
+
+  SkAutoTUnref<SkBaseDevice> device(SkBitmapDevice::Create(skiInfo));
+  if (!device) {
+      return false;
+  }
 
   SkBitmap bitmap = device->accessBitmap(true);
   if (!bitmap.allocPixels()) {
