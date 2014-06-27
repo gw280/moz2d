@@ -99,6 +99,7 @@ public:
   DrawTargetCG();
   virtual ~DrawTargetCG();
 
+  virtual DrawTargetType GetType() const MOZ_OVERRIDE;
   virtual BackendType GetBackendType() const;
   virtual TemporaryRef<SourceSurface> Snapshot();
 

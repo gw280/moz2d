@@ -51,6 +51,8 @@ public:
   }
   virtual ~DrawTargetNVpr();
 
+  virtual DrawTargetType GetType() const { return DrawTargetType::HARDWARE_RASTER; }
+
   virtual BackendType GetBackendType() const { return BackendType::NVPR; }
 
   virtual IntSize GetSize() { return mSize; }
