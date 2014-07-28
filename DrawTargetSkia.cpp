@@ -385,7 +385,7 @@ DrawTargetSkia::DrawSurfaceWithShadow(SourceSurface *aSurface,
 
   MarkChanged();
 
-  mCanvas->save(SkCanvas::kMatrix_SaveFlag);
+  mCanvas->save();
   mCanvas->resetMatrix();
 
   TempBitmap bitmap = GetBitmapForSurface(aSurface);
@@ -883,7 +883,7 @@ DrawTargetSkia::PushClip(const Path *aPath)
   }
 
   const PathSkia *skiaPath = static_cast<const PathSkia*>(aPath);
-  mCanvas->save(SkCanvas::kClip_SaveFlag);
+  mCanvas->save();
   mCanvas->clipPath(skiaPath->GetPath(), SkRegion::kIntersect_Op, true);
 }
 
@@ -892,7 +892,7 @@ DrawTargetSkia::PushClipRect(const Rect& aRect)
 {
   SkRect rect = RectToSkRect(aRect);
 
-  mCanvas->save(SkCanvas::kClip_SaveFlag);
+  mCanvas->save();
   mCanvas->clipRect(rect, SkRegion::kIntersect_Op, true);
 }
 
