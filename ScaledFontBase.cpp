@@ -7,7 +7,6 @@
 
 #ifdef USE_SKIA
 #include "PathSkia.h"
-#include "core/SkEmptyShader.h"
 #include "core/SkPaint.h"
 #endif
 
