@@ -120,9 +120,15 @@ GetBitmapForSurface(SourceSurface* aSurface)
     MOZ_CRASH("Non-skia SourceSurfaces need to be DataSourceSurfaces");
   }
 
-  result.mBitmap.setConfig(GfxFormatToSkiaConfig(surf->GetFormat()),
-                                 surf->GetSize().width, surf->GetSize().height,
-                                 surf->Stride());
+  SkAlphaType alphaType = (surf->GetFormat() == SurfaceFormat::B8G8R8X8) ?
+    kOpaque_SkAlphaType : kPremul_SkAlphaType;
+
+  SkImageInfo info = SkImageInfo::Make(surf->GetSize().width,
+                                       surf->GetSize().height,
+                                       GfxFormatToSkiaColorType(surf->GetFormat()),
+                                       alphaType);
+  result.mBitmap.setInfo(info, surf->Stride());
+
   result.mBitmap.setPixels(surf->GetData());
   result.mTmpSurface = surf.forget();
   return result;
@@ -180,8 +186,9 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
         if (shader) {
             SkMatrix mat;
             GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
-            SkShader* transformedShader = SkShader::CreateLocalMatrixShader(shader, mat);
-            SkSafeUnref(aPaint.setShader(transformedShader));
+            SkShader* matrixShader = SkShader::CreateLocalMatrixShader(shader, mat);
+            SkSafeUnref(shader);
+            SkSafeUnref(aPaint.setShader(matrixShader));
         }
 
       } else {
@@ -210,8 +217,9 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
         if (shader) {
             SkMatrix mat;
             GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
-            SkShader* transformedShader = SkShader::CreateLocalMatrixShader(shader, mat);
-            SkSafeUnref(aPaint.setShader(transformedShader));
+            SkShader* matrixShader = SkShader::CreateLocalMatrixShader(shader, mat);
+            SkSafeUnref(shader);
+            SkSafeUnref(aPaint.setShader(matrixShader));
         }
 
       } else {
@@ -228,8 +236,9 @@ SetPaintPattern(SkPaint& aPaint, const Pattern& aPattern, TempBitmap& aTmpBitmap
       SkShader* shader = SkShader::CreateBitmapShader(bitmap, mode, mode);
       SkMatrix mat;
       GfxMatrixToSkiaMatrix(pat.mMatrix, mat);
-      SkShader* transformedShader = SkShader::CreateLocalMatrixShader(shader, mat);
-      SkSafeUnref(aPaint.setShader(transformedShader));
+      SkShader* matrixShader = SkShader::CreateLocalMatrixShader(shader, mat);
+      SkSafeUnref(shader);
+      SkSafeUnref(aPaint.setShader(matrixShader));
       if (pat.mFilter == Filter::POINT) {
         aPaint.setFilterLevel(SkPaint::kNone_FilterLevel);
       }
@@ -576,8 +585,8 @@ DrawTargetSkia::MaskSurface(const Pattern &aSource,
 
     SkMatrix transform = maskPaint.getShader()->getLocalMatrix();
     transform.postTranslate(SkFloatToScalar(aOffset.x), SkFloatToScalar(aOffset.y));
-    SkShader* transformedShader = SkShader::CreateLocalMatrixShader(maskPaint.getShader(), transform);
-    maskPaint.setShader(transformedShader);
+    SkShader* matrixShader = SkShader::CreateLocalMatrixShader(maskPaint.getShader(), transform);
+    maskPaint.setShader(matrixShader);
 
     SkLayerRasterizer::Builder builder;
     builder.addLayer(maskPaint);
@@ -691,7 +700,7 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
   TempBitmap bitmap = GetBitmapForSurface(aSurface);
 
   // This is a fast path that is disabled for now to mimimize risk
-  if (false && !bitmap.mBitmap.getTexture() && mCanvas->getDevice()->config() == bitmap.mBitmap.config()) {
+  if (false && !bitmap.mBitmap.getTexture() && mCanvas->imageInfo() == bitmap.mBitmap.info()) {
 	SkBitmap bm(bitmap.mBitmap);
 	bm.lockPixels();
 	if (bm.getPixels()) {
@@ -713,7 +722,7 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
   mCanvas->clipRect(dest, SkRegion::kReplace_Op);
   SkPaint paint;
 
-  if (mCanvas->getDevice()->config() == SkBitmap::kRGB_565_Config) {
+  if (mCanvas->imageInfo().colorType() == kRGB_565_SkColorType) {
     // Set the xfermode to SOURCE_OVER to workaround
     // http://code.google.com/p/skia/issues/detail?id=628
     // RGB565 is opaque so they're equivalent anyway
@@ -723,7 +732,7 @@ DrawTargetSkia::CopySurface(SourceSurface *aSurface,
   }
   // drawBitmapRect with A8 bitmaps ends up doing a mask operation
   // so we need to clear before
-  if (bitmap.mBitmap.config() == SkBitmap::kA8_Config) {
+  if (bitmap.mBitmap.colorType() == kAlpha_8_SkColorType) {
     SkPaint clearPaint;
     clearPaint.setColor(SkColorSetARGB(0, 0, 0, 0));
     clearPaint.setXfermodeMode(SkXfermode::kSrc_Mode);
@@ -813,7 +822,12 @@ DrawTargetSkia::Init(unsigned char* aData, const IntSize &aSize, int32_t aStride
   }
 
   SkBitmap bitmap;
-  bitmap.setConfig(GfxFormatToSkiaConfig(aFormat), aSize.width, aSize.height, aStride, alphaType);
+
+  SkImageInfo info = SkImageInfo::Make(aSize.width,
+                                       aSize.height,
+                                       GfxFormatToSkiaColorType(aFormat),
+                                       alphaType);
+  bitmap.setInfo(info, aStride);
   bitmap.setPixels(aData);
   SkAutoTUnref<SkCanvas> canvas(new SkCanvas(new SkBitmapDevice(bitmap)));
 
