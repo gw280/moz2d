@@ -412,7 +412,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
 
   {
     RefPtr<DataSourceSurface> src =
-      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, 18000), SurfaceFormat::B8G8R8A8);
+      Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
     Matrix mat;
     mat.Scale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));

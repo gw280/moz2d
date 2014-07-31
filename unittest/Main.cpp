@@ -72,6 +72,7 @@ main()
   #ifdef WIN32
     { new TestDrawTargetD2D(), "DrawTarget (D2D)" },
     { new TestPathD2D(), "Path (D2D)" },
+    { new TestDrawTargetCapture(), "DrawTarget (Capture)" },
   #ifdef USE_D2D1_1
     { new  TestDrawTargetD2D1(), "DrawTarget (D2D 1.1)" },
   #endif

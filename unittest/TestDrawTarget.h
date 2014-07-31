@@ -92,3 +92,16 @@ IMPLEMENT_DT_TESTS(SkiaSoftware, SKIA, TestDrawTarget);
 IMPLEMENT_DT_TESTS(CairoImage, CAIRO, TestDrawTarget);
 #endif
 
+class TestDrawTargetCapture : public TestDrawTargetBase
+{
+public:
+  TestDrawTargetCapture()
+  {
+    mozilla::RefPtr<mozilla::gfx::DrawTarget> dt =
+      mozilla::gfx::Factory::CreateDrawTarget(mozilla::gfx::BackendType::DIRECT2D,
+                                              mozilla::gfx::IntSize(1, 1),
+                                              mozilla::gfx::SurfaceFormat::B8G8R8A8);
+
+    mDT = dt->CreateCaptureDT(mozilla::gfx::IntSize(DT_WIDTH, DT_HEIGHT));
+  }
+};
