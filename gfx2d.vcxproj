@@ -169,11 +169,13 @@
     <ClInclude Include="BorrowedContext.h" />
     <ClInclude Include="ClipNVpr.h" />
     <ClInclude Include="DataSurfaceHelpers.h" />
+    <ClInclude Include="DrawCommand.h" />
     <ClInclude Include="DrawEventRecorder.h" />
     <ClInclude Include="DrawTargetCairo.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClInclude>
+    <ClInclude Include="DrawTargetCapture.h" />
     <ClInclude Include="DrawTargetD2D.h" />
     <ClInclude Include="DrawTargetD2D1.h" />
     <ClInclude Include="DrawTargetDual.h" />
@@ -257,10 +259,12 @@
     <ClCompile Include="DataSourceSurface.cpp" />
     <ClCompile Include="DataSurfaceHelpers.cpp" />
     <ClCompile Include="DrawEventRecorder.cpp" />
+    <ClCompile Include="DrawTarget.cpp" />
     <ClCompile Include="DrawTargetCairo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="DrawTargetCapture.cpp" />
     <ClCompile Include="DrawTargetD2D.cpp" />
     <ClCompile Include="DrawTargetD2D1.cpp" />
     <ClCompile Include="DrawTargetDual.cpp" />
