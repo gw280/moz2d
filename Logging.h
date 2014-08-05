@@ -95,7 +95,7 @@ template<int L>
 class Log
 {
 public:
-  Log(LogOptions aOptions = LogOptions(0)) : mOptions(aOptions) {}
+  explicit Log(LogOptions aOptions = LogOptions(0)) : mOptions(aOptions) {}
   ~Log() {
     Flush();
   }
@@ -166,7 +166,7 @@ const int INDENT_PER_LEVEL = 2;
 class TreeLog
 {
 public:
-  TreeLog(const std::string& aPrefix = "")
+  explicit TreeLog(const std::string& aPrefix = "")
         : mLog(LogOptions::NoNewline),
           mPrefix(aPrefix),
           mDepth(0),
@@ -229,7 +229,7 @@ private:
 class TreeAutoIndent
 {
 public:
-  TreeAutoIndent(TreeLog& aTreeLog) : mTreeLog(aTreeLog) {
+  explicit TreeAutoIndent(TreeLog& aTreeLog) : mTreeLog(aTreeLog) {
     mTreeLog.IncreaseIndent();
   }
   ~TreeAutoIndent() {
