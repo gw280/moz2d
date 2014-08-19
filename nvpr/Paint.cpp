@@ -137,7 +137,7 @@ PaintConfig::SetToLinearGradient(GradientStopsNVpr* aStops,
 {
   const Point beginPoint = aMatrix * aBeginPoint;
   const Point vector = aMatrix * (aEndPoint - aBeginPoint);
-  const float lengthSquared = (vector.x * vector.x + vector.y * vector.y);
+  const float lengthSquared = (vector.x.value * vector.x + vector.y.value * vector.y);
 
   if (!lengthSquared || !*aStops) {
     SetToColor(aStops->FinalColor());
@@ -150,7 +150,7 @@ PaintConfig::SetToLinearGradient(GradientStopsNVpr* aStops,
   mTexGenCoefficients[0] = vector.x / lengthSquared;
   mTexGenCoefficients[1] = vector.y / lengthSquared;
   mTexGenCoefficients[2] =
-    -(beginPoint.x * vector.x + beginPoint.y * vector.y) / lengthSquared;
+    -(beginPoint.x.value * vector.x + beginPoint.y.value * vector.y) / lengthSquared;
 }
 
 void
@@ -179,8 +179,8 @@ PaintConfig::SetToFocalGradient(GradientStopsNVpr* aStops,
   gradientCoords.Translate(-aEndCenter.x, -aEndCenter.y);
 
   Point focalPoint = gradientCoords * aFocalPoint;
-  const float focalOffsetSquared = focalPoint.x * focalPoint.x
-                                   + focalPoint.y * focalPoint.y;
+  const float focalOffsetSquared = focalPoint.x.value * focalPoint.x
+                                   + focalPoint.y.value * focalPoint.y;
 
   // The gradient is drawn in 'pattern space' onto an infinite plane.
   // aMatrix transforms the pattern-space plane back into user space.
@@ -263,7 +263,7 @@ PaintConfig::SetToFocalGradient(GradientStopsNVpr* aStops,
     mPaintMode = MODE_FOCAL_GRAD_OUTSIDE;
     SetTexGenCoefficients(qCoords * patternSpace);
     uFocalX = focalPoint.x;
-    u1MinuxFx_2 = 1 - focalPoint.x * focalPoint.x;
+    u1MinuxFx_2 = 1 - focalPoint.x.value * focalPoint.x;
 
     return;
   }
@@ -318,7 +318,7 @@ PaintConfig::SetToRadialGradient(GradientStopsNVpr* aStops,
   //                                        - 4 * A * (dot(p, p) - 1))) / A
   Point endCenter = gradientCoords * aEndCenter;
   float endRadius = aEndRadius / aBeginRadius;
-  float A = endCenter.x * endCenter.x + endCenter.y * endCenter.y
+  float A = endCenter.x.value * endCenter.x + endCenter.y.value * endCenter.y
             - endRadius * endRadius + 2 * endRadius - 1;
 
   // TODO: Make a special case for A ~= 0.

@@ -22,7 +22,7 @@
   }
 
 #define VERIFYVALUE(arg1, arg2) if (!VerifyValue(arg1, arg2, #arg1, #arg2)) { mTestFailed = true; }
-#define VERIFYVALUEFUZZY(arg1, arg2, arg3) if (!VerifyValueFuzzy(arg1, arg2, arg3, #arg1, #arg2)) { mTestFailed = true; }
+#define VERIFYVALUEFUZZY(arg1, arg2, arg3) if (!VerifyValueFuzzy<Float>(arg1, arg2, arg3, #arg1, #arg2)) { mTestFailed = true; }
 
 #define REGISTER_CLASS_TEST(className, testName) \
   mTests.push_back(Test(static_cast<TestCall>(&className::testName), #testName, this))
