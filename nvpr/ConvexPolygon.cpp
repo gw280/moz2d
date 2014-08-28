@@ -14,8 +14,8 @@ namespace nvpr {
 static inline Float
 CrossProduct(const Point& aPt1, const Point& aPt2, const Point& aPt3)
 {
-  return (aPt2.x.value - aPt1.x) * (aPt3.y - aPt2.y)
-         - (aPt2.y.value - aPt1.y) * (aPt3.y - aPt2.x);
+  return (aPt2.x - aPt1.x) * (aPt3.y - aPt2.y)
+         - (aPt2.y - aPt1.y) * (aPt3.y - aPt2.x);
 }
 
 static inline Point
