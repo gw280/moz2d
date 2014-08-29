@@ -12,8 +12,10 @@ using namespace mozilla::gfx;
 TestBugs::TestBugs()
 {
 #define TEST_CLASS TestBugs
+#ifdef USE_CAIRO
   REGISTER_TEST(CairoClip918671);
   REGISTER_TEST(PushPopClip950550);
+#endif
 #undef TEST_CLASS
 }
 
