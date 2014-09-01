@@ -42,7 +42,7 @@ public:
   virtual void ExecuteOnDT(DrawTarget* aDT, const Matrix& aTransform) = 0;
 
 protected:
-  DrawingCommand(CommandType aType)
+  explicit DrawingCommand(CommandType aType)
     : mType(aType)
   {
   }
@@ -54,7 +54,7 @@ private:
 class StoredPattern
 {
 public:
-  StoredPattern(const Pattern& aPattern)
+  explicit StoredPattern(const Pattern& aPattern)
   {
     Assign(aPattern);
   }
@@ -166,7 +166,7 @@ private:
 class ClearRectCommand : public DrawingCommand
 {
 public:
-  ClearRectCommand(const Rect& aRect)
+  explicit ClearRectCommand(const Rect& aRect)
     : DrawingCommand(CommandType::CLEARRECT)
     , mRect(aRect)
   {
@@ -428,7 +428,7 @@ private:
 class PushClipCommand : public DrawingCommand
 {
 public:
-  PushClipCommand(const Path* aPath)
+  explicit PushClipCommand(const Path* aPath)
     : DrawingCommand(CommandType::PUSHCLIP)
     , mPath(const_cast<Path*>(aPath))
   {
@@ -446,7 +446,7 @@ private:
 class PushClipRectCommand : public DrawingCommand
 {
 public:
-  PushClipRectCommand(const Rect& aRect)
+  explicit PushClipRectCommand(const Rect& aRect)
     : DrawingCommand(CommandType::PUSHCLIPRECT)
     , mRect(aRect)
   {
@@ -478,7 +478,7 @@ public:
 class SetTransformCommand : public DrawingCommand
 {
 public:
-  SetTransformCommand(const Matrix& aTransform)
+  explicit SetTransformCommand(const Matrix& aTransform)
     : DrawingCommand(CommandType::SETTRANSFORM)
     , mTransform(aTransform)
   {
