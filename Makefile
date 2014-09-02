@@ -71,6 +71,7 @@ UNITTEST_CPPSRCS_ALLPLATFORMS = \
   unittest/TestBase.cpp \
   unittest/TestPoint.cpp \
   unittest/TestRect.cpp \
+  unittest/TestMatrix.cpp \
   unittest/TestScaling.cpp \
   unittest/Main.cpp \
   unittest/TestDrawTarget.cpp \

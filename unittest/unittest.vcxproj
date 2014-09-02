@@ -143,6 +143,7 @@
     <ClCompile Include="TestDrawTarget.cpp" />
     <ClCompile Include="TestPath.cpp" />
     <ClCompile Include="TestPoint.cpp" />
+    <ClCompile Include="TestMatrix.cpp" />
     <ClCompile Include="TestRect.cpp" />
     <ClCompile Include="TestScaling.cpp" />
   </ItemGroup>
@@ -153,6 +154,7 @@
     <ClInclude Include="TestHelpers.h" />
     <ClInclude Include="TestPath.h" />
     <ClInclude Include="TestPoint.h" />
+    <ClInclude Include="TestMatrix.h" />
     <ClInclude Include="TestRect.h" />
     <ClInclude Include="TestScaling.h" />
   </ItemGroup>

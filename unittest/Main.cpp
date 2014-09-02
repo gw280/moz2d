@@ -6,6 +6,7 @@
 #include "SanityChecks.h"
 #include "TestPoint.h"
 #include "TestRect.h"
+#include "TestMatrix.h"
 #include "TestScaling.h"
 #include "TestBugs.h"
 #ifdef WIN32
@@ -87,6 +88,7 @@ main()
   #endif
     { new TestPoint(), "Point Tests" },
     { new TestRect(), "Rect Tests" },
+    { new TestMatrix(), "Matrix Tests" },
     { new TestScaling(), "Scaling Tests" },
     { new TestBugs(), "Bug Tests" }
   };
