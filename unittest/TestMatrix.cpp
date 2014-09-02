@@ -76,4 +76,8 @@ TestMatrix::Multiplication5x4()
   VERIFY(b2._51 == 1);
   VERIFY(b2._52 == 0);
   VERIFY(b2._53 == 0);
+
+  Matrix5x4 b3 = RotateRedGreenBlue();
+  b3 *= TurnRedAllTheWayUp();
+  VERIFY(b2 == b3);
 }
