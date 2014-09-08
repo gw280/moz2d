@@ -92,6 +92,7 @@ struct PointTyped :
   }
 };
 typedef PointTyped<UnknownUnits> Point;
+static_assert(sizeof(Point) == 2*sizeof(Float));
 
 template<class units>
 IntPointTyped<units> RoundedToInt(const PointTyped<units>& aPoint) {
