@@ -175,8 +175,8 @@ PaintConfig::SetToFocalGradient(GradientStopsNVpr* aStops,
 
   // Setup a transformation where the gradient is the unit-circle.
   Matrix gradientCoords;
-  gradientCoords.Scale(1 / aEndRadius, 1 / aEndRadius);
-  gradientCoords.Translate(-aEndCenter.x, -aEndCenter.y);
+  gradientCoords.PreScale(1 / aEndRadius, 1 / aEndRadius);
+  gradientCoords.PreTranslate(-aEndCenter.x, -aEndCenter.y);
 
   Point focalPoint = gradientCoords * aFocalPoint;
   const float focalOffsetSquared = focalPoint.x * focalPoint.x
@@ -301,8 +301,8 @@ PaintConfig::SetToRadialGradient(GradientStopsNVpr* aStops,
 
   // Setup a transformation where the begin circle is the unit-circle.
   Matrix gradientCoords;
-  gradientCoords.Scale(1 / aBeginRadius, 1 / aBeginRadius);
-  gradientCoords.Translate(-aBeginCenter.x, -aBeginCenter.y);
+  gradientCoords.PreScale(1 / aBeginRadius, 1 / aBeginRadius);
+  gradientCoords.PreTranslate(-aBeginCenter.x, -aBeginCenter.y);
 
   // At this point, the begin circle is the unit-circle and we define the
   // following variables:

@@ -127,7 +127,7 @@ TestDrawTargetBase::Translate()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
   mDT->FillRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT), ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   Matrix mat;
-  mat.Translate(100, 100);
+  mat.PreTranslate(100, 100);
   mDT->SetTransform(mat);
   mDT->FillRect(Rect(50, 50, 50, 50), ColorPattern(Color(0.502f, 0, 0, 1.0f)));
   mDT->SetTransform(Matrix());
@@ -188,7 +188,7 @@ TestDrawTargetBase::FillMultiRectTransform1()
   RefPtr<Path> path = builder->Finish();
 
   Matrix mat;
-  mat.Translate(0, -10);
+  mat.PreTranslate(0, -10);
   mDT->SetTransform(mat);
   mDT->Fill(path, ColorPattern(Color(0, 0.502f, 0, 1.0f)));
   mDT->SetTransform(Matrix());
@@ -204,7 +204,7 @@ TestDrawTargetBase::FillMultiRectTransform2()
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, DT_HEIGHT));
 
   Matrix mat;
-  mat.Translate(0, -10);
+  mat.PreTranslate(0, -10);
   mDT->SetTransform(mat);
 
   RefPtr<PathBuilder> builder = mDT->CreatePathBuilder();
@@ -244,7 +244,7 @@ TestDrawTargetBase::FillMultiRectTransform3()
   builder->Close();
 
   Matrix mat;
-  mat.Translate(0, -10);
+  mat.PreTranslate(0, -10);
   mDT->SetTransform(mat);
 
   builder->MoveTo(Point(0, DT_HEIGHT / 2 + 9));
@@ -284,7 +284,7 @@ void TestDrawTargetBase::ClipRectClear()
   mDT->PushClipRect(Rect(0, 100, DT_WIDTH, DT_HEIGHT - 100));
 
   Matrix temp;
-  temp.Translate(0, -100);
+  temp.PreTranslate(0, -100);
   mDT->SetTransform(temp);
   mDT->ClearRect(Rect(0, 0, DT_WIDTH, 100));
   mDT->SetTransform(Matrix());
@@ -415,7 +415,7 @@ TestDrawTargetBase::FillWithScaledLargeSurface()
       Factory::CreateWrappingDataSourceSurface((uint8_t*)data, 18000 * 4, IntSize(18000, DT_HEIGHT), SurfaceFormat::B8G8R8A8);
 
     Matrix mat;
-    mat.Scale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));
+    mat.PreScale(Float(DT_WIDTH) / 18000, Float(DT_HEIGHT));
     mDT->FillRect(Rect(0, 0, 18000, DT_HEIGHT), SurfacePattern(src, ExtendMode::REPEAT));
   }
 
@@ -1078,7 +1078,7 @@ TestDrawTargetBase::OffsetFilter()
   RefPtr<SourceSurface> src = dt->Snapshot();
   filter->SetInput(0, src);
 
-  filter->SetAttribute(ATT_TRANSFORM_MATRIX, Matrix().Translate(-100, -100));
+  filter->SetAttribute(ATT_TRANSFORM_MATRIX, Matrix().PreTranslate(-100, -100));
 
   mDT->DrawFilter(filter, Rect(0, 0, DT_WIDTH, DT_HEIGHT), Point());
 

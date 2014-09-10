@@ -742,8 +742,8 @@ DrawTargetNVpr::PushClipRect(const Rect& aRect)
   }
 
   Matrix transform = GetTransform();
-  transform.Translate(aRect.x, aRect.y);
-  transform.Scale(aRect.width, aRect.height);
+  transform.PreTranslate(aRect.x, aRect.y);
+  transform.PreScale(aRect.width, aRect.height);
 
   Validate(FRAMEBUFFER | CLIPPING);
 
