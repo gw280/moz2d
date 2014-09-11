@@ -968,7 +968,7 @@ public:
    */
   virtual TemporaryRef<FilterNode> CreateFilter(FilterType aType) = 0;
 
-  const Matrix &GetTransform() const { return mTransform; }
+  Matrix GetTransform() const { return mTransform; }
 
   /**
    * Set a transform on the surface, this transform is applied at drawing time
