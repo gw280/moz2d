@@ -61,6 +61,7 @@ class DataSourceSurface;
 class DrawTarget;
 class DrawEventRecorder;
 class FilterNode;
+class LogForwarder;
 
 struct NativeSurface {
   NativeSurfaceType mType;
@@ -1160,6 +1161,15 @@ public:
     CreateEventRecorderForFile(const char *aFilename);
 
   static void SetGlobalEventRecorder(DrawEventRecorder *aRecorder);
+
+  // This is a little hacky at the moment, but we want to have this data. Bug 1068613.
+  static void SetLogForwarder(LogForwarder* aLogFwd);
+
+  static LogForwarder* GetLogForwarder() { return mLogForwarder; }
+
+private:
+  static LogForwarder* mLogForwarder;
+public:
 
 #ifdef USE_SKIA_GPU
   static TemporaryRef<DrawTarget>
