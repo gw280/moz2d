@@ -1969,7 +1969,7 @@ DrawTargetD2D::CreateRTForTexture(ID3D10Texture2D *aTexture, SurfaceFormat aForm
   hr = aTexture->QueryInterface((IDXGISurface**)byRef(surface));
 
   if (FAILED(hr)) {
-    gfxCriticalError() << "Failed to QI texture to surface.";
+    gfxCriticalError() << "Failed to QI texture to surface. Code: " << hr;
     return nullptr;
   }
 
@@ -1987,7 +1987,7 @@ DrawTargetD2D::CreateRTForTexture(ID3D10Texture2D *aTexture, SurfaceFormat aForm
   hr = factory()->CreateDxgiSurfaceRenderTarget(surface, props, byRef(rt));
 
   if (FAILED(hr)) {
-    gfxCriticalError() << "Failed to create D2D render target for texture.";
+    gfxCriticalError() << "Failed to create D2D render target for texture. Code:" << hr << " " << mSize << " Format: " << uint32_t(aFormat);
     return nullptr;
   }
 
