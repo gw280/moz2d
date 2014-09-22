@@ -261,7 +261,7 @@ TextureObjectNVpr::GetDataSurface()
   }
 
   RefPtr<DataSourceSurfaceNVpr> dataSurface = new DataSourceSurfaceNVpr(this);
-  mDataSurface = dataSurface->asWeakPtr();
+  mDataSurface = dataSurface;
 
   return dataSurface.forget();
 }

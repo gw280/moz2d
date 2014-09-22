@@ -154,7 +154,7 @@ DrawTargetNVpr::GetScratchSurface()
     texture = TextureObjectNVpr::Create(mFormat, mSize);
   }
 
-  return new ScratchSurface(this->asWeakPtr(), texture.forget());
+  return new ScratchSurface(this, texture.forget());
 }
 
 void
